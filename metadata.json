@@ -1,0 +1,6 @@
+{
+  "name": "متجر إلكتروني ولوحة تحكم",
+  "description": "متجر إلكتروني متكامل يتيح تصفح المنتجات، وإضافتها إلى السلة، وإتمام الطلبات، مع لوحة تحكم كاملة لإدارة المنتجات، والطلبيات، ومتابعة الإحصائيات.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
