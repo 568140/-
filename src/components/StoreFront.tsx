@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles } from 'lucide-react';
+import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck } from 'lucide-react';
 import { Product, CurrencyConfig } from '../types';
 
 interface StoreFrontProps {
@@ -149,32 +149,44 @@ export function StoreFront({
       </AnimatePresence>
 
       {/* Hero Banner with clean Arabic presentation */}
-      <div className="relative mb-12 rounded-3xl overflow-hidden bg-gradient-to-r from-gray-950 via-gray-900 to-amber-950 text-white p-8 md:p-16 shadow-2xl border border-amber-500/20">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(245,158,11,0.15),transparent)] pointer-events-none" />
-        <div className="relative z-10 max-w-3xl">
-          <span className="inline-flex items-center space-x-1.5 space-x-reverse px-3 py-1 bg-amber-500/10 rounded-full text-xs font-bold text-amber-400 tracking-wider font-mono mb-4 border border-amber-500/20">
-            {siteSettings.heroBadge}
+      <div className="relative mb-12 rounded-[2rem] overflow-hidden bg-navy text-white min-h-[450px] md:min-h-[550px] flex items-center shadow-2xl border border-gold/10">
+        <img 
+          src="/src/assets/images/luxury_oriental_hero_display_1780193593782.png" 
+          alt="Hero Display" 
+          className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay"
+        />
+        <div className="absolute inset-0 bg-linear-to-r from-navy via-navy/80 to-transparent pointer-events-none" />
+        
+        <motion.div 
+          initial={{ opacity: 0, x: 50 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8 }}
+          viewport={{ once: true }}
+          className="relative z-10 max-w-3xl p-6 md:p-16 text-right"
+        >
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gold/10 rounded-full text-[10px] md:text-xs font-bold text-gold tracking-widest font-display mb-6 border border-gold/20 backdrop-blur-sm">
+            <Sparkles className="h-3 w-3" /> {siteSettings.heroBadge}
           </span>
-          <h1 className="text-3xl md:text-5xl font-extrabold font-sans tracking-tight mb-4 leading-tight">
+          <h1 className="text-3xl md:text-6xl font-black font-display tracking-tight mb-6 leading-[1.2] text-gradient-gold">
             {siteSettings.heroTitle}
           </h1>
-          <p className="text-gray-300 text-sm md:text-base font-sans mb-8 leading-relaxed max-w-xl">
+          <p className="text-gray-300 text-sm md:text-lg font-sans mb-10 leading-relaxed max-w-xl opacity-90">
             {siteSettings.heroSubtitle}
           </p>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
             <a 
               href="#products-list"
-              className="px-6 py-3 bg-amber-500 text-black font-extrabold font-sans text-xs rounded-xl hover:bg-amber-400 transition-colors shadow-lg"
+              className="px-8 py-4 bg-gold text-navy font-black font-display text-sm rounded-2xl hover:bg-gold-light transition-all shadow-xl hover:shadow-gold/20 hover:-translate-y-1 text-center"
             >
-              تصفح التشكيلة الفخمة
+              اكتشف المجموعة البلاتينية
             </a>
-            <div className="flex items-center text-gray-400 text-xs font-mono gap-3">
-              <span className="flex items-center gap-1">🛡️ شحن مؤمن بالكامل</span>
-              <span>|</span>
-              <span className="flex items-center gap-1">🔄 إرجاع مرن خلال ١٥ يوم</span>
+            <div className="flex items-center justify-center sm:justify-start text-gray-400 text-[10px] md:text-[11px] font-display gap-4 uppercase tracking-widest">
+              <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-gold" /> أصالة مضمونة</span>
+              <span className="opacity-30">|</span>
+              <span className="flex items-center gap-1.5"><Truck className="h-4 w-4 text-gold" /> شحن عالمي</span>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Filter and Search Panels */}
@@ -237,16 +249,16 @@ export function StoreFront({
         </div>
 
         {/* Categories Pills */}
-        <div className="mt-6 flex flex-wrap gap-2 border-t border-gray-100 pt-6">
+        <div className="mt-8 flex flex-wrap gap-3 border-t border-gray-100 pt-8">
           <button
             onClick={() => {
               setSelectedCategory('الكل');
               setSelectedSubCategory('الكل');
             }}
-            className={`px-4.5 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
+            className={`px-6 py-2.5 rounded-2xl text-xs font-bold transition-all duration-500 transform ${
               selectedCategory === 'الكل'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                ? 'bg-charcoal text-gold shadow-lg scale-105'
+                : 'bg-gray-100/50 hover:bg-gray-200/50 text-gray-500 hover:text-charcoal'
             }`}
           >
             الكل
@@ -258,10 +270,10 @@ export function StoreFront({
                 setSelectedCategory(catObj.name);
                 setSelectedSubCategory('الكل');
               }}
-              className={`px-4.5 py-2 rounded-xl text-xs font-bold transition-all duration-300 ${
+              className={`px-6 py-2.5 rounded-2xl text-xs font-bold transition-all duration-500 transform ${
                 selectedCategory === catObj.name
-                  ? 'bg-amber-600 text-white shadow-md'
-                  : 'bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                  ? 'bg-charcoal text-gold shadow-lg scale-105'
+                  : 'bg-gray-100/50 hover:bg-gray-200/50 text-gray-500 hover:text-charcoal'
               }`}
             >
               {catObj.name}
@@ -302,9 +314,9 @@ export function StoreFront({
 
       {/* Products Grid Area */}
       <div className="mb-6 flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-900 font-sans flex items-center space-x-2 space-x-reverse">
-          <span className="border-r-4 border-amber-500 pr-2">الكتالوج الحصري</span>
-          <span className="text-xs font-bold text-gray-400 font-mono bg-gray-100 px-2.5 py-1 rounded-full">{filteredProducts.length} منتج فاخر</span>
+        <h2 className="text-lg font-bold text-navy font-display flex items-center space-x-2 space-x-reverse">
+          <span className="border-r-4 border-gold pr-2">الكتالوج الحصري</span>
+          <span className="text-xs font-bold text-gray-400 font-mono bg-gray-100 px-3 py-1 rounded-full">{filteredProducts.length} منتج فاخر</span>
         </h2>
       </div>
 
@@ -325,13 +337,30 @@ export function StoreFront({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div 
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+        >
           {filteredProducts.map((product) => (
             <motion.div
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: { opacity: 1, y: 0 }
+              }}
               layout
               id={`product-card-${product.id}`}
               key={product.id}
-              className="group bg-white rounded-2xl overflow-hidden border border-gray-150 shadow-xs hover:shadow-lg transition-all duration-300 flex flex-col"
+              className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col"
             >
               {/* Product Image Panel */}
               <div className="relative aspect-square overflow-hidden bg-gray-50 cursor-pointer" onClick={() => handleSelectProduct(product)}>
@@ -369,31 +398,31 @@ export function StoreFront({
               {/* Product Info Section */}
               <div className="p-5 flex flex-col flex-1">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-1 space-x-reverse text-amber-500">
+                  <div className="flex items-center space-x-1 space-x-reverse text-gold">
                     <Star className="h-3.5 w-3.5 fill-current" />
-                    <span className="text-xs font-bold font-mono text-gray-700">{product.rating}</span>
-                    <span className="text-[10px] text-gray-400">({product.reviews?.length || 0})</span>
+                    <span className="text-xs font-bold font-mono text-navy">{product.rating}</span>
+                    <span className="text-[10px] text-gray-400 opacity-60">({product.reviews?.length || 0})</span>
                   </div>
                   <span className={`text-[10px] font-bold ${product.stock > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {product.stock > 0 ? 'متوفر' : 'غير متوفر'}
+                    {product.stock > 0 ? 'متوفر' : 'نفذ'}
                   </span>
                 </div>
 
                 <h3 
                   onClick={() => handleSelectProduct(product)}
-                  className="text-sm font-bold text-gray-900 font-sans mb-2 group-hover:text-amber-600 transition-colors cursor-pointer line-clamp-1"
+                  className="text-sm md:text-base font-black text-navy font-display mb-2 group-hover:text-gold transition-colors cursor-pointer line-clamp-1"
                 >
                   {product.name}
                 </h3>
                 
-                <p className="text-xs text-gray-400 font-sans mb-4 line-clamp-2 flex-1 leading-relaxed">
+                <p className="text-[10px] md:text-xs text-gray-400 font-sans mb-4 line-clamp-2 flex-1 leading-relaxed opacity-80">
                   {product.description}
                 </p>
 
                 <div className="flex justify-between items-center border-t border-gray-100 pt-4 mt-auto">
                   <div className="flex flex-col">
-                    <span className="text-[10px] text-gray-400 font-sans">قيمة المنتج</span>
-                    <span className="text-base font-extrabold text-amber-900 font-mono">
+                    <span className="text-[10px] text-gray-400 font-display uppercase tracking-widest">Price</span>
+                    <span className="text-base md:text-lg font-black text-navy font-mono">
                       {formatPrice(product.price)}
                     </span>
                   </div>
@@ -401,10 +430,10 @@ export function StoreFront({
                   <button
                     disabled={product.stock === 0}
                     onClick={() => handleAddToCartWithAlert(product)}
-                    className={`p-2.5 rounded-xl transition-all duration-300 cursor-pointer ${
+                    className={`p-2.5 md:p-3 rounded-2xl transition-all duration-300 cursor-pointer ${
                       product.stock === 0
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-amber-50 text-amber-900 hover:bg-amber-600 hover:text-white border border-amber-100'
+                        : 'bg-gold/10 text-navy hover:bg-navy hover:text-gold border border-gold/10'
                     }`}
                   >
                     <Plus className="h-5 w-5" />
@@ -414,7 +443,7 @@ export function StoreFront({
               </div>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       {/* Brand Identity & Contact Us (من نحن وتواصل معنا) */}

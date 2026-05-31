@@ -11,21 +11,21 @@ import { DEFAULT_YEMENI_GEODATA, GovernorateData } from './utils/yemeniData';
 
 const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   storeName: 'دكان الشرق البلاتيني',
-  heroBadge: '✨ دُكان الشرق - متجرك الموثوق للأصالة والفخامة',
-  heroTitle: 'عالم يجمع بين عراقة الشرق وابتكار العصر',
+  heroBadge: '✨ إصدار بلاتيني حصري 2025',
+  heroTitle: 'فخامة الشرق وعراقة الماضي بين يديك',
   aboutUs: 'دكّان الشَّرق هو منصتك الرائدة لاكتشاف المنتجات الاستثنائية التي تجمع بين الأصالة والابتكار. نحن نتخصص في توفير أفخم أنواع العطور والقهوة المختصة والإلكترونيات العصرية لعملائنا في اليمن وجميع دول الخليج.',
-  heroSubtitle: 'جودة عالمية، توصيل سريع، وضمان حقيقي على كافة المنتجات الاستثنائية.',
+  heroSubtitle: 'وجهتك الأولى لأرقى الهدايا المنتقاة بعناية لخدمة ذائقتكم الرفيعة.',
   contactDescription: 'فريق دكان الشرق في خدمتك دائماً للإجابة على استفساراتك وتنسيق الهدايا الفخمة.',
   contactPhone: '+967 774 919 194',
   contactWhatsApp: '967774919194',
-  footerAddress: 'المركز الرئيسي: الرياض - المملكة العربية السعودية، وشبكة توزيع في كافة محافظات الجمهورية اليمنية',
+  footerAddress: 'المركز الرئيسي: الرياض - المملكة العربية السعودية، وشبكة توزيع عالمية',
   footerEmail: 'support@dukkan-east.sa',
   supportHours: 'خدمة عملاء دكان الشرق: 24/7 لراحتكم وسرعة استجابتنا',
   copyrightText: 'جميع الحقوق محفوظة © دكّان الشَّرق البلاتيني 2024 - 2025',
-  inventoryTagline: 'حماية الجرد والتحكم الاستباقي',
+  inventoryTagline: 'إدارة مخزون ذكية وعالمية',
   inventorySubtitle: 'نظام إدارة لوجستي فائق الذكاء ومؤمن بالكامل',
-  logoUrl: '',
-  iconUrl: ''
+  logoUrl: '/src/assets/images/luxury_gold_oriental_logo_1780193574767.png',
+  iconUrl: '/src/assets/images/luxury_gold_oriental_logo_1780193574767.png'
 };
 
 // Start with absolutely fresh data for the client

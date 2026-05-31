@@ -1,1 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Noto Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", "Noto Sans Arabic", sans-serif;
+  
+  --color-gold-light: #f3e5ab;
+  --color-gold: #d4af37;
+  --color-gold-dark: #b8860b;
+  --color-navy: #002244;
+  --color-navy-light: #003366;
+  --color-charcoal: #1a1a1a;
+  --color-cream: #f9f7f2;
+}
+
+@layer base {
+  body {
+    @apply bg-cream text-charcoal antialiased;
+  }
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm transition-all duration-300;
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, var(--color-gold-light), var(--color-gold), var(--color-gold-dark));
+}
+
+.navy-gradient {
+  background: linear-gradient(135deg, var(--color-navy), var(--color-navy-light));
+}
+
+.text-gradient-gold {
+  @apply bg-clip-text text-transparent;
+  background-image: linear-gradient(135deg, #d4af37, #f3e5ab, #b8860b);
+}

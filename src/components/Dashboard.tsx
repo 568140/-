@@ -392,14 +392,14 @@ export function Dashboard({
           className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-150 relative overflow-hidden"
         >
           {/* Decorative luxury gradient outline */}
-          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600" />
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-charcoal via-gold to-charcoal-dark" />
           
           <div className="text-center mb-8">
-            <div className="h-16 w-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-100 shadow-sm">
-              <Package className="h-8 w-8 text-amber-700" />
+            <div className="h-20 w-20 bg-charcoal text-gold rounded-full flex items-center justify-center mx-auto mb-4 border border-gold/20 shadow-xl">
+              <Package className="h-10 w-10" />
             </div>
-            <h2 className="text-xl font-black text-gray-900 font-sans">بوابة الإدارة دُكَّان الشَّرق</h2>
-            <p className="text-xxs text-gray-400 font-sans mt-1">تتطلب هذه المنطقة تصريح النخبة للتحكم في الطلبيات والمنتجات.</p>
+            <h2 className="text-2xl font-black text-charcoal font-display">بوابة النخبة | دُكَّان الشَّرق</h2>
+            <p className="text-xxs text-gray-400 font-display mt-2 uppercase tracking-[0.2em]">Restricted Access Area</p>
           </div>
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
@@ -414,34 +414,34 @@ export function Dashboard({
             )}
 
             <div>
-              <label className="block text-xxs font-bold text-gray-500 mb-1.5 font-sans uppercase text-right">اسم مستخدم المسؤول (الأدمن)</label>
+              <label className="block text-xxs font-bold text-gray-400 mb-2 font-display uppercase text-right tracking-wider">اسم مستخدم المسؤول</label>
               <input
                 type="text"
                 required
-                placeholder="أدخل اسم المستخدم"
+                placeholder="Username"
                 value={loginUser}
                 onChange={(e) => setLoginUser(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-xl text-xs font-sans text-right focus:outline-hidden focus:border-amber-500 focus:bg-white transition-all font-bold text-gray-800"
+                className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-sans text-right focus:outline-hidden focus:border-gold focus:bg-white transition-all font-bold text-charcoal"
               />
             </div>
 
             <div>
-              <label className="block text-xxs font-bold text-gray-500 mb-1.5 font-sans uppercase text-right">رمز المرور الخاص والمنفرد</label>
+              <label className="block text-xxs font-bold text-gray-400 mb-2 font-display uppercase text-right tracking-wider">رمز المرور الخاص</label>
               <input
                 type="password"
                 required
                 placeholder="•••••••••"
                 value={loginPass}
                 onChange={(e) => setLoginPass(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-xl text-xs font-sans text-right focus:outline-hidden focus:border-amber-500 focus:bg-white transition-all font-mono"
+                className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-sans text-right focus:outline-hidden focus:border-gold focus:bg-white transition-all font-mono"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all duration-300 cursor-pointer text-center"
+              className="w-full py-4 bg-charcoal hover:bg-charcoal-light text-gold font-black text-sm rounded-2xl shadow-xl transition-all duration-300 cursor-pointer text-center hover:scale-[1.02] active:scale-[0.98]"
             >
-              تسجيل دخول المسؤولين
+              دخول الإدارة
             </button>
           </form>
 
@@ -591,52 +591,52 @@ export function Dashboard({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
             {/* Sales performance */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex items-center justify-between">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
               <div>
-                <span className="block text-xxs font-bold text-gray-400 font-sans uppercase mb-1">إجمالي المبيعات</span>
-                <span className="text-2xl font-black text-amber-900 font-mono">{totalSales.toFixed(2)}</span>
-                <span className="text-xs font-bold text-gray-400 font-sans pr-1">ر.س</span>
+                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">إجمالي المبيعات</span>
+                <span className="text-2xl font-black text-navy font-mono">{totalSales.toFixed(2)}</span>
+                <span className="text-xs font-bold text-gold font-display pr-1">ر.س</span>
               </div>
-              <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <DollarSign className="h-6 w-6 text-amber-700" />
+              <div className="p-3 bg-gold/10 rounded-2xl border border-gold/10">
+                <DollarSign className="h-6 w-6 text-gold-dark" />
               </div>
             </div>
 
             {/* Total count of orders */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex items-center justify-between">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
               <div>
-                <span className="block text-xxs font-bold text-gray-400 font-sans uppercase mb-1">الطلبات الكلية</span>
-                <span className="text-2xl font-black text-gray-900 font-mono">{orders.length}</span>
-                <span className="text-xs font-bold text-gray-400 font-sans pr-1">طلب</span>
+                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">الطلبات الكلية</span>
+                <span className="text-2xl font-black text-navy font-mono">{orders.length}</span>
+                <span className="text-xs font-bold text-gray-400 font-display pr-1">طلب</span>
               </div>
-              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
-                <ShoppingBag className="h-6 w-6 text-blue-700" />
+              <div className="p-3 bg-navy/5 rounded-2xl border border-navy/5">
+                <ShoppingBag className="h-6 w-6 text-navy" />
               </div>
             </div>
 
             {/* Pending & Processing orders */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex items-center justify-between">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
               <div>
-                <span className="block text-xxs font-bold text-gray-400 font-sans uppercase mb-1">طلبات قيد المعالجة</span>
-                <span className="text-2xl font-black text-orange-850 font-mono text-orange-700">{activeOrdersCount}</span>
-                <span className="text-xs font-bold text-gray-400 font-sans pr-1">نشط</span>
+                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">طلبات قيد المعالجة</span>
+                <span className="text-2xl font-black text-gold-dark font-mono">{activeOrdersCount}</span>
+                <span className="text-xs font-bold text-gray-400 font-display pr-1">نشط</span>
               </div>
-              <div className="p-3 bg-orange-50 rounded-xl border border-orange-100">
-                <Users className="h-6 w-6 text-orange-700" />
+              <div className="p-3 bg-gold/5 rounded-2xl border border-gold/5">
+                <Users className="h-6 w-6 text-gold-dark" />
               </div>
             </div>
 
             {/* Out of stock alert list */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex items-center justify-between">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
               <div>
-                <span className="block text-xxs font-bold text-gray-400 font-sans uppercase mb-1">منتجات غائبة/نفذت</span>
-                <span className={`text-2xl font-black font-mono ${outOfStockCount > 0 ? 'text-rose-600' : 'text-gray-950'}`}>
+                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">منتجات نفذت</span>
+                <span className={`text-2xl font-black font-mono ${outOfStockCount > 0 ? 'text-rose-600' : 'text-navy'}`}>
                   {outOfStockCount}
                 </span>
-                <span className="text-xs font-bold text-gray-400 font-sans pr-1">صنف</span>
+                <span className="text-xs font-bold text-gray-400 font-display pr-1">صنف</span>
               </div>
-              <div className={`p-3 rounded-xl border ${outOfStockCount > 0 ? 'bg-rose-50 border-rose-100' : 'bg-green-50 border-green-100'}`}>
-                <Package className={`h-6 w-6 ${outOfStockCount > 0 ? 'text-rose-600' : 'text-green-600'}`} />
+              <div className={`p-3 rounded-2xl border ${outOfStockCount > 0 ? 'bg-rose-50 border-rose-100' : 'bg-navy/5 border-navy/5'}`}>
+                <Package className={`h-6 w-6 ${outOfStockCount > 0 ? 'text-rose-600' : 'text-navy'}`} />
               </div>
             </div>
 
@@ -676,7 +676,7 @@ export function Dashboard({
                     />
                     <Bar 
                       dataKey="المبيعات" 
-                      fill="#d97706" 
+                      fill="#d4af37" 
                       radius={[6, 6, 0, 0]}
                       barSize={32}
                       animationDuration={1500}

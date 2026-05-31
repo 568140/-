@@ -427,10 +427,10 @@ ${directRedirectionLink}
   }
 
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      <div className="flex items-center space-x-2 space-x-reverse mb-8">
-        <h1 className="text-2xl font-black text-gray-950 font-sans">بوابة السداد والشحن الدولي</h1>
-        <span className="text-xxs font-mono bg-amber-100 text-amber-800 px-2 py-0.5 rounded-sm font-bold animate-pulse">
+    <div className="py-6 md:py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center gap-4 mb-10">
+        <h1 className="text-2xl md:text-3xl font-black text-navy font-display">بوابة السداد والشحن الدولي</h1>
+        <span className="inline-flex w-fit text-[9px] md:text-xxs font-display bg-gold/10 text-gold-dark px-3 py-1.5 rounded-full font-bold animate-pulse border border-gold/20 tracking-[0.1em]">
           100% SECURE CHECKOUT
         </span>
       </div>
@@ -438,15 +438,15 @@ ${directRedirectionLink}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Cart items list section */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className="lg:col-span-7 space-y-6">
           <div className="bg-white rounded-2xl p-5 border border-gray-150 shadow-xs">
             <h2 className="text-xs font-bold text-gray-800 border-b border-gray-100 pb-3 mb-4 flex items-center justify-between">
               <span>السلع المختارة لطلبيتك ({cartItems.length} أنواع)</span>
               <button 
                 onClick={onClearCart} 
-                className="text-[10px] text-rose-600 hover:underline font-bold transition-all"
+                className="text-[10px] text-rose-500 hover:text-rose-700 font-bold transition-all uppercase tracking-wider"
               >
-                تفريغ السلة بالكامل
+                تفريغ السلة
               </button>
             </h2>
 
@@ -470,7 +470,7 @@ ${directRedirectionLink}
                           <span className="text-[10px] text-gray-450 bg-gray-100 px-1 py-0.2 rounded text-gray-500">{item.product.subCategory}</span>
                         )}
                         {item.selectedSize && (
-                          <span className="text-[10px] bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-100 font-bold">
+                          <span className="text-[10px] bg-gold/5 text-gold-dark px-1.5 py-0.2 rounded border border-gold/10 font-bold">
                             مقاس: {item.selectedSize}
                           </span>
                         )}
@@ -483,26 +483,26 @@ ${directRedirectionLink}
 
                   {/* Increment/Decrement controls & Delete */}
                   <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
-                    <div className="flex items-center space-x-1 space-x-reverse bg-gray-50 px-2 py-1.5 rounded-xl border border-gray-150">
+                    <div className="flex items-center space-x-1 space-x-reverse bg-gray-50/80 px-2 py-1.5 rounded-2xl border border-gray-100">
                       <button
                         onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1, item.selectedSize)}
-                        className="p-1 text-gray-500 hover:text-amber-800 transition-colors cursor-pointer"
+                        className="p-1 text-gray-400 hover:text-charcoal transition-colors cursor-pointer"
                       >
                         <Minus className="h-3.5 w-3.5" />
                       </button>
-                      <span className="w-8 text-center text-xs font-bold font-mono text-gray-800">
+                      <span className="w-8 text-center text-xs font-bold font-mono text-charcoal">
                         {item.quantity}
                       </span>
                       <button
                         onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1, item.selectedSize)}
-                        className="p-1 text-gray-500 hover:text-amber-800 transition-colors cursor-pointer"
+                        className="p-1 text-gray-400 hover:text-charcoal transition-colors cursor-pointer"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
                     </div>
 
                     <div className="flex items-center space-x-3 space-x-reverse">
-                      <span className="text-sm font-extrabold font-mono text-amber-950">
+                      <span className="text-sm font-bold font-mono text-charcoal">
                         {formatPrice(item.product.price * item.quantity)}
                       </span>
 
@@ -521,9 +521,9 @@ ${directRedirectionLink}
 
           {/* Checkout shipping info form */}
           {currentUser ? (
-          <form id="shipping-form" onSubmit={handleSubmitOrder} className="bg-white rounded-2xl p-6 border border-gray-150 shadow-xs space-y-4">
-            <h2 className="text-xs font-extrabold text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-1.5">
-              <Truck className="h-4.5 w-4.5 text-amber-600" />
+          <form id="shipping-form" onSubmit={handleSubmitOrder} className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-6">
+            <h2 className="text-sm font-black text-charcoal border-b border-gray-50 pb-4 flex items-center gap-2">
+              <Truck className="h-5 w-5 text-gold" />
               <span>تفاصيل شحن عميل النخبة والعنوان الفاخر</span>
             </h2>
 
@@ -536,10 +536,10 @@ ${directRedirectionLink}
                     required
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="عبدالرحمن فيصل الفاضل"
-                    className="w-full pr-10 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500"
+                    placeholder="الاسم الكامل"
+                    className="w-full pr-11 px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-xs text-charcoal focus:outline-hidden focus:border-gold transition-all"
                   />
-                  <User className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600" />
+                  <User className="absolute right-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-gold" />
                 </div>
               </div>
 
@@ -551,10 +551,10 @@ ${directRedirectionLink}
                     required
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="abdulrahman@faisal.com"
-                    className="w-full pr-10 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 font-mono"
+                    placeholder="Email Address"
+                    className="w-full pr-11 px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-xs text-charcoal focus:outline-hidden focus:border-gold transition-all font-mono"
                   />
-                  <Mail className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600" />
+                  <Mail className="absolute right-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-gold" />
                 </div>
               </div>
             </div>
@@ -568,10 +568,10 @@ ${directRedirectionLink}
                     required
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="+966 5X XXX XXXX"
-                    className="w-full pr-10 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 font-mono"
+                    placeholder="رقم الهاتف"
+                    className="w-full pr-11 px-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-xs text-charcoal focus:outline-hidden focus:border-gold transition-all font-mono"
                   />
-                  <Phone className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-600" />
+                  <Phone className="absolute right-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-gold" />
                 </div>
               </div>
 
@@ -672,38 +672,36 @@ ${directRedirectionLink}
             )}
 
             {/* Custom Extras: Wrapping Choice */}
-            <div className="mt-4 pt-4 border-t border-gray-150 bg-amber-50/20 p-4 rounded-2xl border border-amber-500/10">
-              <div className="flex items-start gap-3">
+            <div className="mt-4 pt-4 border-t border-gray-50 bg-gold/5 p-5 rounded-3xl border border-gold/10">
+              <div className="flex items-start gap-4">
                 <input
                   type="checkbox"
                   id="giftwrap"
                   checked={giftWrap}
                   onChange={(e) => setGiftWrap(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded-sm border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                  className="mt-1 h-5 w-5 rounded-lg border-gold/30 text-gold focus:ring-gold cursor-pointer"
                 />
                 <label htmlFor="giftwrap" className="text-xs cursor-pointer">
-                  <span className="font-extrabold text-amber-950 flex items-center gap-1">
-                    <Gift className="h-4 w-4 text-amber-600 inline" />
+                  <span className="font-black text-charcoal flex items-center gap-2">
+                    <Gift className="h-4.5 w-4.5 text-gold inline" />
                     <span>تغليف السلعة كهدية راقية (+ {formatPrice(15)})</span>
                   </span>
-                  <span className="block text-[10px] text-gray-500 mt-1">سوف نلف طلبك ببطاقات مغلفة فخمة ومخمل أسود ملائم للمناسبات الخاصة مع كتابة كود مخصص.</span>
+                  <span className="block text-[10px] text-gray-500 mt-1 font-display">سوف نلف طلبك ببطاقات مغلفة فخمة ومخمل أسود ملائم للمناسبات الخاصة.</span>
                 </label>
               </div>
             </div>
             
             {/* Payment simulated gateway choice and detailed simulated card screen */}
             <div className="mt-6 pt-6 border-t border-gray-150">
-              <h3 className="text-xs font-bold text-gray-900 mb-4 flex items-center gap-1.5">
-                <CreditCard className="h-4.5 w-4.5 text-amber-600" />
+              <h3 className="text-xs font-bold text-gray-900 mb-5 flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-gold" />
                 <span>اختر قنوات وطرق الدفع المؤمنة عالمياً</span>
               </h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
                 {[
                   { id: 'visa', labelAr: 'فيزا / ماستر' },
-                  { id: 'mada', labelAr: 'مدى' },
                   { id: 'applepay', labelAr: 'Apple Pay' },
-                  { id: 'paypal', labelAr: 'PayPal' },
                   { id: 'cod', labelAr: 'الدفع نقداً' },
                   { id: 'local_wallet', labelAr: 'محافظ محلية' },
                 ].map((pm) => (
@@ -711,10 +709,10 @@ ${directRedirectionLink}
                     key={pm.id}
                     type="button"
                     onClick={() => setPaymentMethod(pm.id as any)}
-                    className={`py-2 px-1 text-center font-sans font-bold text-[11px] rounded-lg transition-all border cursor-pointer ${
+                    className={`py-3 px-2 text-center font-display font-bold text-[11px] rounded-2xl transition-all border cursor-pointer ${
                       paymentMethod === pm.id
-                        ? 'bg-amber-100 text-amber-950 border-amber-500 scale-102 font-extrabold'
-                        : 'bg-white text-gray-600 border-gray-200'
+                        ? 'bg-charcoal text-gold border-charcoal shadow-lg scale-105'
+                        : 'bg-white text-gray-500 border-gray-100 hover:border-gold/30'
                     }`}
                   >
                     {pm.labelAr}
@@ -876,32 +874,36 @@ ${directRedirectionLink}
 
           </form>
           ) : (
-            <div className="bg-white rounded-2xl p-6 border border-amber-600/20 shadow-lg space-y-4 text-right">
-              <div className="bg-amber-50 p-4 rounded-xl flex items-start gap-3 border border-amber-100">
-                <Lock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+            <div className="bg-white rounded-3xl p-8 border border-gold/10 shadow-xl space-y-6 text-right relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <Lock className="h-24 w-24" />
+              </div>
+
+              <div className="bg-gold/5 p-5 rounded-2xl flex items-start gap-3 border border-gold/10">
+                <Lock className="h-5 w-5 text-gold shrink-0 mt-0.5 animate-pulse" />
                 <div>
-                  <h3 className="text-sm font-black text-amber-900">إنشاء حساب أو تسجيل الدخول السريع لإتمام طلبك</h3>
-                  <p className="text-xs text-amber-800/80 leading-relaxed mt-1 font-sans">
-                    عميلنا الكريم، لشراء المنتجات يرجى تسجيل الدخول أو إنشاء حساب بالاسم ورقم الهاتف مجانًا لحماية طلباتكم وتأمين شحناتكم الدولية والداخلية باليمن.
+                  <h3 className="text-sm font-black text-charcoal">إنشاء حساب النخبة</h3>
+                  <p className="text-xs text-gray-600 leading-relaxed mt-1 font-display">
+                    لتأمين شحناتكم الدولية، يرجى تسجيل الدخول أو إنشاء حساب جديد.
                   </p>
                 </div>
               </div>
 
               {/* Direct Tab Chooser */}
-              <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-150 gap-1">
+              <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-100 gap-1.5">
                 <button
                   type="button"
                   onClick={() => { setAuthTab('register'); setAuthError(null); }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all duration-300 cursor-pointer ${authTab === 'register' ? 'bg-amber-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-950 hover:bg-gray-100'}`}
+                  className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all duration-300 cursor-pointer ${authTab === 'register' ? 'bg-charcoal text-gold shadow-lg' : 'text-gray-400 hover:text-charcoal'}`}
                 >
-                  إنشاء حساب جديد بالكامل
+                  عضوية جديدة
                 </button>
                 <button
                   type="button"
                   onClick={() => { setAuthTab('login'); setAuthError(null); }}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all duration-300 cursor-pointer ${authTab === 'login' ? 'bg-amber-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-950 hover:bg-gray-100'}`}
+                  className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all duration-300 cursor-pointer ${authTab === 'login' ? 'bg-charcoal text-gold shadow-lg' : 'text-gray-400 hover:text-charcoal'}`}
                 >
-                  مستخدم مسجل (تسجيل الدخول)
+                  تسجيل الدخول
                 </button>
               </div>
 
@@ -978,132 +980,115 @@ ${directRedirectionLink}
           )}
         </div>
 
-        {/* Price Breakdowns and Coupons side panel */}
-        <div className="lg:col-span-5 space-y-4">
-          {/* Coupon field */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-150 shadow-xs">
-            <h2 className="text-xs font-bold text-gray-900 mb-3 font-sans">تطبيق كود الخصم الفعال</h2>
-            
-            {!appliedCoupon ? (
-              <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                <div className="relative flex-1">
+          {/* Price Breakdowns and Coupons side panel */}
+          <div className="lg:col-span-5 space-y-6 sticky top-24">
+            {/* Coupon field */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+              <h2 className="text-xs font-bold text-gray-900 mb-4 font-display uppercase tracking-wider">كود الخصم الملكي</h2>
+              
+              {!appliedCoupon ? (
+                <form onSubmit={handleApplyCoupon} className="flex gap-2">
                   <input
                     type="text"
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
-                    placeholder="أدخل الرمز الترويجي للخصم..."
-                    className="w-full pr-4 pl-4 py-2.5 bg-gray-50 border border-gray-200 focus:border-amber-500 rounded-xl focus:outline-hidden text-xs text-gray-800 placeholder-gray-400 font-mono"
+                    placeholder="Enter Coupon Code"
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-hidden focus:border-gold text-xs font-mono"
                   />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-charcoal text-gold font-black text-xs rounded-2xl hover:bg-charcoal-light transition-all cursor-pointer"
+                  >
+                    تطبيق
+                  </button>
+                </form>
+              ) : (
+                <div className="bg-gold/10 border border-gold/20 rounded-2xl px-5 py-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-2 space-x-reverse text-gold-dark text-xs">
+                    <Tag className="h-4 w-4" />
+                    <span className="font-bold">كوبون مفعّل ({appliedCoupon.code})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    className="text-[10px] text-rose-500 font-bold hover:underline"
+                  >
+                    إلغاء
+                  </button>
                 </div>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
-                >
-                  تفعيل
-                </button>
-              </form>
-            ) : (
-              <div className="bg-emerald-50 border border-emerald-150 rounded-xl px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center space-x-2 space-x-reverse text-emerald-800 text-xs">
-                  <Tag className="h-4 w-4 text-emerald-600" />
-                  <span className="font-bold">كوبون مفعّل ({appliedCoupon.code})</span>
-                  <span className="text-emerald-600 font-mono">
-                    (-{appliedCoupon.discountType === 'percentage' ? `${appliedCoupon.discountValue}%` : formatPrice(appliedCoupon.discountValue)})
+              )}
+            </div>
+
+            {/* Pricing breakdowns card */}
+            <div className="bg-charcoal text-white rounded-[2rem] p-8 shadow-2xl border border-gold/10 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+                <ShoppingBag className="h-32 w-32" />
+              </div>
+              
+              <h2 className="text-lg font-black font-display mb-6 border-b border-white/10 pb-4 text-gradient-gold">ملخص الفاتورة الملكية</h2>
+              
+              <div className="space-y-4 mb-8">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400 font-display">قيمة المنتجات</span>
+                  <span className="font-mono font-bold">{formatPrice(subtotal)}</span>
+                </div>
+                
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm text-gold font-bold">
+                    <span className="font-display">خصم الكوبون الملكي</span>
+                    <span className="font-mono">-{formatPrice(actualDiscount)}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400 font-display">ضريبة القيمة المضافة</span>
+                  <span className="font-mono font-bold">{formatPrice(vatAmount)}</span>
+                </div>
+                
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400 font-display">الشحن الدولي المؤمّن</span>
+                  <span className={`font-mono font-bold ${shippingCost === 0 ? 'text-gold' : ''}`}>
+                    {shippingCost === 0 ? 'شحن مجاني' : formatPrice(shippingCost)}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleRemoveCoupon}
-                  className="text-xxs text-rose-600 font-bold hover:underline transition-all cursor-pointer"
-                >
-                  إلغاء الخصم
-                </button>
+
+                {giftWrap && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400 font-display">تغليف الهدايا الفاخر</span>
+                    <span className="font-mono font-bold">{formatPrice(15)}</span>
+                  </div>
+                )}
+                
+                <div className="pt-6 border-t border-white/10 flex justify-between items-center">
+                  <span className="text-lg font-black font-display text-gradient-gold uppercase">Total</span>
+                  <div className="text-right">
+                    <span className="block text-2xl font-black font-mono text-gold leading-none">
+                      {formatPrice(totalAmount)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            )}
-
-            {couponError && (
-              <p className="text-rose-600 text-xxs mt-2 font-bold">{couponError}</p>
-            )}
-
-            {couponSuccess && (
-              <p className="text-emerald-700 text-xxs mt-2 font-bold flex items-center space-x-1 space-x-reverse">
-                <Check className="h-3 w-3" />
-                <span>تم خصم القيمة بنجاح من المجموع!</span>
-              </p>
-            )}
-
-            {/* Hint of available coupons for easy checkout test */}
-            <div className="mt-3 bg-amber-50/50 rounded-lg p-2.5 border border-amber-200/40">
-              <span className="block text-xxs font-bold text-amber-950 mb-1">🎁 أكواد متاحة للتجربة:</span>
-              <div className="flex flex-wrap gap-2 text-xxs">
-                <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono font-bold">WEL20</span>
-                <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono font-bold">DDUKAN50</span>
-                <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono font-bold">SAVE10</span>
-              </div>
+              
+              <button
+                type="submit"
+                form="shipping-form"
+                disabled={isSubmitting}
+                className="w-full py-4.5 bg-gold text-charcoal font-black rounded-2xl hover:bg-gold-light transition-all shadow-xl shadow-gold/10 flex items-center justify-center gap-3 cursor-pointer group disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-charcoal/30 border-t-charcoal rounded-full animate-spin" />
+                    <span className="font-display">تأمين الطلب...</span>
+                  </div>
+                ) : (
+                  <>
+                    <Lock className="h-5 w-5" />
+                    <span className="font-display text-sm tracking-wide">تأكيد المشتريات والدفع</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
-
-          {/* Pricing breakdowns card */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-150 shadow-xs space-y-4">
-            <h2 className="text-xs font-bold text-gray-900 border-b border-gray-100 pb-3 font-sans">
-              تفاصيل الفاتورة ومجموع الحساب بالكامل
-            </h2>
-
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between text-gray-500">
-                <span className="font-sans">مجموع المنتجات والسلع</span>
-                <span className="font-mono text-gray-800 font-bold">{formatPrice(subtotal)}</span>
-              </div>
-
-              {appliedCoupon && (
-                <div className="flex justify-between text-emerald-600 font-bold">
-                  <span className="font-sans font-bold">المنتجات بعد الخصم المطبق</span>
-                  <span className="font-mono">-{formatPrice(actualDiscount)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-gray-500">
-                <span className="font-sans text-gray-400">شحن دولي مؤمّن ({destObj.cityAr.split('،')[0]})</span>
-                <span className="font-mono text-gray-800 font-semibold">
-                  {subtotal > 400 ? (
-                    <span className="text-emerald-600 font-bold">مجاني (عرض خاص)</span>
-                  ) : (
-                    formatPrice(shippingCost)
-                  )}
-                </span>
-              </div>
-
-              {giftWrap && (
-                <div className="flex justify-between text-amber-800 font-semibold">
-                  <span>صندوق هدايا فخم مع طقم الإهداء</span>
-                  <span className="font-mono">{formatPrice(giftWrapCost)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-gray-500">
-                <span className="font-sans">ضريبة القيمة المضافة الحكومية (15%)</span>
-                <span className="font-mono text-gray-800 font-semibold">{formatPrice(vatAmount)}</span>
-              </div>
-
-              <div className="border-t border-gray-100 my-2 pt-3 flex justify-between items-center text-sm">
-                <span className="font-bold text-gray-950 font-sans">قيمة الحساب الكلي</span>
-                <span className="font-mono text-xl text-amber-950 font-black">
-                  {formatPrice(totalAmount)}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              form="shipping-form"
-              disabled={isSubmitting}
-              className="w-full py-4 bg-gray-950 hover:bg-neutral-900 text-amber-400 font-extrabold text-sm rounded-xl shadow-md hover:text-white transition-all duration-300 flex items-center justify-center space-x-2 space-x-reverse cursor-pointer disabled:bg-gray-150 disabled:text-gray-400 disabled:cursor-not-allowed"
-            >
-              <CreditCard className="h-4.5 w-4.5" />
-              <span>{isSubmitting ? 'جاري معالجة وتأكيد الدفعة الآمنة...' : 'موافقة والدفع الإلكتروني المباشر'}</span>
-            </button>
-          </div>
-        </div>
 
       </div>
     </div>
