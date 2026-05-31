@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://rho-liart-59.vercel.app/sitemap.xml
