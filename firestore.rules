@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net (Decline all unmatched requests)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive / Basic helpers
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-+]+$'); 
+    }
+    
+    function isValStr(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    function isPositiveNum(val) {
+      return val is number && val >= 0;
+    }
+
+    // Entities Blueprint Validators (Anti-Update-Gap)
+    function isValidProduct(p) {
+      return p.keys().hasAll(['id', 'name', 'price', 'category', 'stock'])
+        && isValStr(p.id, 64)
+        && isValStr(p.name, 256)
+        && isPositiveNum(p.price)
+        && isValStr(p.category, 128)
+        && isPositiveNum(p.stock);
+    }
+
+    function isValidOrder(o) {
+      return o.keys().hasAll(['id', 'customerName', 'customerPhone', 'items', 'totalPrice', 'status', 'createdAt'])
+        && isValStr(o.id, 128)
+        && isValStr(o.customerName, 256)
+        && isValStr(o.customerPhone, 64)
+        && o.items is list
+        && isPositiveNum(o.totalPrice)
+        && isValStr(o.status, 64)
+        && isValStr(o.createdAt, 128);
+    }
+
+    function isValidCustomerAccount(c) {
+      return c.keys().hasAll(['name', 'phone', 'password'])
+        && isValStr(c.name, 256)
+        && isValStr(c.phone, 64)
+        && isValStr(c.password, 256);
+    }
+
+    function isValidCoupon(cp) {
+      return cp.keys().hasAll(['code', 'discountType', 'discountValue'])
+        && isValStr(cp.code, 128)
+        && isValStr(cp.discountType, 64)
+        && isPositiveNum(cp.discountValue);
+    }
+
+    function isValidLocalWallet(w) {
+      return w.keys().hasAll(['id', 'name', 'accountNumber', 'isActive'])
+        && isValStr(w.id, 64)
+        && isValStr(w.name, 128)
+        && isValStr(w.accountNumber, 128)
+        && w.isActive is bool;
+    }
+
+    function isValidSiteSettings(s) {
+      return s.keys().hasAll(['storeName'])
+        && isValStr(s.storeName, 256);
+    }
+
+    function isValidCategoryState(cs) {
+      return cs.keys().hasAll(['name'])
+        && isValStr(cs.name, 128);
+    }
+
+    function isValidChatMessage(m) {
+      return m.keys().hasAll(['id', 'userName', 'text', 'timestamp', 'role'])
+        && isValStr(m.id, 64)
+        && isValStr(m.userName, 256)
+        && isValStr(m.text, 1000)
+        && isValStr(m.timestamp, 128)
+        && isValStr(m.role, 32);
+    }
+
+    // Collection matches
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isValidId(productId) && isValidProduct(request.resource.data);
+      allow delete: if isValidId(productId);
+    }
+
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create, update: if isValidId(orderId) && isValidOrder(request.resource.data);
+      allow delete: if isValidId(orderId);
+    }
+
+    match /customer_accounts/{phone} {
+      allow read: if true;
+      allow create, update: if isValidId(phone) && isValidCustomerAccount(request.resource.data);
+      allow delete: if isValidId(phone);
+    }
+
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow create, update: if isValidId(couponId) && isValidCoupon(request.resource.data);
+      allow delete: if isValidId(couponId);
+    }
+
+    match /local_wallets/{walletId} {
+      allow read: if true;
+      allow create, update: if isValidId(walletId) && isValidLocalWallet(request.resource.data);
+      allow delete: if isValidId(walletId);
+    }
+
+    match /site_settings/{settingsId} {
+      allow read: if true;
+      allow create, update: if isValidId(settingsId) && isValidSiteSettings(request.resource.data);
+      allow delete: if isValidId(settingsId);
+    }
+
+    match /category_states/{catId} {
+      allow read: if true;
+      allow create, update: if isValidId(catId) && isValidCategoryState(request.resource.data);
+      allow delete: if isValidId(catId);
+    }
+
+    match /community_messages/{msgId} {
+      allow read: if true;
+      allow create, update: if isValidId(msgId) && isValidChatMessage(request.resource.data);
+      allow delete: if isValidId(msgId);
+    }
+  }
+}

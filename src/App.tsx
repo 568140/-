@@ -12,6 +12,10 @@ import { Product, CartItem, Order, Coupon, CurrencyConfig } from './types';
 import { INITIAL_PRODUCTS, INITIAL_COUPONS, CATEGORIES, CURRENCIES } from './data';
 import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles } from 'lucide-react';
 import { DEFAULT_YEMENI_GEODATA, GovernorateData } from './utils/yemeniData';
+import { 
+  collection, doc, onSnapshot, setDoc, deleteDoc, addDoc, getDocs 
+} from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from './firebase';
 
 const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   storeName: 'دكان الشرق البلاتيني',
@@ -94,14 +98,7 @@ export default function App() {
     }
   });
 
-  const [customerAccounts, setCustomerAccounts] = useState<import('./types').CustomerAccount[]>(() => {
-    const saved = localStorage.getItem('dukkan_customer_accounts');
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch(e) {
-      return [];
-    }
-  });
+  const [customerAccounts, setCustomerAccounts] = useState<import('./types').CustomerAccount[]>([]);
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -130,7 +127,6 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('dukkan_customer_accounts', JSON.stringify(customerAccounts));
     // If a user is logged in, ensure they get updates from the main list (e.g. gifts from Dashboard)
     if (currentUser) {
       const latest = customerAccounts.find(acc => acc.phone === currentUser.phone);
@@ -138,7 +134,7 @@ export default function App() {
         setCurrentUser(latest);
       }
     }
-  }, [customerAccounts]);
+  }, [customerAccounts, currentUser]);
 
   const [yemeniGeodata, setYemeniGeodata] = useState<GovernorateData[]>(() => {
     const saved = localStorage.getItem('dukkan_yemeni_geodata');
@@ -150,25 +146,7 @@ export default function App() {
   });
 
   // State for site settings
-  const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(() => {
-    const saved = localStorage.getItem('dukkan_site_settings');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return { 
-          ...INITIAL_SITE_SETTINGS, 
-          ...parsed, 
-          promoBanners: parsed.promoBanners || INITIAL_SITE_SETTINGS.promoBanners,
-          adScripts: parsed.adScripts || INITIAL_SITE_SETTINGS.adScripts,
-          redemptionOptions: parsed.redemptionOptions || INITIAL_SITE_SETTINGS.redemptionOptions,
-          enableAds: parsed.enableAds !== undefined ? parsed.enableAds : INITIAL_SITE_SETTINGS.enableAds
-        };
-      } catch(e) {
-        return INITIAL_SITE_SETTINGS;
-      }
-    }
-    return INITIAL_SITE_SETTINGS;
-  });
+  const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(INITIAL_SITE_SETTINGS);
 
   useEffect(() => {
     localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(yemeniGeodata));
@@ -285,24 +263,23 @@ export default function App() {
       return;
     }
     const newAcc = { name: custName.trim(), phone: cleanPhone, password: custPassword, points: 0 };
-    setCustomerAccounts(prev => [...prev, newAcc]);
-    setCurrentUser(newAcc);
-    setShowCustomerModal(false);
-    setCustName('');
-    setCustPhone('');
-    setCustPassword('');
-    setCustAuthError('');
+    setDoc(doc(db, 'customer_accounts', cleanPhone), newAcc).then(() => {
+      setCurrentUser(newAcc);
+      setShowCustomerModal(false);
+      setCustName('');
+      setCustPhone('');
+      setCustPassword('');
+      setCustAuthError('');
+    }).catch(e => {
+      handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${cleanPhone}`);
+    });
   };
 
   const handleLoginSuccess = (user: import('./types').CustomerAccount) => {
-    setCurrentUser(user);
-    setCustomerAccounts(prev => {
-      const exists = prev.some(acc => acc.phone === user.phone);
-      if (exists) {
-        return prev.map(acc => acc.phone === user.phone ? { ...acc, ...user } : acc);
-      } else {
-        return [...prev, user];
-      }
+    setDoc(doc(db, 'customer_accounts', user.phone), user).then(() => {
+      setCurrentUser(user);
+    }).catch(e => {
+      handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${user.phone}`);
     });
   };
 
@@ -367,10 +344,7 @@ export default function App() {
   };
 
   // State for products
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('dukkan_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
+  const [products, setProducts] = useState<Product[]>([]);
 
   // State for cart (dynamically loaded and saved per-user)
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -391,80 +365,173 @@ export default function App() {
   }, [cartItems, currentUser]);
 
   // State for orders
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('dukkan_orders');
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch(e) {
-      return [];
-    }
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
 
   // State for coupons
-  const [coupons, setCoupons] = useState<Coupon[]>(() => {
-    const saved = localStorage.getItem('dukkan_coupons');
-    return saved ? JSON.parse(saved) : INITIAL_COUPONS;
-  });
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
 
   // State for local wallets
-  const [localWallets, setLocalWallets] = useState<any[]>(() => {
-    const saved = localStorage.getItem('dukkan_local_wallets');
-    return saved ? JSON.parse(saved) : [
-      { id: 'w1', name: 'الكريمي جوال', accountNumber: '774919194', isActive: true },
-      { id: 'w2', name: 'جوالي (Jawali)', accountNumber: '774919194', isActive: true },
-      { id: 'w3', name: 'فلوسك', accountNumber: '774919194', isActive: true }
-    ];
-  });
+  const [localWallets, setLocalWallets] = useState<any[]>([]);
 
   // Global Currency State
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyConfig>(CURRENCIES[0]);
 
   // Dynamic Main Categories and Subcategories State
-  const [categoriesState, setCategoriesState] = useState<{ name: string; subcategories: string[]; }[]>(() => {
-    const saved = localStorage.getItem('dukkan_categories_v2');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        // Fallback
+  const [categoriesState, setCategoriesState] = useState<{ name: string; subcategories: string[]; }[]>([]);
+
+  // Real-time Firestore Sync hooks requested by user
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'products'), (snapshot) => {
+      if (snapshot.empty) {
+        INITIAL_PRODUCTS.forEach(p => {
+          setDoc(doc(db, 'products', p.id), p).catch(e => 
+            handleFirestoreError(e, OperationType.WRITE, `products/${p.id}`)
+          );
+        });
+      } else {
+        const list: Product[] = [];
+        snapshot.forEach(docSnap => {
+          list.push(docSnap.data() as Product);
+        });
+        setProducts(list);
       }
-    }
-    return [
-      { name: 'إلكترونيات', subcategories: ['سماعات', 'ساعات ذكية', 'شواحن وإكسسوارات'] },
-      { name: 'عطور وبخور', subcategories: ['دهن العود', 'بخور مروكي', 'عطور فرنسية'] },
-      { name: 'قهوة ومستلزمات', subcategories: ['مكائن إسبريسو', 'بن مختص', 'أكواب فاخرة'] },
-      { name: 'ملابس وأزياء', subcategories: ['فساتين سهرة', 'جاكيتات معاطف', 'قمصان وأحذية'] }
-    ];
-  });
-
-  // Save changes to localStorage so they persist securely
-  useEffect(() => {
-    localStorage.setItem('dukkan_products', JSON.stringify(products));
-  }, [products]);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'products');
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('dukkan_orders', JSON.stringify(orders));
-  }, [orders]);
+    const unsub = onSnapshot(collection(db, 'site_settings'), (snapshot) => {
+      if (snapshot.empty) {
+        setDoc(doc(db, 'site_settings', 'general'), INITIAL_SITE_SETTINGS).catch(e => 
+          handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
+        );
+      } else {
+        const docData = snapshot.docs[0].data() as import('./types').SiteSettings;
+        setSiteSettings({
+          ...INITIAL_SITE_SETTINGS,
+          ...docData,
+          promoBanners: docData.promoBanners || INITIAL_SITE_SETTINGS.promoBanners,
+          adScripts: docData.adScripts || INITIAL_SITE_SETTINGS.adScripts,
+          redemptionOptions: docData.redemptionOptions || INITIAL_SITE_SETTINGS.redemptionOptions,
+        });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'site_settings');
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('dukkan_coupons', JSON.stringify(coupons));
-  }, [coupons]);
+    const unsub = onSnapshot(collection(db, 'coupons'), (snapshot) => {
+      if (snapshot.empty) {
+        INITIAL_COUPONS.forEach(c => {
+          setDoc(doc(db, 'coupons', c.code), c).catch(e =>
+            handleFirestoreError(e, OperationType.WRITE, `coupons/${c.code}`)
+          );
+        });
+      } else {
+        const list: Coupon[] = [];
+        snapshot.forEach(docSnap => {
+          list.push(docSnap.data() as Coupon);
+        });
+        setCoupons(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'coupons');
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('dukkan_site_settings', JSON.stringify(siteSettings));
-  }, [siteSettings]);
+    const unsub = onSnapshot(collection(db, 'local_wallets'), (snapshot) => {
+      if (snapshot.empty) {
+        const defaultWallets = [
+          { id: 'w1', name: 'الكريمي جوال', accountNumber: '774919194', isActive: true },
+          { id: 'w2', name: 'جوالي (Jawali)', accountNumber: '774919194', isActive: true },
+          { id: 'w3', name: 'فلوسك', accountNumber: '774919194', isActive: true }
+        ];
+        defaultWallets.forEach(w => {
+          setDoc(doc(db, 'local_wallets', w.id), w).catch(e =>
+            handleFirestoreError(e, OperationType.WRITE, `local_wallets/${w.id}`)
+          );
+        });
+      } else {
+        const list: any[] = [];
+        snapshot.forEach(docSnap => {
+          list.push(docSnap.data());
+        });
+        setLocalWallets(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'local_wallets');
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('dukkan_local_wallets', JSON.stringify(localWallets));
-  }, [localWallets]);
+    const unsub = onSnapshot(collection(db, 'category_states'), (snapshot) => {
+      if (snapshot.empty) {
+        const defaultCategories = [
+          { name: 'إلكترونيات', subcategories: ['سماعات', 'ساعات ذكية', 'شواحن وإكسسوارات'] },
+          { name: 'عطور وبخور', subcategories: ['دهن العود', 'بخور مروكي', 'عطور فرنسية'] },
+          { name: 'قهوة ومستلزمات', subcategories: ['مكائن إسبريسو', 'بن مختص', 'أكواب فاخرة'] },
+          { name: 'ملابس وأزياء', subcategories: ['فساتين سهرة', 'جاكيتات معاطف', 'قمصان وأحذية'] }
+        ];
+        defaultCategories.forEach((cat, idx) => {
+          const catId = `cat_${idx}`;
+          setDoc(doc(db, 'category_states', catId), cat).catch(e =>
+            handleFirestoreError(e, OperationType.WRITE, `category_states/${catId}`)
+          );
+        });
+      } else {
+        const list: any[] = [];
+        snapshot.forEach(docSnap => {
+          list.push(docSnap.data());
+        });
+        setCategoriesState(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'category_states');
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'orders'), (snapshot) => {
+      const list: Order[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as Order);
+      });
+      list.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      setOrders(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'orders');
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'customer_accounts'), (snapshot) => {
+      const list: import('./types').CustomerAccount[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as import('./types').CustomerAccount);
+      });
+      setCustomerAccounts(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'customer_accounts');
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('dukkan_currency', JSON.stringify(selectedCurrency));
   }, [selectedCurrency]);
-
-  useEffect(() => {
-    localStorage.setItem('dukkan_categories_v2', JSON.stringify(categoriesState));
-  }, [categoriesState]);
 
   // Cart operations
   const handleAddToCart = (product: Product, selectedSize?: string) => {
@@ -545,16 +612,16 @@ export default function App() {
     const generatedId = customerInfo.orderId || ('ORD-' + Math.floor(100000 + Math.random() * 900000));
     const today = new Date().toISOString().split('T')[0];
 
-    // 3. Subtract stock for each item purchased
-    setProducts(prevProducts => {
-      return prevProducts.map(p => {
-        const itemPurchased = cartItems.find(item => item.product.id === p.id);
-        if (itemPurchased) {
-          const newStock = Math.max(p.stock - itemPurchased.quantity, 0);
-          return { ...p, stock: newStock };
-        }
-        return p;
-      });
+    // 3. Subtract stock for each item purchased and write to Firestore
+    cartItems.forEach(item => {
+      const p = products.find(prod => prod.id === item.product.id);
+      if (p) {
+        const newStock = Math.max(p.stock - item.quantity, 0);
+        const updatedP = { ...p, stock: newStock };
+        setDoc(doc(db, 'products', p.id), updatedP).catch(e =>
+          handleFirestoreError(e, OperationType.WRITE, `products/${p.id}`)
+        );
+      }
     });
 
     // 4. Calculate potential points (Manual product rewards + configured ratio) to be earned upon shipment
@@ -600,12 +667,18 @@ export default function App() {
           points: Math.max((currentUser.points || 0) - customerInfo.pointsUsed, 0),
           transactions: [useTransaction, ...(currentUser.transactions || [])]
         };
-        setCurrentUser(updatedUser);
-        setCustomerAccounts(prev => prev.map(acc => acc.phone === updatedUser.phone ? updatedUser : acc));
+        
+        setDoc(doc(db, 'customer_accounts', updatedUser.phone), updatedUser).then(() => {
+          setCurrentUser(updatedUser);
+        }).catch(e => {
+          handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${updatedUser.phone}`);
+        });
       }
     }
 
-    setOrders(prev => [...prev, newOrder]);
+    setDoc(doc(db, 'orders', newOrder.id), newOrder).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, `orders/${newOrder.id}`)
+    );
   };
 
   const handleRedeemPoints = (option: import('./types').PointRedemptionOption) => {
@@ -640,9 +713,12 @@ export default function App() {
         transactions: [creditTransaction, spendTransaction, ...(currentUser.transactions || [])]
       };
 
-      setCurrentUser(updatedUser);
-      setCustomerAccounts(prev => prev.map(acc => acc.phone === updatedUser.phone ? updatedUser : acc));
-      alert('🎉 مبروك! تم استبدال النقاط بنجاح وإضافة الرصيد لمحفظتك.');
+      setDoc(doc(db, 'customer_accounts', updatedUser.phone), updatedUser).then(() => {
+        setCurrentUser(updatedUser);
+        alert('🎉 مبروك! تم استبدال النقاط بنجاح وإضافة الرصيد لمحفظتك.');
+      }).catch(e => {
+        handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${updatedUser.phone}`);
+      });
     } else {
       // Handle coupon type if needed, but balance is standard for now
       alert('تم استبدال الهدية بنجاح! تواصل مع الإدارة للحصول على الكود.');
@@ -650,160 +726,204 @@ export default function App() {
   };
 
   const handleAddReview = (productId: string, rating: number, comment: string, username: string) => {
-    setProducts(prev => prev.map(p => {
-      if (p.id === productId) {
-        const newReview = {
-          id: 'rev-' + Date.now(),
-          username,
-          rating,
-          comment,
-          date: new Date().toISOString().split('T')[0]
-        };
-        const currentReviews = p.reviews || [];
-        const allReviews = [...currentReviews, newReview];
-        const averageRating = Number((allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length).toFixed(1));
-        return {
-          ...p,
-          rating: averageRating,
-          reviews: allReviews
-        };
-      }
-      return p;
-    }));
+    const p = products.find(prod => prod.id === productId);
+    if (!p) return;
+
+    const newReview = {
+      id: 'rev-' + Date.now(),
+      username,
+      rating,
+      comment,
+      date: new Date().toISOString().split('T')[0]
+    };
+    const currentReviews = p.reviews || [];
+    const allReviews = [...currentReviews, newReview];
+    const averageRating = Number((allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length).toFixed(1));
+    const updatedProd = {
+      ...p,
+      rating: averageRating,
+      reviews: allReviews
+    };
+
+    setDoc(doc(db, 'products', productId), updatedProd).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, `products/${productId}`)
+    );
   };
 
   // ADMIN OPERATIONS
   const handleAddProduct = (newProdData: Omit<Product, 'id'>) => {
-    const newId = 'prod-' + (products.length + 100);
+    const newId = 'prod-' + (products.length + 101); // avoid duplicate IDs
     const newProduct: Product = {
       ...newProdData,
       id: newId
     };
-    setProducts(prev => [newProduct, ...prev]);
+    setDoc(doc(db, 'products', newId), newProduct).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, `products/${newId}`)
+    );
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
-    setProducts(prev =>
-      prev.map(p => p.id === updatedProduct.id ? updatedProduct : p)
+    setDoc(doc(db, 'products', updatedProduct.id), updatedProduct).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, `products/${updatedProduct.id}`)
     );
   };
 
   const handleDeleteProduct = (productId: string) => {
-    setProducts(prev => prev.filter(p => p.id !== productId));
+    deleteDoc(doc(db, 'products', productId)).catch(e =>
+      handleFirestoreError(e, OperationType.DELETE, `products/${productId}`)
+    );
   };
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
-    setOrders(prev => {
-      const targetOrder = prev.find(o => o.id === orderId);
-      const updated = prev.map(o => {
-        if (o.id === orderId) {
-          let pointsAwarded = o.pointsAwarded;
-          
-          // 1. Award potential points only if status becomes shipped and they haven't been awarded yet
-          if (status === 'shipped' && !pointsAwarded && o.earnedPoints && o.earnedPoints > 0) {
-            pointsAwarded = true;
-            const customerPhoneClean = o.customerPhone.trim();
-            const earnTransaction: import('./types').Transaction = {
-              id: `TX-EARN-${Date.now()}`,
-              type: 'earn',
-              amount: o.earnedPoints,
-              unit: 'points',
-              description: `مكافأة شحن الطلب رقم ${o.id} 🚚`,
-              date: new Date().toISOString().split('T')[0]
-            };
-            
-            setCustomerAccounts(prevAccs => prevAccs.map(acc => {
-              if (acc.phone === customerPhoneClean) {
-                return {
-                  ...acc,
-                  points: (acc.points || 0) + (o.earnedPoints || 0),
-                  transactions: [earnTransaction, ...(acc.transactions || [])]
-                };
-              }
-              return acc;
-            }));
-          }
-          
-          // 2. Refund used points if status becomes cancelled
-          if (status === 'cancelled' && o.pointsUsed && o.pointsUsed > 0) {
-            const customerPhoneClean = o.customerPhone.trim();
-            const refundTx: import('./types').Transaction = {
-              id: `TX-REFUND-${Date.now()}`,
-              type: 'deposit',
-              amount: o.pointsUsed,
-              unit: 'points',
-              description: `استرجاع نقاط الطلب الملغي رقم ${o.id} ❌`,
-              date: new Date().toISOString().split('T')[0]
-            };
-            
-            setCustomerAccounts(prevAccs => prevAccs.map(acc => {
-              if (acc.phone === customerPhoneClean) {
-                return {
-                  ...acc,
-                  points: (acc.points || 0) + (o.pointsUsed || 0),
-                  transactions: [refundTx, ...(acc.transactions || [])]
-                };
-              }
-              return acc;
-            }));
-          }
-          
-          return { ...o, status, pointsAwarded };
-        }
-        return o;
-      });
+    const targetOrder = orders.find(o => o.id === orderId);
+    if (!targetOrder) return;
 
-      if (targetOrder) {
-        let ArabicStatusText = '';
-        let statusEmoji = '';
-        if (status === 'processing') {
-          ArabicStatusText = 'قيد التجهيز والتحضير الفاخر 🛍️';
-          statusEmoji = '🛠️';
-        } else if (status === 'shipped') {
-          ArabicStatusText = 'تم شحنها وتوصيلها لمندوب الشحن الملكي وسوف تحط برحالها قريباً أمام باب بيتكم الكريم 🚚';
-          statusEmoji = '🚀';
-        } else if (status === 'delivered') {
-          ArabicStatusText = 'تم تسليمها إليكم بحمد الله وفضله ونرجو لكم الابتهاج الكامل بمحتوياتها الفاخرة! ✨';
-          statusEmoji = '👑';
-        } else if (status === 'cancelled') {
-          ArabicStatusText = 'تم إلغاؤها بناء على طلبكم الكريم أو لعدم توفر قنوات التأكيد مع تمنياتنا لكم بزيارة قريبة أخرى ❌';
-          statusEmoji = '⚠️';
-        } else if (status === 'pending') {
-          ArabicStatusText = 'قيد المراجعة والتعميد بالدكان ⏳';
-          statusEmoji = '⏳';
-        }
+    let pointsAwarded = targetOrder.pointsAwarded;
+    let pointsRefundPromises: Promise<any>[] = [];
 
-        const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://dukkan-east.sa';
-        const directCustomerLink = `${siteOrigin}/?orderId=${orderId}`;
-
-        const statusMessage = `السلام عليكم ورحمة الله وبركاته يا فندم،\nأهلاً بك عميلنا العزيز: ${targetOrder.customerName} 👋\n\nتحديث رسمي من إدارة متجر "دكّان الشَّرق" بخصوص طلبك الفاخر:\n- رقم الفاتورة والطلب: ${orderId} 🧾\n- حالة طلبك الحالية أصبحت: ${ArabicStatusText} ${statusEmoji}\n\n🔗 يمكنك الاستعلام وتتبع تفاصيل طلبك مباشرة عبر الرابط التالي:\n${directCustomerLink}\n\nنسعد دوماً بخدمتك طوال أيام الأسبوع 🌸`;
-
-        const customerPhoneClean = targetOrder.customerPhone.trim();
-        const whatsappLink = `https://wa.me/${customerPhoneClean.startsWith('+') ? customerPhoneClean.substring(1) : customerPhoneClean}?text=${encodeURIComponent(statusMessage)}`;
-        setTimeout(() => {
-          try {
-            window.open(whatsappLink, '_blank');
-          } catch(e) {
-            console.warn('Blocked popup redirection');
-          }
-        }, 100);
+    // 1. Award potential points only if status becomes shipped and they haven't been awarded yet
+    if (status === 'shipped' && !pointsAwarded && targetOrder.earnedPoints && targetOrder.earnedPoints > 0) {
+      pointsAwarded = true;
+      const customerPhoneClean = targetOrder.customerPhone.trim();
+      const earnTransaction: import('./types').Transaction = {
+        id: `TX-EARN-${Date.now()}`,
+        type: 'earn',
+        amount: targetOrder.earnedPoints,
+        unit: 'points',
+        description: `مكافأة شحن الطلب رقم ${targetOrder.id} 🚚`,
+        date: new Date().toISOString().split('T')[0]
+      };
+      
+      const acc = customerAccounts.find(a => a.phone === customerPhoneClean);
+      if (acc) {
+        const updatedAcc = {
+          ...acc,
+          points: (acc.points || 0) + (targetOrder.earnedPoints || 0),
+          transactions: [earnTransaction, ...(acc.transactions || [])]
+        };
+        pointsRefundPromises.push(
+          setDoc(doc(db, 'customer_accounts', updatedAcc.phone), updatedAcc).catch(e =>
+            handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${updatedAcc.phone}`)
+          )
+        );
       }
-      return updated;
+    }
+    
+    // 2. Refund used points if status becomes cancelled
+    if (status === 'cancelled' && targetOrder.pointsUsed && targetOrder.pointsUsed > 0) {
+      const customerPhoneClean = targetOrder.customerPhone.trim();
+      const refundTx: import('./types').Transaction = {
+        id: `TX-REFUND-${Date.now()}`,
+        type: 'deposit',
+        amount: targetOrder.pointsUsed,
+        unit: 'points',
+        description: `استرجاع نقاط الطلب الملغي رقم ${targetOrder.id} ❌`,
+        date: new Date().toISOString().split('T')[0]
+      };
+      
+      const acc = customerAccounts.find(a => a.phone === customerPhoneClean);
+      if (acc) {
+        const updatedAcc = {
+          ...acc,
+          points: (acc.points || 0) + (targetOrder.pointsUsed || 0),
+          transactions: [refundTx, ...(acc.transactions || [])]
+        };
+        pointsRefundPromises.push(
+          setDoc(doc(db, 'customer_accounts', updatedAcc.phone), updatedAcc).catch(e =>
+            handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${updatedAcc.phone}`)
+          )
+        );
+      }
+    }
+
+    const updatedOrder: Order = { ...targetOrder, status, pointsAwarded };
+
+    Promise.all(pointsRefundPromises).then(() => {
+      setDoc(doc(db, 'orders', orderId), updatedOrder).catch(e =>
+        handleFirestoreError(e, OperationType.WRITE, `orders/${orderId}`)
+      );
     });
+
+    let ArabicStatusText = '';
+    let statusEmoji = '';
+    if (status === 'processing') {
+      ArabicStatusText = 'قيد التجهيز والتحضير الفاخر 🛍️';
+      statusEmoji = '🛠️';
+    } else if (status === 'shipped') {
+      ArabicStatusText = 'تم شحنها وتوصيلها لمندوب الشحن الملكي وسوف تحط برحالها قريباً أمام باب بيتكم الكريم 🚚';
+      statusEmoji = '🚀';
+    } else if (status === 'delivered') {
+      ArabicStatusText = 'تم تسليمها إليكم بحمد الله وفضله ونرجو لكم الابتهاج الكامل بمحتوياتها الفاخرة! ✨';
+      statusEmoji = '👑';
+    } else if (status === 'cancelled') {
+      ArabicStatusText = 'تم إلغاؤها بناء على طلبكم الكريم أو لعدم توفر قنوات التأكيد مع تمنياتنا لكم بزيارة قريبة أخرى ❌';
+      statusEmoji = '⚠️';
+    } else if (status === 'pending') {
+      ArabicStatusText = 'قيد المراجعة والتعميد بالدكان ⏳';
+      statusEmoji = '⏳';
+    }
+
+    const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://dukkan-east.sa';
+    const directCustomerLink = `${siteOrigin}/?orderId=${orderId}`;
+
+    const statusMessage = `السلام عليكم ورحمة الله وبركاته يا فندم،\nأهلاً بك عميلنا العزيز: ${targetOrder.customerName} 👋\n\nتحديث رسمي من إدارة متجر "دكّان الشَّرق" بخصوص طلبك الفاخر:\n- رقم الفاتورة والطلب: ${orderId} 🧾\n- حالة طلبك الحالية أصبحت: ${ArabicStatusText} ${statusEmoji}\n\n🔗 يمكنك الاستعلام وتتبع تفاصيل طلبك مباشرة عبر الرابط التالي:\n${directCustomerLink}\n\nنسعد دوماً بخدمتك طوال أيام الأسبوع 🌸`;
+
+    const customerPhoneClean = targetOrder.customerPhone.trim();
+    const whatsappLink = `https://wa.me/${customerPhoneClean.startsWith('+') ? customerPhoneClean.substring(1) : customerPhoneClean}?text=${encodeURIComponent(statusMessage)}`;
+    setTimeout(() => {
+      try {
+        window.open(whatsappLink, '_blank');
+      } catch(e) {
+        console.warn('Blocked popup redirection');
+      }
+    }, 100);
   };
 
   const handleAddCoupon = (newCoupon: Coupon) => {
-    setCoupons(prev => {
-      const exists = prev.find(c => c.code === newCoupon.code);
-      if (exists) {
-        return prev.map(c => c.code === newCoupon.code ? newCoupon : c);
-      }
-      return [...prev, newCoupon];
-    });
+    setDoc(doc(db, 'coupons', newCoupon.code), newCoupon).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, `coupons/${newCoupon.code}`)
+    );
   };
 
   const handleDeleteCoupon = (couponCode: string) => {
-    setCoupons(prev => prev.filter(c => c.code !== couponCode));
+    deleteDoc(doc(db, 'coupons', couponCode)).catch(e =>
+      handleFirestoreError(e, OperationType.DELETE, `coupons/${couponCode}`)
+    );
+  };
+
+  const handleSetSiteSettings = (val: import('./types').SiteSettings | ((prev: import('./types').SiteSettings) => import('./types').SiteSettings)) => {
+    const nextSettings = typeof val === 'function' ? val(siteSettings) : val;
+    setDoc(doc(db, 'site_settings', 'general'), nextSettings).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
+    );
+  };
+
+  const handleSetCategories = (val: any[] | ((prev: any[]) => any[])) => {
+    const nextCategories = typeof val === 'function' ? val(categoriesState) : val;
+    nextCategories.forEach((cat, idx) => {
+      const catId = `cat_${idx}`;
+      setDoc(doc(db, 'category_states', catId), cat).catch(e =>
+        handleFirestoreError(e, OperationType.WRITE, `category_states/${catId}`)
+      );
+    });
+  };
+
+  const handleSetLocalWallets = (val: any[] | ((prev: any[]) => any[])) => {
+    const nextWallets = typeof val === 'function' ? val(localWallets) : val;
+    nextWallets.forEach(w => {
+      setDoc(doc(db, 'local_wallets', w.id), w).catch(e =>
+        handleFirestoreError(e, OperationType.WRITE, `local_wallets/${w.id}`)
+      );
+    });
+  };
+
+  const handleSetCustomerAccounts = (val: import('./types').CustomerAccount[] | ((prev: import('./types').CustomerAccount[]) => import('./types').CustomerAccount[])) => {
+    const nextAccs = typeof val === 'function' ? val(customerAccounts) : val;
+    nextAccs.forEach(acc => {
+      setDoc(doc(db, 'customer_accounts', acc.phone), acc).catch(e =>
+        handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${acc.phone}`)
+      );
+    });
   };
 
   const cartCount = cartItems.reduce((acc, curr) => acc + curr.quantity, 0);
@@ -867,11 +987,11 @@ export default function App() {
             orders={orders} 
             coupons={coupons}
             localWallets={localWallets}
-            setLocalWallets={setLocalWallets}
+            setLocalWallets={handleSetLocalWallets}
             siteSettings={siteSettings}
-            setSiteSettings={setSiteSettings}
+            setSiteSettings={handleSetSiteSettings}
             categories={categoriesState}
-            setCategories={setCategoriesState}
+            setCategories={handleSetCategories}
             onAddProduct={handleAddProduct} 
             onUpdateProduct={handleUpdateProduct} 
             onDeleteProduct={handleDeleteProduct} 
@@ -881,7 +1001,7 @@ export default function App() {
             yemeniGeodata={yemeniGeodata}
             setYemeniGeodata={setYemeniGeodata}
             customerAccounts={customerAccounts}
-            setCustomerAccounts={setCustomerAccounts}
+            setCustomerAccounts={handleSetCustomerAccounts}
             onAdminLoginChange={(val) => setIsAdminLoggedIn(val)}
           />
         )}

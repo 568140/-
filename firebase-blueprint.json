@@ -1,0 +1,150 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Store product with specifications, sizing, stock, and dynamic loyalty points.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "category": { "type": "string" },
+        "subCategory": { "type": "string" },
+        "stock": { "type": "number" },
+        "rating": { "type": "number" },
+        "isFeatured": { "type": "boolean" },
+        "pointsReward": { "type": "number" },
+        "videoUrl": { "type": "string" },
+        "sizes": { "type": "array" }
+      },
+      "required": ["id", "name", "price", "category", "stock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order details including cart items, payment method, total, and statuses.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "items": { "type": "array" },
+        "totalPrice": { "type": "number" },
+        "shippingCost": { "type": "number" },
+        "giftWrap": { "type": "boolean" },
+        "discountApplied": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "localWalletName": { "type": "string" },
+        "currency": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "earnedPoints": { "type": "number" },
+        "pointsAwarded": { "type": "boolean" },
+        "pointsUsed": { "type": "number" }
+      },
+      "required": ["id", "customerName", "customerPhone", "items", "totalPrice", "status", "createdAt"]
+    },
+    "CustomerAccount": {
+      "title": "CustomerAccount",
+      "description": "Store custom customer account with authenticated details, balance, points and histories.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "password": { "type": "string" },
+        "points": { "type": "number" },
+        "balance": { "type": "number" },
+        "transactions": { "type": "array" }
+      },
+      "required": ["name", "phone", "password"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Discount code configuration.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "discountType": { "type": "string" },
+        "discountValue": { "type": "number" },
+        "minSpend": { "type": "number" }
+      },
+      "required": ["code", "discountType", "discountValue"]
+    },
+    "LocalWallet": {
+      "title": "LocalWallet",
+      "description": "Registered local wallet details.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "name", "accountNumber", "isActive"]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Comprehensive site configuration settings, styling, ads, and ratios.",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string" },
+        "heroBadge": { "type": "string" },
+        "heroTitle": { "type": "string" },
+        "aboutUs": { "type": "string" },
+        "heroSubtitle": { "type": "string" },
+        "contactDescription": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactWhatsApp": { "type": "string" },
+        "footerAddress": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "iconUrl": { "type": "string" },
+        "pointsRatio": { "type": "number" },
+        "pointsRedeemRatio": { "type": "number" }
+      },
+      "required": ["storeName"]
+    },
+    "CategoryState": {
+      "title": "CategoryState",
+      "description": "Hierarchical category configurations.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "subcategories": { "type": "array" }
+      },
+      "required": ["name"]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "List of products offered in the storefront"
+    },
+    "orders": {
+      "schema": "Order",
+      "description": "Store customer orders and transactions"
+    },
+    "customer_accounts": {
+      "schema": "CustomerAccount",
+      "description": "Loyalty customer credentials and records"
+    },
+    "coupons": {
+      "schema": "Coupon",
+      "description": "List of active coupon discount codes"
+    },
+    "local_wallets": {
+      "schema": "LocalWallet",
+      "description": "List of supported local wallets for mobile payments"
+    },
+    "site_settings": {
+      "schema": "SiteSettings",
+      "description": "Dynamic globally stored configuration parameters"
+    },
+    "category_states": {
+      "schema": "CategoryState",
+      "description": "List of product categories and sub-categories"
+    }
+  }
+}

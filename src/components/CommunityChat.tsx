@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, X, User, Sparkles, ShieldCheck, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, onSnapshot, setDoc, doc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 
 interface ChatMessage {
   id: string;
@@ -17,16 +19,40 @@ const CommunityChat: React.FC<{ currentUser: any }> = ({ currentUser }) => {
   const [activeRoom, setActiveRoom] = useState<'general' | 'vip'>('general');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load initial simulated messages + local ones
+  // Load live messages from Firestore
   useEffect(() => {
-    const saved = localStorage.getItem('dukkan_community_messages');
-    if (saved) {
-      setMessages(JSON.parse(saved).map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
-    } else {
-      setMessages([
-        { id: '1', userName: 'أحمد من جدة', text: 'ما شاء الله العطر الملكي وصل اليوم وريحته خرافية! 🔥', timestamp: new Date(Date.now() - 3600000), role: 'vip' },
-      ]);
-    }
+    const unsub = onSnapshot(collection(db, 'community_messages'), (snapshot) => {
+      if (snapshot.empty) {
+        const defaultMsg = {
+          id: '1',
+          userName: 'أحمد من جدة',
+          text: 'ما شاء الله العطر الملكي وصل اليوم وريحته خرافية! 🔥',
+          timestamp: new Date(Date.now() - 3600000).toISOString(),
+          role: 'vip' as const
+        };
+        setDoc(doc(db, 'community_messages', defaultMsg.id), defaultMsg).catch(e => 
+          handleFirestoreError(e, OperationType.WRITE, `community_messages/${defaultMsg.id}`)
+        );
+      } else {
+        const list: ChatMessage[] = [];
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          list.push({
+            id: d.id,
+            userName: d.userName,
+            text: d.text,
+            timestamp: new Date(d.timestamp),
+            role: d.role
+          });
+        });
+        // Sort oldest to newest
+        list.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+        setMessages(list);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'community_messages');
+    });
+    return () => unsub();
   }, []);
 
   const filteredMessages = messages.filter(m => {
@@ -35,7 +61,6 @@ const CommunityChat: React.FC<{ currentUser: any }> = ({ currentUser }) => {
   });
 
   useEffect(() => {
-    localStorage.setItem('dukkan_community_messages', JSON.stringify(messages));
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -50,16 +75,20 @@ const CommunityChat: React.FC<{ currentUser: any }> = ({ currentUser }) => {
       return;
     }
 
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
+    const newMessageId = Date.now().toString();
+    const newMessage = {
+      id: newMessageId,
       userName: currentUser.name,
-      text: input,
-      timestamp: new Date(),
-      role: activeRoom === 'vip' ? 'vip' : 'user'
+      text: input.trim(),
+      timestamp: new Date().toISOString(),
+      role: activeRoom === 'vip' ? ('vip' as const) : ('user' as const)
     };
 
-    setMessages(prev => [...prev, newMessage]);
-    setInput('');
+    setDoc(doc(db, 'community_messages', newMessageId), newMessage).then(() => {
+      setInput('');
+    }).catch(e => {
+      handleFirestoreError(e, OperationType.WRITE, `community_messages/${newMessageId}`);
+    });
   };
 
   return (
