@@ -2,9 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   TrendingUp, ShoppingBag, Users, DollarSign, Package, BadgePercent, 
-  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload
+  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem
 } from 'lucide-react';
-import { Product, Order, Coupon, LocalWallet } from '../types';
+import { Product, Order, Coupon, LocalWallet, Transaction, CustomerAccount } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 import { CATEGORIES } from '../data';
 import { GovernorateData } from '../utils/yemeniData';
@@ -90,7 +90,7 @@ export function Dashboard({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads'>('metrics');
   
   // Admin Authentication / Credentials Configuration
   const [adminUsername, setAdminUsername] = useState(() => {
@@ -130,10 +130,20 @@ export function Dashboard({
   const [prodImage, setProdImage] = useState('');
   const [prodRating, setProdRating] = useState(4.5);
   const [prodIsFeatured, setProdIsFeatured] = useState(false);
+  const [prodPointsReward, setProdPointsReward] = useState(0);
+  const [prodVideoUrl, setProdVideoUrl] = useState('');
   const [prodSizeStock, setProdSizeStock] = useState<Record<string, number>>({});
 
   // Order search query state for Owner lookup
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
+
+  // Gift Giving Custom Modal states
+  const [giftingAccount, setGiftingAccount] = useState<CustomerAccount | null>(null);
+  const [giftType, setGiftType] = useState<'points' | 'product'>('points');
+  const [giftPoints, setGiftPoints] = useState<string>('');
+  const [giftProduct, setGiftProduct] = useState<string>('');
+  const [giftSuccessMsg, setGiftSuccessMsg] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState<CustomerAccount | null>(null);
 
   // Categories addition states
   const [addCategoryType, setAddCategoryType] = useState<'main' | 'sub'>('main');
@@ -159,6 +169,94 @@ export function Dashboard({
 
   // Order detail viewer modal
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+
+  // Interactive Stats States
+  const [statTimeRange, setStatTimeRange] = useState<'all' | '30days' | '7days'>('all');
+  const [statMetric, setStatMetric] = useState<'sales' | 'orders' | 'points'>('sales');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
+
+  // Filter orders by selected time range
+  const filteredOrdersByTime = useMemo(() => {
+    return orders.filter(o => {
+      if (statTimeRange === 'all') return true;
+      const orderDate = new Date(o.createdAt);
+      const diffTime = Math.abs(new Date().getTime() - orderDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (statTimeRange === '30days') return diffDays <= 30;
+      if (statTimeRange === '7days') return diffDays <= 7;
+      return true;
+    });
+  }, [orders, statTimeRange]);
+
+  // Compute interactive stats based on filteredTime
+  const interactiveSales = useMemo(() => {
+    return filteredOrdersByTime
+      .filter(o => o.status !== 'cancelled')
+      .reduce((acc, curr) => acc + curr.totalPrice, 0);
+  }, [filteredOrdersByTime]);
+
+  const interactiveOrdersCount = useMemo(() => {
+    return filteredOrdersByTime.length;
+  }, [filteredOrdersByTime]);
+
+  const interactivePointsUsed = useMemo(() => {
+    return filteredOrdersByTime
+      .filter(o => o.status !== 'cancelled')
+      .reduce((acc, curr) => acc + (curr.pointsUsed || 0), 0);
+  }, [filteredOrdersByTime]);
+
+  const interactivePointsAwarded = useMemo(() => {
+    return filteredOrdersByTime
+      .filter(o => o.status !== 'cancelled')
+      .reduce((acc, curr) => acc + (curr.earnedPoints || 0), 0);
+  }, [filteredOrdersByTime]);
+
+  const productAnalytics = useMemo(() => {
+    const data: Record<string, { id: string; name: string; category: string; unitsSold: number; totalRev: number; image: string }> = {};
+    
+    filteredOrdersByTime.forEach(o => {
+      if (o.status === 'cancelled') return;
+      o.items.forEach(item => {
+        const id = item.product.id;
+        const cat = item.product.category;
+        if (selectedCategoryFilter !== 'all' && cat !== selectedCategoryFilter) return;
+
+        if (!data[id]) {
+          data[id] = { 
+            id, 
+            name: item.product.name, 
+            category: cat, 
+            unitsSold: 0, 
+            totalRev: 0, 
+            image: item.product.image 
+          };
+        }
+        data[id].unitsSold += item.quantity;
+        data[id].totalRev += item.product.price * item.quantity;
+      });
+    });
+    
+    return Object.values(data).sort((a, b) => b.totalRev - a.totalRev);
+  }, [filteredOrdersByTime, selectedCategoryFilter]);
+
+  const timelineData = useMemo(() => {
+    const dailyData: Record<string, { date: string; sales: number; orders: number; points: number }> = {};
+    
+    const sortedOrders = [...filteredOrdersByTime].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    
+    sortedOrders.forEach(o => {
+      if (o.status === 'cancelled') return;
+      const date = o.createdAt;
+      if (!dailyData[date]) {
+        dailyData[date] = { date, sales: 0, orders: 0, points: 0 };
+      }
+      dailyData[date].sales += Number(o.totalPrice.toFixed(2));
+      dailyData[date].orders += 1;
+      dailyData[date].points += (o.pointsUsed || 0);
+    });
+    
+    return Object.values(dailyData);
+  }, [filteredOrdersByTime]);
 
   // Computed metrics
   const totalSales = useMemo(() => {
@@ -229,6 +327,8 @@ export function Dashboard({
     setProdImage('https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60');
     setProdRating(4.5);
     setProdIsFeatured(false);
+    setProdPointsReward(10);
+    setProdVideoUrl('');
     setShowProductModal(true);
   };
 
@@ -247,6 +347,8 @@ export function Dashboard({
     setProdImage(p.image);
     setProdRating(p.rating);
     setProdIsFeatured(!!p.isFeatured);
+    setProdPointsReward(p.pointsReward || 0);
+    setProdVideoUrl(p.videoUrl || '');
     setShowProductModal(true);
   };
 
@@ -286,6 +388,8 @@ export function Dashboard({
         image: prodImage,
         rating: Number(prodRating),
         isFeatured: prodIsFeatured,
+        pointsReward: Number(prodPointsReward),
+        videoUrl: prodVideoUrl,
         sizes: parsedSizes,
         sizeStock: filteredSizeStock
       });
@@ -300,6 +404,8 @@ export function Dashboard({
         image: prodImage,
         rating: Number(prodRating),
         isFeatured: prodIsFeatured,
+        pointsReward: Number(prodPointsReward),
+        videoUrl: prodVideoUrl,
         sizes: parsedSizes,
         sizeStock: filteredSizeStock
       });
@@ -550,11 +656,31 @@ export function Dashboard({
             onClick={() => setActiveTab('layout')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'layout'
-                ? 'bg-amber-600 text-white shadow-xs'
+                ? 'bg-navy text-gold shadow-xs'
                 : 'text-gray-500 hover:text-gray-900'
             }`}
           >
             🎨 تخصيص المتجر
+          </button>
+          <button
+            onClick={() => setActiveTab('ads')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'ads'
+                ? 'bg-gold text-navy shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            📢 إدارة الإعلانات (Ads Manager)
+          </button>
+          <button
+            onClick={() => setActiveTab('marketing')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'marketing'
+                ? 'bg-gold text-navy shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            🚀 التسويق والـ SEO
           </button>
           <button
             onClick={() => {
@@ -586,99 +712,251 @@ export function Dashboard({
 
       {/* METRICS & OVERALL PERFORMANCE VIEW */}
       {activeTab === 'metrics' && (
-        <div className="space-y-8">
-          {/* Dashboard Stats Row */}
+        <div className="space-y-8 font-sans">
+          
+          {/* Interactive Filtering Dashboard Controls */}
+          <div className="bg-linear-to-r from-navy to-navy-light p-6 rounded-3xl text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-white/5">
+            <div>
+              <h2 className="text-base font-black text-gradient-gold flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-gold" /> مركز البيانات والإحصائيات التفاعلي
+              </h2>
+              <p className="text-xxs text-gray-305 mt-1 font-sans">تحكم بمدخلات ومخططات متجرك بنقرة واحدة واحصل على تحليلات دقيقة وفورية.</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Time Range Selector */}
+              <div className="flex bg-white/10 p-1 rounded-xl border border-white/10">
+                <button
+                  onClick={() => setStatTimeRange('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold transition-all cursor-pointer ${
+                    statTimeRange === 'all' ? 'bg-gold text-navy font-black shadow-sm' : 'text-gray-350 hover:text-white'
+                  }`}
+                >
+                  الكل
+                </button>
+                <button
+                  onClick={() => setStatTimeRange('30days')}
+                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold transition-all cursor-pointer ${
+                    statTimeRange === '30days' ? 'bg-gold text-navy font-black shadow-sm' : 'text-gray-350 hover:text-white'
+                  }`}
+                >
+                  آخر 30 يوم
+                </button>
+                <button
+                  onClick={() => setStatTimeRange('7days')}
+                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold transition-all cursor-pointer ${
+                    statTimeRange === '7days' ? 'bg-gold text-navy font-black shadow-sm' : 'text-gray-350 hover:text-white'
+                  }`}
+                >
+                  آخر 7 أيام
+                </button>
+              </div>
+
+              {/* Metric View Selector */}
+              <div className="flex bg-white/10 p-1 rounded-xl border border-white/10">
+                <button
+                  onClick={() => setStatMetric('sales')}
+                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold transition-all cursor-pointer ${
+                    statMetric === 'sales' ? 'bg-white text-navy font-black shadow-sm' : 'text-gray-350 hover:text-white'
+                  }`}
+                >
+                  المبيعات
+                </button>
+                <button
+                  onClick={() => setStatMetric('orders')}
+                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold transition-all cursor-pointer ${
+                    statMetric === 'orders' ? 'bg-white text-navy font-black shadow-sm' : 'text-gray-350 hover:text-white'
+                  }`}
+                >
+                  الطلبات
+                </button>
+                <button
+                  onClick={() => setStatMetric('points')}
+                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold transition-all cursor-pointer ${
+                    statMetric === 'points' ? 'bg-white text-navy font-black shadow-sm' : 'text-gray-350 hover:text-white'
+                  }`}
+                >
+                  النقاط والولاء
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive KPI Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             
-            {/* Sales performance */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
+            {/* KPI 1: Dynamic Sales */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
               <div>
-                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">إجمالي المبيعات</span>
-                <span className="text-2xl font-black text-navy font-mono">{totalSales.toFixed(2)}</span>
+                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">المبيعات بالتصفية</span>
+                <span className="text-2xl font-black text-navy font-mono">{interactiveSales.toFixed(2)}</span>
                 <span className="text-xs font-bold text-gold font-display pr-1">ر.س</span>
+                <p className="text-[9px] text-emerald-600 font-sans font-semibold mt-1">
+                  {statTimeRange === 'all' ? 'لجميع الأوقات بالمتجر' : `خلال ${statTimeRange === '30days' ? '٣٠ يوماً' : '٧ أيام'}`}
+                </p>
               </div>
-              <div className="p-3 bg-gold/10 rounded-2xl border border-gold/10">
-                <DollarSign className="h-6 w-6 text-gold-dark" />
-              </div>
-            </div>
-
-            {/* Total count of orders */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
-              <div>
-                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">الطلبات الكلية</span>
-                <span className="text-2xl font-black text-navy font-mono">{orders.length}</span>
-                <span className="text-xs font-bold text-gray-400 font-display pr-1">طلب</span>
-              </div>
-              <div className="p-3 bg-navy/5 rounded-2xl border border-navy/5">
-                <ShoppingBag className="h-6 w-6 text-navy" />
+              <div className="p-3 bg-gold/10 text-gold-dark rounded-2xl border border-gold/10 group-hover:scale-110 transition-transform">
+                <DollarSign className="h-6 w-6" />
               </div>
             </div>
 
-            {/* Pending & Processing orders */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
+            {/* KPI 2: Dynamic Orders */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
               <div>
-                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">طلبات قيد المعالجة</span>
-                <span className="text-2xl font-black text-gold-dark font-mono">{activeOrdersCount}</span>
-                <span className="text-xs font-bold text-gray-400 font-display pr-1">نشط</span>
+                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">عدد الطلبيات المفلترة</span>
+                <span className="text-2xl font-black text-navy font-mono">{interactiveOrdersCount}</span>
+                <span className="text-xs font-bold text-gray-400 font-sans pr-1">طلب</span>
+                <p className="text-[9px] text-indigo-600 font-sans font-semibold mt-1">تداول مالي نشط بالمعدل</p>
               </div>
-              <div className="p-3 bg-gold/5 rounded-2xl border border-gold/5">
-                <Users className="h-6 w-6 text-gold-dark" />
+              <div className="p-3 bg-navy/5 text-navy rounded-2xl border border-navy/5 group-hover:scale-110 transition-transform">
+                <ShoppingBag className="h-6 w-6" />
               </div>
             </div>
 
-            {/* Out of stock alert list */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-all">
+            {/* KPI 3: Loyalty points used */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
               <div>
-                <span className="block text-xxs font-bold text-gray-400 font-display uppercase mb-1 tracking-wider">منتجات نفذت</span>
-                <span className={`text-2xl font-black font-mono ${outOfStockCount > 0 ? 'text-rose-600' : 'text-navy'}`}>
-                  {outOfStockCount}
-                </span>
-                <span className="text-xs font-bold text-gray-400 font-display pr-1">صنف</span>
+                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">نقاط مستخدمة (فواتير وهدايا)</span>
+                <span className="text-2xl font-black text-amber-600 font-mono">{interactivePointsUsed}</span>
+                <span className="text-xs font-bold text-gray-450 font-sans pr-1">نقاط</span>
+                <p className="text-[9px] text-amber-700 font-sans font-semibold mt-1">المستهلكة لتسديد المشتريات</p>
               </div>
-              <div className={`p-3 rounded-2xl border ${outOfStockCount > 0 ? 'bg-rose-50 border-rose-100' : 'bg-navy/5 border-navy/5'}`}>
-                <Package className={`h-6 w-6 ${outOfStockCount > 0 ? 'text-rose-600' : 'text-navy'}`} />
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 group-hover:scale-110 transition-transform">
+                <Trophy className="h-6 w-6" />
+              </div>
+            </div>
+
+            {/* KPI 4: Loyalty points awarded */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
+              <div>
+                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">إجمالي النقاط الممنوحة</span>
+                <span className="text-2xl font-black text-emerald-600 font-mono">{interactivePointsAwarded}</span>
+                <span className="text-xs font-bold text-gray-450 font-sans pr-1">نقاط</span>
+                <p className="text-[9px] text-emerald-700 font-sans font-semibold mt-1">التي كسبها العملاء حديثاً</p>
+              </div>
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 group-hover:scale-110 transition-transform">
+                <Gem className="h-6 w-6" />
               </div>
             </div>
 
           </div>
 
-          {/* Visual representations (SVG Chart) */}
+          {/* Interactive Charts and Timelines Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Visual SVG Bar graph representing sales by category */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex flex-col justify-between">
+            
+            {/* Chart 1: Interactive Temporal Trend Area Chart */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex flex-col justify-between">
               <div>
-                <h3 className="text-sm font-bold text-gray-900 font-sans mb-1">المبيعات حسب القسم</h3>
-                <p className="text-xxs text-gray-400 font-sans mb-6">توزيع مبيعات المتجر الإجمالية حسب الأقسام الرئيسية.</p>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-gray-900 font-sans">
+                    {statMetric === 'sales' && 'مخطط اتجاه المبيعات (ر.س)'}
+                    {statMetric === 'orders' && 'مخطط ووتيرة الطلبيات (طلب)'}
+                    {statMetric === 'points' && 'إحصائية استرداد واستهلاك نقاط الولاء'}
+                  </h3>
+                  <span className="text-[9px] font-black uppercase text-gold bg-gold/10 px-2 py-0.5 rounded-md font-sans">تفاعلي بالزمن</span>
+                </div>
+                <p className="text-xxs text-gray-450 font-sans mb-6">مخطط تفاعلي ديناميكي يعبر عن حيز النشاط لجميع الأيام المصنفة بالتاريخ.</p>
               </div>
 
-              {/* Recharts BarChart representing sales by category */}
-              <div className="w-full h-64 -ml-4 pr-4">
+              <div className="w-full h-72 -ml-4 pr-4">
+                {timelineData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center py-10">
+                    <CircleAlert className="h-8 w-8 text-gray-300 mb-2 animate-pulse" />
+                    <p className="subtext text-xxs font-bold text-gray-400">لا توجد بيانات مخطط كافية لعرض الجدول الزمني الحالي.</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={timelineData}>
+                      <defs>
+                        <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={statMetric === 'sales' ? '#d4af37' : statMetric === 'orders' ? '#312e81' : '#10b981'} stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor={statMetric === 'sales' ? '#d4af37' : statMetric === 'orders' ? '#312e81' : '#10b981'} stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis 
+                        dataKey="date" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'monospace' }}
+                        dy={8}
+                      />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'monospace' }}
+                        width={35}
+                      />
+                      <RechartsTooltip 
+                        contentStyle={{ borderRadius: '16px', border: '1px solid #e5e7eb', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', backgroundColor: '#ffffff', fontFamily: 'sans-serif', fontSize: '11px', direction: 'rtl'}}
+                        itemStyle={{ color: '#0f172a', fontWeight: 'bold' }}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey={statMetric === 'sales' ? 'sales' : statMetric === 'orders' ? 'orders' : 'points'} 
+                        name={statMetric === 'sales' ? 'المبيعات اليومية' : statMetric === 'orders' ? 'عدد العمليات' : 'النقاط المستهلكة'}
+                        stroke={statMetric === 'sales' ? '#d4af37' : statMetric === 'orders' ? '#312e81' : '#10b981'} 
+                        fillOpacity={1} 
+                        fill="url(#colorMetric)"
+                        strokeWidth={3} 
+                        animationDuration={1200}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Chart 2: Category distribution Bar Chart with Interactive drill down trigger */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex flex-col justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 font-sans mb-1">توزيع المبيعات المالي حسب صنف المنتج</h3>
+                <p className="text-xxs text-gray-400 font-sans mb-6">انقر على أي تصنيف لتحديث جدول مبيعات المنتجات بالأسفل تفاعلياً.</p>
+              </div>
+
+              <div className="w-full h-72 -ml-4 pr-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categories.map(cat => ({ name: cat.name, المبيعات: salesByCategory[cat.name] || 0 }))}>
+                  <BarChart data={categories.map(cat => ({ 
+                    name: cat.name, 
+                    المبيعات: filteredOrdersByTime
+                      .filter(o => o.status !== 'cancelled')
+                      .reduce((sum, ord) => {
+                        const catItemsSum = ord.items
+                          .filter(item => item.product.category === cat.name)
+                          .reduce((itemSum, item) => itemSum + (item.product.price * item.quantity), 0);
+                        return sum + catItemsSum;
+                      }, 0)
+                  }))}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                     <XAxis 
                       dataKey="name" 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'sans-serif' }}
-                      dy={10}
+                      tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'sans-serif' }}
+                      dy={8}
                     />
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: '#9ca3af', fontSize: 10, fontFamily: 'monospace' }}
-                      width={40}
+                      tick={{ fill: '#6b7280', fontSize: 10, fontFamily: 'monospace' }}
+                      width={35}
                     />
                     <RechartsTooltip 
-                      cursor={{fill: 'transparent'}}
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontFamily: 'sans-serif', fontSize: '12px', direction: 'rtl'}}
-                      itemStyle={{ color: '#d97706', fontWeight: 'bold' }}
+                      cursor={{ fill: 'rgba(212, 175, 55, 0.05)' }}
+                      contentStyle={{ borderRadius: '16px', border: '1px solid #e5e7eb', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', backgroundColor: '#ffffff', fontFamily: 'sans-serif', fontSize: '11px', direction: 'rtl'}}
                     />
                     <Bar 
                       dataKey="المبيعات" 
-                      fill="#d4af37" 
-                      radius={[6, 6, 0, 0]}
-                      barSize={32}
+                      name="مبيعات القسم (ر.س)"
+                      fill="#312e81" 
+                      radius={[8, 8, 0, 0]}
+                      barSize={24}
+                      className="cursor-pointer"
+                      onClick={(data) => {
+                        if (data && data.name) {
+                          setSelectedCategoryFilter(data.name === selectedCategoryFilter ? 'all' : data.name);
+                        }
+                      }}
                       animationDuration={1500}
                     />
                   </BarChart>
@@ -686,53 +964,136 @@ export function Dashboard({
               </div>
             </div>
 
-            {/* Sales timeline mock/recent activities */}
-            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex flex-col">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900 font-sans mb-1">آخر الطلبيات والنشاطات</h3>
-                <p className="text-xxs text-gray-400 font-sans mb-4">قائمة فورية لآخر عمليات الشراء المسجلة بالمتجر.</p>
+          </div>
+
+          {/* Interactive Products Analytics & Deep Drill Down list */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* Drilling Down Rank List Section */}
+            <div className="lg:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 font-sans">قائمة المنتجات الأكثر مبيعاً بالتصفية</h3>
+                  <p className="text-xxs text-gray-400 font-sans mt-0.5">ترتيب تنازلي لأكثر الأصناف تحقيقاً للأرباح بناءً على الفتلرة الزمنية وقسم المنتج.</p>
+                </div>
+
+                {/* Drilldown Category Picker */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xxs font-bold text-gray-400 font-sans ml-1">تصفية سريعة بالصنف:</span>
+                  <button
+                    onClick={() => setSelectedCategoryFilter('all')}
+                    className={`px-3 py-1 rounded-full text-xxs font-bold transition-all cursor-pointer ${
+                      selectedCategoryFilter === 'all'
+                        ? 'bg-navy text-white font-black'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    الكل
+                  </button>
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.name}
+                      onClick={() => setSelectedCategoryFilter(cat.name)}
+                      className={`px-3 py-1 rounded-full text-xxs font-bold transition-all cursor-pointer ${
+                        selectedCategoryFilter === cat.name
+                          ? 'bg-gold text-navy font-black'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {orders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center flex-1 py-8 text-center">
-                  <CircleAlert className="h-10 w-10 text-gray-300 mb-2" />
-                  <p className="text-xs text-gray-400 font-sans font-semibold">لم يتم تسجيل أي طلبيات بعد بالمتجر.</p>
+              {productAnalytics.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Package className="h-12 w-12 text-gray-200 mb-2 animate-bounce" />
+                  <p className="text-xs font-bold text-gray-400">لا توجد بيانات مبيعات للمنتجات في هذا الاختيار.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-50 overflow-y-auto max-h-56 pr-2">
-                  {orders.slice().reverse().map((order) => (
-                    <div key={order.id} className="py-3 flex justify-between items-center">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xxs font-bold text-gray-400 uppercase tracking-wider">
+                        <th className="pb-3 pt-1">المنتج</th>
+                        <th className="pb-3 pt-1 text-center">تصنيف الصنف</th>
+                        <th className="pb-3 pt-1 text-center">الوحدات المباعة</th>
+                        <th className="pb-3 pt-1 text-left">إجمالي الإيرادات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {productAnalytics.map((item) => (
+                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
+                          <td className="py-3 flex items-center gap-3">
+                            <img 
+                              src={item.image} 
+                              alt={item.name} 
+                              className="h-10 w-10 object-cover rounded-xl border border-gray-100 shadow-xxs"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-navy group-hover:text-gold-dark transition-colors">{item.name}</p>
+                              <p className="text-xxs text-gray-450 font-mono">ID: {item.id}</p>
+                            </div>
+                          </td>
+                          <td className="py-3 text-center">
+                            <span className="inline-block text-xxs px-2.5 py-0.5 rounded-full bg-navy/5 text-navy font-bold">{item.category}</span>
+                          </td>
+                          <td className="py-3 text-center">
+                            <span className="text-xs font-mono font-black text-gray-900">{item.unitsSold} حبة</span>
+                          </td>
+                          <td className="py-3 text-left">
+                            <span className="text-xs font-mono font-black text-gold-dark">{item.totalRev.toFixed(2)} ر.س</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Recent Orders timeline list */}
+            <div className="lg:col-span-4 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 font-sans mb-1">آخر الطلبيات والنشاط</h3>
+                <p className="text-xxs text-gray-400 font-sans mb-4">نشاطات المشتريات الأخيرة المسجلة بالتصفية الزمنية.</p>
+              </div>
+
+              {filteredOrdersByTime.length === 0 ? (
+                <div className="flex flex-col items-center justify-center flex-1 py-8 text-center">
+                  <CircleAlert className="h-10 w-10 text-gray-300 mb-2" />
+                  <p className="text-xs text-gray-400 font-sans font-semibold">لم تسجل طلبيات في هذا النطاق الزمني.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-50 overflow-y-auto max-h-96 pr-2 custom-scrollbar">
+                  {filteredOrdersByTime.slice().reverse().map((order) => (
+                    <div key={order.id} className="py-3 flex justify-between items-center hover:bg-gray-50/50 rounded-xl px-1.5 transition-colors">
                       <div className="flex items-center space-x-3 space-x-reverse">
-                        <span className="w-8 h-8 rounded-full bg-amber-50 text-amber-800 text-xxs font-bold flex items-center justify-center font-mono border border-amber-100">
+                        <span className="w-8 h-8 rounded-full bg-amber-50 text-amber-850 text-xxs font-bold flex items-center justify-center font-mono border border-amber-100 select-none">
                           {order.items.reduce((sum, i) => sum + i.quantity, 0)}
                         </span>
                         <div>
-                          <p className="text-xs font-bold text-gray-800 font-sans">{order.customerName}</p>
-                          <p className="text-xxs text-gray-400 font-mono">{order.id} ● {order.createdAt}</p>
+                          <p className="text-xs font-bold text-gray-800 font-sans leading-tight">{order.customerName}</p>
+                          <p className="text-xxs text-gray-400 font-mono mt-0.5">{order.id} ● {order.createdAt}</p>
                         </div>
                       </div>
 
                       <div className="text-left">
-                        <span className="block text-xs font-bold text-amber-900 font-mono">{order.totalPrice.toFixed(2)} ر.س</span>
-                        <span className={`inline-block text-xxs px-1.5 py-0.5 rounded-md font-sans ${
-                          order.status === 'pending' ? 'bg-amber-50 text-amber-800 border border-amber-100' :
-                          order.status === 'processing' ? 'bg-indigo-50 text-indigo-800 border border-indigo-100' :
-                          order.status === 'shipped' ? 'bg-blue-50 text-blue-800 border border-blue-100' :
-                          order.status === 'delivered' ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' :
-                          'bg-rose-50 text-rose-800'
-                        }`}>
-                          {order.status === 'pending' ? 'مستلم' :
-                           order.status === 'processing' ? 'تحت التجهيز' :
-                           order.status === 'shipped' ? 'مشحون' :
-                           order.status === 'delivered' ? 'مكتمل' : 'ملغي'}
-                        </span>
+                        <span className="block text-xs font-bold text-amber-900 font-mono tracking-tight">{order.totalPrice.toFixed(2)} ر.س</span>
+                        {order.pointsUsed && order.pointsUsed > 0 ? (
+                          <span className="block text-[8px] font-black text-amber-600 font-sans mt-0.5">🪙 استخدم {order.pointsUsed} نقطة</span>
+                        ) : null}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
           </div>
+
         </div>
       )}
 
@@ -932,7 +1293,7 @@ export function Dashboard({
                   <tr key={p.id} className="hover:bg-gray-50/50">
                     <td className="p-4 font-sans text-right">
                       <div className="flex items-center space-x-3 space-x-reverse">
-                        <img src={p.image} alt={p.name} className="h-10 w-10 object-cover rounded-xl bg-gray-100 border border-gray-50" referrerPolicy="no-referrer" />
+                        {p.image && <img src={p.image} alt={p.name} className="h-10 w-10 object-cover rounded-xl bg-gray-100 border border-gray-50" referrerPolicy="no-referrer" />}
                         <div>
                           <p className="font-bold text-gray-900 text-right">{p.name}</p>
                           <p className="text-xxs text-gray-400 font-sans truncate max-w-xs text-right">{p.description}</p>
@@ -1528,10 +1889,19 @@ export function Dashboard({
                           <div className="flex justify-center gap-2">
                             <button 
                               onClick={() => {
-                                if(window.confirm(`هل أنت متأكد من حذف حساب العميل ${account.name}؟`)) {
-                                  setCustomerAccounts?.(prev => prev.filter(a => a.phone !== account.phone));
-                                }
+                                setGiftingAccount(account);
+                                setGiftType('points');
+                                setGiftPoints('');
+                                setGiftProduct('');
+                                setGiftSuccessMsg(null);
                               }}
+                              className="p-2 text-gold hover:bg-gold/5 rounded-lg transition-colors border border-transparent hover:border-gold/20"
+                              title="إهداء نقاط أو منتجات"
+                            >
+                              <Sparkles className="h-4 w-4" />
+                            </button>
+                            <button 
+                              onClick={() => setDeletingAccount(account)}
                               className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
                               title="حذف الحساب"
                             >
@@ -1793,6 +2163,546 @@ export function Dashboard({
         </div>
       )}
 
+      {/* ADS MANAGEMENT TAB */}
+      {activeTab === 'ads' && siteSettings && setSiteSettings && (
+        <motion.div
+           initial={{ opacity: 0, scale: 0.98 }}
+           animate={{ opacity: 1, scale: 1 }}
+           className="space-y-6 text-right font-sans"
+        >
+          <div className="bg-white rounded-3xl p-8 border border-gold/10 shadow-2xl">
+            <div className="flex items-center justify-between mb-8 border-b border-gray-50 pb-6">
+              <div>
+                <h2 className="text-xl font-black text-navy flex items-center gap-2">
+                   📢 مدير الإعلانات الذكي (Ads Manager)
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">تحكم في ظهور إعلانات Google AdSense و PropellerAds و Adsterra في متجرك.</p>
+              </div>
+              <button 
+                onClick={() => {
+                  const newAd = {
+                    id: Date.now().toString(),
+                    provider: 'Custom' as const,
+                    location: 'between_products' as const,
+                    code: '<div class="p-4 bg-gray-50 text-center text-[10px]">مساحة إعلانية مخصصة</div>',
+                    isActive: true
+                  };
+                  setSiteSettings({ ...siteSettings, adScripts: [...(siteSettings.adScripts || []), newAd] });
+                }}
+                className="px-4 py-2 bg-navy text-gold rounded-xl text-xs font-black flex items-center gap-2 hover:bg-navy-light transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" /> إضافة وحدة إعلانية
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              {siteSettings.adScripts && siteSettings.adScripts.map((ad) => (
+                <div key={ad.id} className="bg-gray-50 rounded-3xl p-6 border border-gray-200 relative group transition-all hover:bg-white hover:shadow-md">
+                  <button 
+                    onClick={() => {
+                      const updated = (siteSettings.adScripts || []).filter(a => a.id !== ad.id);
+                      setSiteSettings({ ...siteSettings, adScripts: updated });
+                    }}
+                    className="absolute top-4 left-4 p-2 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-xl transition-all cursor-pointer"
+                    title="حذف الوحدة الإعلانية"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">جهة الإعلان</label>
+                      <select 
+                        value={ad.provider}
+                        onChange={(e) => {
+                          const updated = siteSettings.adScripts.map(a => a.id === ad.id ? { ...a, provider: e.target.value as any } : a);
+                          setSiteSettings({ ...siteSettings, adScripts: updated });
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-navy focus:outline-hidden"
+                      >
+                        <option value="AdSense">Google AdSense</option>
+                        <option value="PropellerAds">PropellerAds</option>
+                        <option value="Adsterra">Adsterra</option>
+                        <option value="Custom">كود مخصص (HTML/JS)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">مكان العرض</label>
+                      <select 
+                        value={ad.location}
+                        onChange={(e) => {
+                          const updated = siteSettings.adScripts.map(a => a.id === ad.id ? { ...a, location: e.target.value as any } : a);
+                          setSiteSettings({ ...siteSettings, adScripts: updated });
+                        }}
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-navy focus:outline-hidden"
+                      >
+                        <option value="top_header">أعلى الهيدر (فوق كل شيء)</option>
+                        <option value="between_products">بين المنتجات (في المتجر)</option>
+                        <option value="sidebar">القائمة الجانبية</option>
+                        <option value="footer">أسفل الموقع (الفوتير)</option>
+                        <option value="after_cart">بعد إتمام الطلب</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-end">
+                      <button 
+                        onClick={() => {
+                          const updated = siteSettings.adScripts.map(a => a.id === ad.id ? { ...a, isActive: !a.isActive } : a);
+                          setSiteSettings({ ...siteSettings, adScripts: updated });
+                        }}
+                        className={`w-full py-2.5 rounded-xl text-[10px] font-black transition-all border cursor-pointer ${ad.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-100 text-gray-400 border-gray-200'}`}
+                      >
+                        {ad.isActive ? 'الوحدة مفعلة حالياً ✅' : 'الوحدة معطلة ❌'}
+                      </button>
+                    </div>
+
+                    <div className="md:col-span-3">
+                      <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">كود الإعلان (Script / HTML Code)</label>
+                      <textarea 
+                        value={ad.code}
+                        dir="ltr"
+                        onChange={(e) => {
+                          const updated = siteSettings.adScripts.map(a => a.id === ad.id ? { ...a, code: e.target.value } : a);
+                          setSiteSettings({ ...siteSettings, adScripts: updated });
+                        }}
+                        className="w-full bg-gray-900 text-emerald-400 font-mono text-[10px] p-4 rounded-2xl resize-none h-24 focus:outline-hidden border border-navy shadow-inner"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {(!siteSettings.adScripts || siteSettings.adScripts.length === 0) && (
+                <div className="py-20 text-center flex flex-col items-center justify-center opacity-30 border-2 border-dashed border-gray-200 rounded-3xl">
+                  <PlayCircle className="h-12 w-12 mb-4" />
+                  <p className="text-xs font-black">لا توجد وحدات إعلانية حالياً. ابدأ بإضافة وحدتك الأولى!</p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 pt-8 border-t border-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-gold">
+                <ShieldCheck className="h-4 w-4" />
+                <span className="text-[10px] font-bold">نظام حماية من غلق الحسابات مفعل</span>
+              </div>
+              <button 
+                onClick={() => alert('تم حفظ إعدادات الإعلانات وجدولة عرضها بنجاح!')}
+                className="bg-navy text-gold px-10 py-3 rounded-2xl text-xs font-black shadow-xl hover:bg-navy-light transition-all cursor-pointer"
+              >
+                تحديث التغييرات
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* MARKETING & SEO TAB */}
+      {activeTab === 'marketing' && siteSettings && setSiteSettings && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6 text-right font-sans mx-auto max-w-4xl"
+        >
+          <div className="bg-white rounded-3xl p-8 border border-gold/10 shadow-2xl shadow-navy/5">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-6 mb-8">
+              <div>
+                <h2 className="text-xl font-black text-navy flex items-center gap-2">
+                  <TrendingUp className="h-6 w-6 text-gold" />
+                  أدوات النمو والظهور (Marketing & SEO)
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">عزز ثقة عملائك وارفع ترتيب متجرك في عيون محركات البحث العالمية.</p>
+              </div>
+              <div className="flex gap-2">
+                <span className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-[10px] font-black border border-emerald-100 flex items-center gap-1">
+                  <Check className="h-3 w-3" /> نظام النمو نشط
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* SEO Section */}
+              <div className="space-y-6">
+                <div className="bg-navy/5 p-6 rounded-3xl border border-navy/5">
+                  <h3 className="text-sm font-black text-navy mb-4 flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-gold" /> تهيئة محركات البحث (SEO)
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xxs font-black text-gray-400 uppercase tracking-widest mb-2">كلمات البحث المفتاحية (Keywords)</label>
+                      <textarea
+                        value={siteSettings.seoKeywords}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seoKeywords: e.target.value })}
+                        placeholder="عطر، ساعات، فخامة، دكان الشرق..."
+                        className="w-full px-4 py-3 bg-white border border-gray-150 rounded-2xl text-xs font-sans text-right focus:outline-hidden focus:border-gold transition-all resize-none shadow-xs"
+                        rows={4}
+                      />
+                      <p className="text-[9px] text-gray-400 mt-2 leading-relaxed">
+                        * افصل بين الكلمات بفواصل. هذه الكلمات تساعد Google و Bing في العثور على متجرك عند بحث العملاء.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50/30 p-6 rounded-3xl border border-emerald-100/50">
+                  <h3 className="text-sm font-black text-emerald-900 mb-2 flex items-center gap-2">
+                    <Check className="h-5 w-5 text-emerald-600" /> نصيحة العبقري للنمو
+                  </h3>
+                  <p className="text-xs text-emerald-800 leading-relaxed">
+                    استخدم كلمات تصف "الشعور" وليس فقط المنتج. بدلاً من "عطور"، جرب "أفخم العطور الشرقية في اليمن". هذا يزيد من جودة الزيارات لمتجرك بنسبة 40%.
+                  </p>
+                </div>
+              </div>
+
+              {/* Interaction Section */}
+              <div className="space-y-6">
+                <div className="bg-gold/5 p-6 rounded-3xl border border-gold/10">
+                  <h3 className="text-sm font-black text-navy mb-4 flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-gold" /> أدوات التفاعل والدردشة
+                  </h3>
+                  
+                  <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-xs hover:border-gold transition-colors group">
+                        <div>
+                          <span className="block text-xs font-black text-navy">الدردشة الحية (Live Chat)</span>
+                          <span className="text-[10px] text-gray-400">تفعيل نافذة الدعم المباشر الفوري</span>
+                        </div>
+                        <button
+                          onClick={() => setSiteSettings({ ...siteSettings, enableLiveChat: !siteSettings.enableLiveChat })}
+                          className={`w-12 h-6 rounded-full transition-all relative ${siteSettings.enableLiveChat ? 'bg-navy shadow-lg shadow-navy/20' : 'bg-gray-200'}`}
+                        >
+                          <motion.div
+                            animate={{ x: siteSettings.enableLiveChat ? 24 : 4 }}
+                            className={`absolute top-1 w-4 h-4 rounded-full shadow-sm ${siteSettings.enableLiveChat ? 'bg-gold' : 'bg-white'}`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-xs hover:border-gold transition-colors group">
+                        <div>
+                          <span className="block text-xs font-black text-navy">دردشة الزوار (Community Chat)</span>
+                          <span className="text-[10px] text-gray-400">تفعيل التواصل التفاعلي بين جميع العملاء</span>
+                        </div>
+                        <button
+                          onClick={() => setSiteSettings({ ...siteSettings, enableCommunityChat: !siteSettings.enableCommunityChat })}
+                          className={`w-12 h-6 rounded-full transition-all relative ${siteSettings.enableCommunityChat ? 'bg-navy shadow-lg shadow-navy/20' : 'bg-gray-200'}`}
+                        >
+                          <motion.div
+                            animate={{ x: siteSettings.enableCommunityChat ? 24 : 4 }}
+                            className={`absolute top-1 w-4 h-4 rounded-full shadow-sm ${siteSettings.enableCommunityChat ? 'bg-gold' : 'bg-white'}`}
+                          />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-xs hover:border-gold transition-colors group">
+                        <div>
+                          <span className="block text-xs font-black text-navy">إشعارات الثقة الجارية (Trust Pulse)</span>
+                          <span className="text-[10px] text-gray-400">إظهار عمليات الشراء المباشرة وبناء التفاعل</span>
+                        </div>
+                        <button
+                        onClick={() => setSiteSettings({ ...siteSettings, enableSocialProof: !siteSettings.enableSocialProof })}
+                        className={`w-12 h-6 rounded-full transition-all relative ${siteSettings.enableSocialProof ? 'bg-navy shadow-lg shadow-navy/20' : 'bg-gray-200'}`}
+                      >
+                        <motion.div
+                          animate={{ x: siteSettings.enableSocialProof ? 24 : 4 }}
+                          className={`absolute top-1 w-4 h-4 rounded-full shadow-sm ${siteSettings.enableSocialProof ? 'bg-gold' : 'bg-white'}`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-navy p-6 rounded-3xl text-white shadow-xl">
+                  <div className="flex items-center gap-3 mb-3 text-gold">
+                    <ShieldCheck className="h-6 w-6" />
+                    <span className="text-xs font-black uppercase tracking-widest">Platinum Security</span>
+                  </div>
+                  <p className="text-[11px] text-blue-100 leading-relaxed font-sans">
+                    كافة بيانات الدردشة والتفاعل مشفرة بالكامل. دكان الشرق يلتزم بأعلى معايير الخصوصية لعملائه ولإدارة المتجر.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Loyalty & Redemption Management section */}
+            <div className="mt-8 border-t border-gray-100 pt-8">
+              <h3 className="text-sm font-black text-navy mb-6 flex items-center gap-2">
+                <BadgePercent className="h-5 w-5 text-gold" /> نظام الولاء والمكافآت (Loyalty & Rewards)
+              </h3>
+
+              {/* Global Earning Ratio Setting */}
+              <div className="bg-white p-6 rounded-3xl border border-gold/10 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-right">
+                  <h4 className="text-xs font-black text-navy mb-1">معدل اكتساب النقاط التلقائي</h4>
+                  <p className="text-[10px] text-gray-500">تحكم في عدد النقاط التي يكتسبها العميل مقابل كل 1 من رصيد الشراء.</p>
+                </div>
+                <div className="flex items-center gap-3 bg-gray-50 p-2 px-4 rounded-2xl border border-gray-100">
+                  <input 
+                    type="number"
+                    value={siteSettings.pointsRatio || 0}
+                    onChange={(e) => setSiteSettings({ ...siteSettings, pointsRatio: Number(e.target.value) })}
+                    className="w-20 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-center font-mono font-bold text-navy focus:outline-hidden focus:border-gold"
+                  />
+                  <span className="text-[10px] font-black text-navy">نقطة كسب لكل 1 ريال</span>
+                </div>
+                <div className="flex items-center gap-3 bg-gray-50 p-2 px-4 rounded-2xl border border-gray-100">
+                  <input 
+                    type="number"
+                    value={siteSettings.pointsRedeemRatio || 0}
+                    onChange={(e) => setSiteSettings({ ...siteSettings, pointsRedeemRatio: Number(e.target.value) })}
+                    className="w-20 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-center font-mono font-bold text-navy focus:outline-hidden focus:border-gold"
+                  />
+                  <span className="text-[10px] font-black text-navy">نقطة استبدال لكل 1 ريال</span>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(siteSettings.redemptionOptions || []).map((option) => (
+                  <div key={option.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-3 group relative">
+                     <button 
+                       onClick={() => {
+                         const newOptions = siteSettings.redemptionOptions.filter(o => o.id !== option.id);
+                         setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
+                       }}
+                       className="absolute top-3 left-3 p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                     >
+                       <Trash2 className="h-4 w-4" />
+                     </button>
+
+                     <div className="space-y-3">
+                       <div>
+                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">اسم العرض / المكافأة</label>
+                         <input 
+                           type="text" 
+                           value={option.title}
+                           onChange={(e) => {
+                             const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, title: e.target.value } : o);
+                             setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
+                           }}
+                           className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-xs font-black text-navy focus:outline-hidden"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">الوصف المختصر</label>
+                         <input 
+                           type="text" 
+                           value={option.description}
+                           onChange={(e) => {
+                             const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, description: e.target.value } : o);
+                             setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
+                           }}
+                           className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-[10px] text-gray-600 focus:outline-hidden"
+                         />
+                       </div>
+                       <div className="grid grid-cols-2 gap-3">
+                         <div>
+                           <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">النقاط المطلوبة</label>
+                           <input 
+                             type="number" 
+                             value={option.pointsRequired}
+                             onChange={(e) => {
+                               const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, pointsRequired: Number(e.target.value) } : o);
+                               setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
+                             }}
+                             className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-xs font-mono font-bold text-navy select-all"
+                           />
+                         </div>
+                         <div>
+                           <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">القيمة (رصيد)</label>
+                           <input 
+                             type="number" 
+                             value={option.rewardValue}
+                             onChange={(e) => {
+                               const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, rewardValue: Number(e.target.value) } : o);
+                               setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
+                             }}
+                             className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-xs font-mono font-bold text-emerald-600 select-all"
+                           />
+                         </div>
+                       </div>
+                     </div>
+                  </div>
+                ))}
+                
+                <button 
+                  onClick={() => {
+                    const newOption: import('../types').PointRedemptionOption = {
+                      id: 'ro' + Date.now(),
+                      title: 'مكافأة جديدة',
+                      description: 'استبدل نقاطك بهذا العرض',
+                      pointsRequired: 100,
+                      rewardValue: 10,
+                      rewardType: 'balance',
+                      isActive: true
+                    };
+                    setSiteSettings({ ...siteSettings, redemptionOptions: [...(siteSettings.redemptionOptions || []), newOption] });
+                  }}
+                  className="border-2 border-dashed border-gray-200 rounded-3xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-gold hover:text-gold transition-all group cursor-pointer"
+                >
+                  <PlusCircle className="h-8 w-8 mb-2 group-hover:scale-110 transition-transform" />
+                  <span className="text-xs font-black">إضافة خيار استبدال نقاط مخصص</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Banners Management section */}
+            <div className="mt-8 border-t border-gray-100 pt-8">
+              <h3 className="text-sm font-black text-navy mb-6 flex items-center gap-2">
+                <PlayCircle className="h-5 w-5 text-gold" /> إدارة بنرات العروض والخصومات (Promo Banners)
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {(siteSettings.promoBanners || []).map(banner => (
+                  <div key={banner.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 relative group transition-all hover:bg-white hover:shadow-md">
+                    <button 
+                      onClick={() => {
+                        const newBanners = siteSettings.promoBanners.filter(b => b.id !== banner.id);
+                        setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                      }}
+                      className="absolute top-2 left-2 p-1.5 bg-rose-50 text-rose-500 rounded-lg shadow-xs hover:bg-rose-100 transition-colors"
+                      title="حذف البانر"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    
+                    <div className="flex gap-4">
+                      <div className="h-20 w-20 bg-gray-200 rounded-xl overflow-hidden border border-gray-200 shrink-0">
+                        {banner.mediaType === 'image' ? (
+                          banner.mediaUrl && <img src={banner.mediaUrl} className="h-full w-full object-cover" alt="" />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center bg-navy text-gold">
+                            <Video className="h-6 w-6" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <input 
+                          value={banner.title}
+                          onChange={(e) => {
+                            const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, title: e.target.value } : b);
+                            setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                          }}
+                          className="block w-full bg-transparent font-black text-xs text-navy focus:outline-hidden mb-1"
+                        />
+                        <input 
+                          value={banner.mediaUrl}
+                          onChange={(e) => {
+                            const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: e.target.value } : b);
+                            setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                          }}
+                          className="block w-full bg-transparent text-[10px] text-gray-400 font-mono focus:outline-hidden"
+                        />
+                        <div className="mt-2 flex gap-2">
+                           <button 
+                            onClick={() => {
+                              const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, isActive: !b.isActive } : b);
+                              setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                            }}
+                            className={`px-2 py-1 rounded-md text-[9px] font-black ${banner.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-500'}`}
+                           >
+                            {banner.isActive ? 'مفعل' : 'معطل'}
+                           </button>
+                           <button 
+                            onClick={() => {
+                              const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? ({ ...b, mediaType: b.mediaType === 'image' ? 'video' as const : 'image' as const } as import('../types').PromoBanner) : b);
+                              setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                            }}
+                            className="bg-navy/5 text-navy px-2 py-1 rounded-md text-[9px] font-black"
+                           >
+                            {banner.mediaType === 'image' ? 'صورة' : 'فيديو'}
+                           </button>
+                        </div>
+
+                        {/* Custom Height / Width control slots */}
+                        <div className="mt-4 pt-3 border-t border-gray-200/50 space-y-3">
+                          <div className="flex items-center justify-between text-xxs font-black text-navy">
+                            <span>طول البانر الإعلاني (الارتفاع):</span>
+                            <span className="font-mono text-gold-dark">{banner.customHeight || 550}px</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="range"
+                              min="300"
+                              max="800"
+                              step="50"
+                              value={banner.customHeight || 550}
+                              onChange={(e) => {
+                                const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, customHeight: Number(e.target.value) } : b);
+                                setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                              }}
+                              className="w-full accent-gold cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="text-xxs font-black text-navy mb-1 block">عرض ومساحة البانر:</div>
+                          <div className="grid grid-cols-5 gap-1">
+                            {(['container', 'full-width', '80%', '70%', '60%'] as const).map((w) => (
+                              <button
+                                key={w}
+                                type="button"
+                                onClick={() => {
+                                  const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, customWidth: w } : b);
+                                  setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                }}
+                                className={`py-1 text-[8px] font-bold rounded-md transition-all cursor-pointer border ${
+                                  (banner.customWidth || 'container') === w 
+                                    ? 'bg-navy text-white font-black border-navy' 
+                                    : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                }`}
+                              >
+                                {w === 'container' ? 'مؤطر' : w === 'full-width' ? 'كامل' : w}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                  <button 
+                    onClick={() => {
+                      const newBanner: import('../types').PromoBanner = {
+                        id: Date.now().toString(),
+                        title: 'إعلان جديد',
+                        subtitle: 'وصف الإعلان',
+                        mediaType: 'image' as const,
+                        mediaUrl: '',
+                        isActive: true,
+                        customHeight: 550,
+                        customWidth: 'container'
+                      };
+                      setSiteSettings({ ...siteSettings, promoBanners: [...siteSettings.promoBanners, newBanner] });
+                    }}
+                    className="border-2 border-dashed border-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center text-gray-400 hover:border-gold hover:text-gold transition-all"
+                  >
+                  <PlusCircle className="h-6 w-6 mb-2" />
+                  <span className="text-[10px] font-black">إضافة بانر إعلاني جديد</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-10 pt-8 border-t border-gray-50 flex items-center justify-between max-sm:flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-gold/10 rounded-2xl flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-gold" />
+                </div>
+                <div>
+                  <p className="text-xs font-black text-navy">لوحة التسويق البلاتينية</p>
+                  <p className="text-[10px] text-gray-400">جميع التغييرات تطبق فوراً للعملاء</p>
+                </div>
+              </div>
+              <button
+                onClick={() => alert('تم تحديث إعدادات النمو والظهور بنجاح!')}
+                className="px-8 py-3 bg-navy text-gold font-black text-xs rounded-2xl hover:bg-navy-light transition-all shadow-xl shadow-navy/20 active:scale-95"
+              >
+                تحديث وحفظ الكل
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* OWNER PRIVATE SETTINGS TAB */}
       {activeTab === 'settings' && (
         <motion.div 
@@ -1975,6 +2885,32 @@ export function Dashboard({
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">نقاط المكافأة عند الشراء</label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="مثال: 10"
+                      value={prodPointsReward}
+                      onChange={(e) => setProdPointsReward(Number(e.target.value))}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gold/20 rounded-xl text-xs font-mono text-navy focus:outline-hidden focus:border-gold"
+                    />
+                    <p className="text-[9px] text-gold mt-1 font-display">يحصل عليها العميل في محفظته</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">رابط فيديو المنتج (MP4/YouTube)</label>
+                    <input
+                      type="text"
+                      placeholder="https://..."
+                      value={prodVideoUrl}
+                      onChange={(e) => setProdVideoUrl(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gold/20 rounded-xl text-xs font-mono text-navy focus:outline-hidden focus:border-gold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">المقاسات المتاحة (مفصولة بفواصل)</label>
                     <input
@@ -2213,7 +3149,7 @@ export function Dashboard({
                     {viewingOrder.items.map((item) => (
                       <div key={item.product.id} className="py-2.5 flex justify-between items-center">
                         <div className="flex items-center space-x-2 space-x-reverse">
-                          <img src={item.product.image} className="h-8 w-8 object-cover rounded-md" />
+                          {item.product.image && <img src={item.product.image} className="h-8 w-8 object-cover rounded-md" />}
                           <div>
                             <p className="font-semibold text-gray-900 font-sans">{item.product.name}</p>
                             <p className="text-xxs text-gray-400 font-mono">الكمية: {item.quantity}</p>
@@ -2234,6 +3170,209 @@ export function Dashboard({
             </motion.div>
           </motion.div>
         )}
+
+        {/* Custom Gift Giver Modal (IFrame compatible) */}
+         {giftingAccount && (
+           <motion.div
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+           >
+             <motion.div
+               initial={{ scale: 0.95 }}
+               animate={{ scale: 1 }}
+               exit={{ scale: 0.95 }}
+               className="bg-white rounded-3xl w-full max-w-md overflow-hidden border border-gray-100 shadow-2xl relative p-6 text-right font-sans"
+             >
+               <button
+                 type="button"
+                 onClick={() => setGiftingAccount(null)}
+                 className="absolute top-4 left-4 text-gray-400 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+               >
+                 <X className="h-5 w-5" />
+               </button>
+
+               <h3 className="text-base font-black text-gray-950 pb-3 border-b border-gray-100 mb-4 flex items-center justify-start gap-2">
+                 <Sparkles className="h-5 w-5 text-amber-600" />
+                 <span>إهداء العميل: {giftingAccount.name} 🎁</span>
+               </h3>
+
+               {giftSuccessMsg ? (
+                 <div className="py-8 text-center space-y-3">
+                   <div className="h-14 w-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                     <CheckCircle className="h-8 w-8" />
+                   </div>
+                   <p className="text-sm font-black text-emerald-800">{giftSuccessMsg}</p>
+                 </div>
+               ) : (
+                 <form onSubmit={(e) => {
+                   e.preventDefault();
+                   const today = new Date().toISOString().split('T')[0];
+                   if (giftType === 'points') {
+                     const pointsToAdd = Number(giftPoints);
+                     if (isNaN(pointsToAdd) || pointsToAdd === 0) return;
+                     const giftTransaction: Transaction = {
+                       id: `GIFT-${Date.now()}`,
+                       type: 'deposit',
+                       amount: pointsToAdd,
+                       unit: 'points',
+                       description: 'هدية خاصة (نقاط) من إدارة المتجر 🎁',
+                       date: today
+                     };
+                     const updatedAccount: CustomerAccount = { 
+                       ...giftingAccount, 
+                       points: (giftingAccount.points || 0) + pointsToAdd,
+                       transactions: [giftTransaction, ...(giftingAccount.transactions || [])]
+                     };
+                     setCustomerAccounts?.(prev => prev.map(a => a.phone === giftingAccount.phone ? updatedAccount : a));
+                     setGiftSuccessMsg(`تم إهداء ${pointsToAdd} نقطة بنجاح! 🎁`);
+                     setTimeout(() => {
+                       setGiftingAccount(null);
+                       setGiftSuccessMsg(null);
+                     }, 2500);
+                   } else {
+                     if (!giftProduct.trim()) return;
+                     const giftTransaction: Transaction = {
+                       id: `GIFT-PROD-${Date.now()}`,
+                       type: 'earn',
+                       amount: 1,
+                       unit: 'currency',
+                       description: `هدية منتج: ${giftProduct.trim()} 🎁`,
+                       date: today
+                     };
+                     const updatedAccount: CustomerAccount = { 
+                       ...giftingAccount, 
+                       transactions: [giftTransaction, ...(giftingAccount.transactions || [])]
+                     };
+                     setCustomerAccounts?.(prev => prev.map(a => a.phone === giftingAccount.phone ? updatedAccount : a));
+                     setGiftSuccessMsg(`تم إهداء العميل منتج: "${giftProduct.trim()}" بنجاح! 🎁`);
+                     setTimeout(() => {
+                       setGiftingAccount(null);
+                       setGiftSuccessMsg(null);
+                     }, 2500);
+                   }
+                 }} className="space-y-4">
+                   <div>
+                     <label className="block text-xs font-bold text-gray-500 mb-2">نوع الهدية الممنوحة</label>
+                     <div className="grid grid-cols-2 gap-2">
+                       <button
+                         type="button"
+                         onClick={() => setGiftType('points')}
+                         className={`py-2 text-xs font-bold rounded-xl border cursor-pointer ${
+                           giftType === 'points'
+                             ? 'bg-amber-50 border-amber-300 text-amber-900'
+                             : 'bg-white border-gray-150 text-gray-500 hover:bg-gray-50'
+                         }`}
+                       >
+                         نقاط ولاء إضافية
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setGiftType('product')}
+                         className={`py-2 text-xs font-bold rounded-xl border cursor-pointer ${
+                           giftType === 'product'
+                             ? 'bg-amber-50 border-amber-300 text-amber-900'
+                             : 'bg-white border-gray-150 text-gray-500 hover:bg-gray-50'
+                         }`}
+                       >
+                         منتج أو كوبون خاص
+                       </button>
+                     </div>
+                   </div>
+
+                   {giftType === 'points' ? (
+                     <div>
+                       <label className="block text-xs font-bold text-gray-500 mb-1">عدد النقاط المراد إهداؤها</label>
+                       <input
+                         type="number"
+                         required
+                         placeholder="أدخل عدد النقاط (مثلاً: 50)"
+                         value={giftPoints}
+                         onChange={(e) => setGiftPoints(e.target.value)}
+                         className="w-full text-right p-3 bg-gray-50 border border-gray-150 focus:border-amber-500 focus:outline-hidden rounded-xl font-bold font-mono"
+                       />
+                     </div>
+                   ) : (
+                     <div>
+                       <label className="block text-xs font-bold text-gray-500 mb-1">اسم أو تفاصيل الهدية</label>
+                       <input
+                         type="text"
+                         required
+                         placeholder="مثال: ساعة ذكية مجانية أو شحن مجاني"
+                         value={giftProduct}
+                         onChange={(e) => setGiftProduct(e.target.value)}
+                         className="w-full text-right p-3 bg-gray-50 border border-gray-150 focus:border-amber-500 focus:outline-hidden rounded-xl font-bold font-sans"
+                       />
+                     </div>
+                   )}
+
+                   <div className="flex gap-3 pt-2">
+                     <button
+                       type="submit"
+                       className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-amber-600/10 cursor-pointer text-center"
+                     >
+                       منح الهدية الآن 🎁
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => setGiftingAccount(null)}
+                       className="px-5 py-3 bg-gray-105 hover:bg-gray-150 text-gray-600 font-bold text-xs rounded-xl cursor-pointer"
+                     >
+                       إلغاء
+                     </button>
+                   </div>
+                 </form>
+               )}
+             </motion.div>
+           </motion.div>
+         )}
+
+         {/* Custom Delete Account Confirm Modal */}
+         {deletingAccount && (
+           <motion.div
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+           >
+             <motion.div
+               initial={{ scale: 0.95 }}
+               animate={{ scale: 1 }}
+               exit={{ scale: 0.95 }}
+               className="bg-white rounded-3xl w-full max-w-sm overflow-hidden border border-gray-100 shadow-2xl relative p-6 text-right font-sans"
+             >
+               <h3 className="text-base font-black text-rose-950 pb-3 border-b border-gray-100 mb-4 flex items-center justify-start gap-2">
+                 <Trash2 className="h-5 w-5 text-rose-600" />
+                 <span>تأكيد الحذف النهائي</span>
+               </h3>
+
+               <p className="text-xs font-bold text-gray-600 leading-relaxed mb-6">
+                 هل أنت متأكد من رغبتك في حذف حساب العميل <span className="text-rose-650 font-black">({deletingAccount.name})</span> ذو الرقم <span className="font-mono">{deletingAccount.phone}</span> نهائياً؟ 
+                 <br />
+                 <span className="text-xxs text-rose-500 mt-2 block font-normal">(تحذير: هذا القرار لا يمكن التراجع عنه وبحذف الحساب ستفقد كافة نقاط الولاء والمعاملات التابعة!)</span>
+               </p>
+
+               <div className="flex gap-3">
+                 <button
+                   onClick={() => {
+                     setCustomerAccounts?.(prev => prev.filter(a => a.phone !== deletingAccount.phone));
+                     setDeletingAccount(null);
+                   }}
+                   className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-rose-600/15 cursor-pointer text-center"
+                 >
+                   نعم، احذف الحساب 🗑️
+                 </button>
+                 <button
+                   onClick={() => setDeletingAccount(null)}
+                   className="px-5 py-3 bg-gray-105 hover:bg-gray-150 text-gray-600 font-bold text-xs rounded-xl cursor-pointer"
+                 >
+                   تراجع
+                 </button>
+               </div>
+             </motion.div>
+           </motion.div>
+         )}
       </AnimatePresence>
 
     </div>

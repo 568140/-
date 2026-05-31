@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingBag, LayoutDashboard, Store, ClipboardList, Globe, ShieldCheck, Truck, RefreshCw, User } from 'lucide-react';
+import { ShoppingBag, LayoutDashboard, Store, ClipboardList, Globe, ShieldCheck, Truck, RefreshCw, User, Star } from 'lucide-react';
 import { CurrencyConfig, SiteSettings } from '../types';
 import { CURRENCIES } from '../data';
 
@@ -10,9 +10,10 @@ interface NavbarProps {
   siteSettings: SiteSettings;
   selectedCurrency: CurrencyConfig;
   setSelectedCurrency: (currency: CurrencyConfig) => void;
-  currentUser: { name: string; phone: string } | null;
+  currentUser: { name: string; phone: string; points?: number } | null;
   onLogoutCustomer: () => void;
   onOpenCustomerModal: () => void;
+  onOpenWallet?: () => void;
   isAdminLoggedIn: boolean;
 }
 
@@ -26,6 +27,7 @@ export function Navbar({
   currentUser,
   onLogoutCustomer,
   onOpenCustomerModal,
+  onOpenWallet,
   isAdminLoggedIn,
 }: NavbarProps) {
   return (
@@ -143,7 +145,16 @@ export function Navbar({
                     {currentUser.name.charAt(0)}
                   </div>
                   <div className="flex flex-col text-right">
-                    <span className="text-[10px] text-gray-400 font-bold font-display uppercase tracking-widest leading-none">VIP</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-gray-400 font-bold font-display uppercase tracking-widest leading-none">VIP</span>
+                      <button 
+                        onClick={onOpenWallet}
+                        className="flex items-center gap-0.5 bg-gold/10 hover:bg-gold hover:text-navy text-gold-dark text-[9px] px-1.5 py-0.5 rounded-full font-bold transition-all"
+                        title="افتح المحفظة"
+                      >
+                        <Star className="h-2 w-2 fill-current" /> {currentUser.points || 0} نقطة
+                      </button>
+                    </div>
                     <span className="text-xs text-navy font-bold font-sans mt-1">{currentUser.name}</span>
                   </div>
                   <div className="pr-3 border-r border-gray-100 mr-2">

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck } from 'lucide-react';
-import { Product, CurrencyConfig } from '../types';
+import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck, PlayCircle, Trophy, Video } from 'lucide-react';
+import { Product, CurrencyConfig, PromoBanner } from '../types';
 
 interface StoreFrontProps {
   products: Product[];
@@ -114,8 +114,30 @@ export function StoreFront({
     setTimeout(() => setReviewSuccess(false), 3000);
   };
 
+  // HERO SECTION - Now includes Dynamic Promo Banners
+  // Ad rendering helper
+  const renderAds = (location: 'top_header' | 'between_products' | 'sidebar' | 'footer' | 'after_cart') => {
+    const activeAds = (siteSettings?.adScripts || []).filter(ad => ad.isActive && ad.location === location);
+    if (activeAds.length === 0) return null;
+
+    return (
+      <div className={`ad-container ad-${location} my-4 space-y-4`}>
+        {activeAds.map(ad => (
+          <div 
+            key={ad.id} 
+            className="flex items-center justify-center overflow-hidden rounded-xl bg-gray-50/50 backdrop-blur-sm border border-gray-100"
+            dangerouslySetInnerHTML={{ __html: ad.code }} 
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const activeBanners = (siteSettings?.promoBanners || []).filter(b => b.isActive);
+
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {renderAds('top_header')}
       
       {/* Dynamic Add to Cart Notification bar */}
       <AnimatePresence>
@@ -148,45 +170,112 @@ export function StoreFront({
         )}
       </AnimatePresence>
 
-      {/* Hero Banner with clean Arabic presentation */}
-      <div className="relative mb-12 rounded-[2rem] overflow-hidden bg-navy text-white min-h-[450px] md:min-h-[550px] flex items-center shadow-2xl border border-gold/10">
-        <img 
-          src="/src/assets/images/luxury_oriental_hero_display_1780193593782.png" 
-          alt="Hero Display" 
-          className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay"
-        />
-        <div className="absolute inset-0 bg-linear-to-r from-navy via-navy/80 to-transparent pointer-events-none" />
-        
-        <motion.div 
-          initial={{ opacity: 0, x: 50 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-          className="relative z-10 max-w-3xl p-6 md:p-16 text-right"
-        >
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gold/10 rounded-full text-[10px] md:text-xs font-bold text-gold tracking-widest font-display mb-6 border border-gold/20 backdrop-blur-sm">
-            <Sparkles className="h-3 w-3" /> {siteSettings.heroBadge}
-          </span>
-          <h1 className="text-3xl md:text-6xl font-black font-display tracking-tight mb-6 leading-[1.2] text-gradient-gold">
-            {siteSettings.heroTitle}
-          </h1>
-          <p className="text-gray-300 text-sm md:text-lg font-sans mb-10 leading-relaxed max-w-xl opacity-90">
-            {siteSettings.heroSubtitle}
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-            <a 
-              href="#products-list"
-              className="px-8 py-4 bg-gold text-navy font-black font-display text-sm rounded-2xl hover:bg-gold-light transition-all shadow-xl hover:shadow-gold/20 hover:-translate-y-1 text-center"
-            >
-              اكتشف المجموعة البلاتينية
-            </a>
-            <div className="flex items-center justify-center sm:justify-start text-gray-400 text-[10px] md:text-[11px] font-display gap-4 uppercase tracking-widest">
-              <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-gold" /> أصالة مضمونة</span>
-              <span className="opacity-30">|</span>
-              <span className="flex items-center gap-1.5"><Truck className="h-4 w-4 text-gold" /> شحن عالمي</span>
+      {/* Dynamic Promo Banners Slider / Hero */}
+      <div className="relative mb-12">
+        {activeBanners.length > 0 ? (
+          <div className="space-y-6">
+            {activeBanners.map((banner, index) => {
+              const customHeightVal = banner.customHeight || 550;
+              const isFullWidth = banner.customWidth === 'full-width';
+              const customWidthVal = banner.customWidth && banner.customWidth !== 'container' ? banner.customWidth : '100%';
+
+              const dynamicStyle: React.CSSProperties = {
+                minHeight: '300px',
+                height: `${customHeightVal}px`,
+                width: isFullWidth ? '100vw' : customWidthVal,
+                maxWidth: isFullWidth ? '100vw' : '100%',
+                marginLeft: isFullWidth ? 'calc(-50vw + 50%)' : 'auto',
+                marginRight: isFullWidth ? 'calc(-50vw + 50%)' : 'auto',
+                borderRadius: isFullWidth ? '0' : '2rem',
+              };
+
+              return (
+                <motion.div 
+                  key={banner.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={dynamicStyle}
+                  className="relative overflow-hidden bg-navy text-white flex items-center shadow-2xl border border-gold/10 group"
+                >
+                {banner.mediaType === 'video' ? (
+                  banner.mediaUrl && (
+                    <video 
+                      src={banner.mediaUrl}
+                      autoPlay
+                      muted
+                      loop
+                      className="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay"
+                    />
+                  )
+                ) : (
+                  banner.mediaUrl && (
+                    <img 
+                      src={banner.mediaUrl}
+                      alt={banner.title}
+                      className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay group-hover:scale-105 transition-transform duration-10000"
+                    />
+                  )
+                )}
+                <div className="absolute inset-0 bg-linear-to-r from-navy via-navy/60 to-transparent pointer-events-none" />
+                
+                <div className="relative z-10 max-w-3xl p-6 md:p-16 text-right">
+                  <motion.span 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="inline-flex items-center gap-2 px-4 py-1.5 bg-gold/10 rounded-full text-[10px] md:text-xs font-bold text-gold tracking-widest font-display mb-6 border border-gold/20 backdrop-blur-sm shadow-lg shadow-gold/10"
+                  >
+                    <Sparkles className="h-3 w-3" /> عرض بلاتيني حصري
+                  </motion.span>
+                  <h1 className="text-4xl md:text-7xl font-black font-display tracking-tight mb-6 leading-[1.1] text-gradient-gold">
+                    {banner.title}
+                  </h1>
+                  <p className="text-gray-200 text-sm md:text-lg font-sans mb-10 leading-relaxed max-w-xl opacity-90 font-medium">
+                    {banner.subtitle}
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                    <a 
+                      href="#products-list"
+                      className="px-10 py-5 bg-gold text-navy font-black font-display text-[13px] rounded-2xl hover:bg-white transition-all shadow-2xl hover:shadow-gold/40 hover:-translate-y-1 text-center group"
+                    >
+                      تسوق المجموعة الآن
+                      <ArrowUpDown className="inline-block mr-2 h-4 w-4 group-hover:rotate-180 transition-transform" />
+                    </a>
+                  </div>
+                </div>
+              </motion.div>
+            ); })}
+          </div>
+        ) : (
+          /* Fallback Hero if no banners are active */
+          <div className="relative rounded-[2rem] overflow-hidden bg-navy text-white min-h-[450px] md:min-h-[550px] flex items-center shadow-2xl border border-gold/10 group">
+            <img 
+              src="/src/assets/images/luxury_oriental_hero_display_1780193593782.png" 
+              alt="Hero Display" 
+              className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay"
+            />
+             <div className="absolute inset-0 bg-linear-to-r from-navy via-navy/80 to-transparent pointer-events-none" />
+            <div className="relative z-10 max-w-3xl p-6 md:p-16 text-right">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gold/10 rounded-full text-[10px] md:text-xs font-bold text-gold tracking-widest font-display mb-6 border border-gold/20 backdrop-blur-sm">
+                <Sparkles className="h-3 w-3" /> {siteSettings.heroBadge}
+              </span>
+              <h1 className="text-3xl md:text-6xl font-black font-display tracking-tight mb-6 leading-[1.2] text-gradient-gold">
+                {siteSettings.heroTitle}
+              </h1>
+              <p className="text-gray-300 text-sm md:text-lg font-sans mb-10 leading-relaxed max-w-xl opacity-90">
+                {siteSettings.heroSubtitle}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                <a 
+                  href="#products-list"
+                  className="px-8 py-4 bg-gold text-navy font-black font-display text-sm rounded-2xl hover:bg-gold-light transition-all shadow-xl hover:shadow-gold/20 hover:-translate-y-1 text-center"
+                >
+                  اكتشف المجموعة البلاتينية
+                </a>
+              </div>
             </div>
           </div>
-        </motion.div>
+        )}
       </div>
 
       {/* Filter and Search Panels */}
@@ -247,6 +336,8 @@ export function StoreFront({
           </div>
 
         </div>
+        
+        {renderAds('sidebar')}
 
         {/* Categories Pills */}
         <div className="mt-8 flex flex-wrap gap-3 border-t border-gray-100 pt-8">
@@ -351,102 +442,119 @@ export function StoreFront({
           }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          {filteredProducts.map((product) => (
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                visible: { opacity: 1, y: 0 }
-              }}
-              layout
-              id={`product-card-${product.id}`}
-              key={product.id}
-              className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col"
-            >
-              {/* Product Image Panel */}
-              <div className="relative aspect-square overflow-hidden bg-gray-50 cursor-pointer" onClick={() => handleSelectProduct(product)}>
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                
-                {product.isFeatured && (
-                  <span className="absolute top-3 right-3 bg-gradient-to-r from-amber-600 to-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-md">
-                    مختارات النخبة
-                  </span>
-                )}
-
-                {product.stock === 0 && (
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center font-bold text-sm text-white">
-                    نفذت من المخازن الدولية
-                  </div>
-                )}
-                
-                <div className="absolute bottom-3 left-3 flex flex-col gap-1 items-end">
-                  <span className="bg-white/95 backdrop-blur-md text-gray-850 text-[10px] font-black px-2 py-0.5 rounded-md border border-gray-100 font-sans shadow-sm">
-                    {product.category}
-                  </span>
-                  {product.subCategory && (
-                    <span className="bg-amber-600/90 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.2 rounded font-sans shadow-xs">
-                      {product.subCategory}
+          {filteredProducts.map((product, index) => (
+            <React.Fragment key={product.id}>
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 20 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+                layout
+                id={`product-card-${product.id}`}
+                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col"
+              >
+                {/* Product Image Panel */}
+                <div className="relative aspect-square overflow-hidden bg-gray-50 cursor-pointer" onClick={() => handleSelectProduct(product)}>
+                  {product.image && (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  )}
+                  
+                  {product.isFeatured && (
+                    <span className="absolute top-3 right-3 bg-gradient-to-r from-amber-600 to-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-md">
+                      مختارات النخبة
                     </span>
                   )}
-                </div>
-              </div>
 
-              {/* Product Info Section */}
-              <div className="p-5 flex flex-col flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-1 space-x-reverse text-gold">
-                    <Star className="h-3.5 w-3.5 fill-current" />
-                    <span className="text-xs font-bold font-mono text-navy">{product.rating}</span>
-                    <span className="text-[10px] text-gray-400 opacity-60">({product.reviews?.length || 0})</span>
-                  </div>
-                  <span className={`text-[10px] font-bold ${product.stock > 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-                    {product.stock > 0 ? 'متوفر' : 'نفذ'}
-                  </span>
-                </div>
-
-                <h3 
-                  onClick={() => handleSelectProduct(product)}
-                  className="text-sm md:text-base font-black text-navy font-display mb-2 group-hover:text-gold transition-colors cursor-pointer line-clamp-1"
-                >
-                  {product.name}
-                </h3>
-                
-                <p className="text-[10px] md:text-xs text-gray-400 font-sans mb-4 line-clamp-2 flex-1 leading-relaxed opacity-80">
-                  {product.description}
-                </p>
-
-                <div className="flex justify-between items-center border-t border-gray-100 pt-4 mt-auto">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-gray-400 font-display uppercase tracking-widest">Price</span>
-                    <span className="text-base md:text-lg font-black text-navy font-mono">
-                      {formatPrice(product.price)}
+                  {product.stock === 0 && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center font-bold text-sm text-white">
+                      نفذت من المخازن الدولية
+                    </div>
+                  )}
+                  
+                  <div className="absolute bottom-3 left-3 flex flex-col gap-1 items-end">
+                    <span className="bg-white/95 backdrop-blur-md text-gray-850 text-[10px] font-black px-2 py-0.5 rounded-md border border-gray-100 font-sans shadow-sm">
+                      {product.category}
                     </span>
+                    {product.subCategory && (
+                      <span className="bg-amber-600/90 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.2 rounded font-sans shadow-xs">
+                        {product.subCategory}
+                      </span>
+                    )}
+                    {product.videoUrl && (
+                      <div className="bg-gold text-navy p-1.5 rounded-lg shadow-lg border border-white/50 animate-pulse">
+                        <PlayCircle className="h-4 w-4" />
+                      </div>
+                    )}
                   </div>
-
-                  <button
-                    disabled={product.stock === 0}
-                    onClick={() => handleAddToCartWithAlert(product)}
-                    className={`p-2.5 md:p-3 rounded-2xl transition-all duration-300 cursor-pointer ${
-                      product.stock === 0
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gold/10 text-navy hover:bg-navy hover:text-gold border border-gold/10'
-                    }`}
-                  >
-                    <Plus className="h-5 w-5" />
-                  </button>
                 </div>
 
-              </div>
-            </motion.div>
+                {/* Product Info Section */}
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-1 space-x-reverse text-gold">
+                      <Star className="h-3.5 w-3.5 fill-current" />
+                      <span className="text-xs font-bold font-mono text-navy">{product.rating}</span>
+                    </div>
+                    {product.pointsReward && product.pointsReward > 0 && (
+                      <div className="flex items-center gap-1 bg-gold/10 text-gold-dark px-2 py-0.5 rounded-full border border-gold/10">
+                        <Trophy className="h-2.5 w-2.5" />
+                        <span className="text-[9px] font-black">{product.pointsReward} نقطة</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 
+                    onClick={() => handleSelectProduct(product)}
+                    className="text-sm md:text-base font-black text-navy font-display mb-2 group-hover:text-gold transition-colors cursor-pointer line-clamp-1"
+                  >
+                    {product.name}
+                  </h3>
+                  
+                  <p className="text-[10px] md:text-xs text-gray-400 font-sans mb-4 line-clamp-2 flex-1 leading-relaxed opacity-80">
+                    {product.description}
+                  </p>
+
+                  <div className="flex justify-between items-center border-t border-gray-100 pt-4 mt-auto">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-gray-400 font-display uppercase tracking-widest">Price</span>
+                      <span className="text-base md:text-lg font-black text-navy font-mono">
+                        {formatPrice(product.price)}
+                      </span>
+                    </div>
+
+                    <button
+                      disabled={product.stock === 0}
+                      onClick={() => handleAddToCartWithAlert(product)}
+                      className={`p-2.5 md:p-3 rounded-2xl transition-all duration-300 cursor-pointer ${
+                        product.stock === 0
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-gold/10 text-navy hover:bg-navy hover:text-gold border border-gold/10'
+                      }`}
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                </div>
+              </motion.div>
+              {/* Insert ad after every 4 products (row) */}
+              {(index + 1) % 4 === 0 && (
+                <div className="col-span-full">
+                  {renderAds('between_products')}
+                </div>
+              )}
+            </React.Fragment>
           ))}
         </motion.div>
       )}
 
       {/* Brand Identity & Contact Us (من نحن وتواصل معنا) */}
+      {renderAds('footer')}
       <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-gray-150 pt-16">
         {/* Story Section: About us */}
         <div id="about-us-section" className="bg-white rounded-3xl p-8 border border-gray-150/70 shadow-sm text-right font-sans">
@@ -510,7 +618,6 @@ export function StoreFront({
               exit={{ scale: 0.95, y: 30 }}
               className="bg-white rounded-3xl w-full max-w-4xl relative overflow-hidden shadow-2xl border border-gray-100 my-8 flex flex-col max-h-[90vh]"
             >
-              {/* Header Close absolute */}
               <button
                 onClick={() => {
                   setSelectedProduct(null);
@@ -525,21 +632,41 @@ export function StoreFront({
               <div className="overflow-y-auto flex-1 p-6 md:p-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   
-                  {/* Image Column */}
+                  {/* Image/Video Column */}
                   <div>
                     <div className="aspect-square bg-gray-50 relative rounded-2xl overflow-hidden shadow-xs border border-gray-100">
-                      <img
-                        src={selectedProduct.image}
-                        alt={selectedProduct.name}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
+                      {selectedProduct.videoUrl ? (
+                         <div className="relative w-full h-full">
+                            {selectedProduct.videoUrl && (
+                              <video 
+                                src={selectedProduct.videoUrl} 
+                                controls 
+                                autoPlay 
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            <div className="absolute top-4 left-4 bg-navy/80 backdrop-blur-md text-gold text-[10px] px-3 py-1 rounded-full font-black border border-gold/20 flex items-center gap-2">
+                              <Video className="h-3 w-3" /> فيديو تعريفي حصري
+                            </div>
+                         </div>
+                      ) : (
+                        selectedProduct.image && (
+                          <img
+                            src={selectedProduct.image}
+                            alt={selectedProduct.name}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                          />
+                        )
+                      )}
+                      
                       {selectedProduct.stock > 0 && selectedProduct.stock < 5 && (
                         <span className="absolute bottom-4 right-4 bg-rose-650 bg-rose-600 text-white text-xs font-bold px-3 py-1 rounded-md">
                           مخزون حرج ({selectedProduct.stock} قطع متبقية)
                         </span>
                       )}
                     </div>
+                  </div>
                     
                     {/* Multi-points technical specs */}
                     <div className="mt-6 bg-amber-50/40 border border-amber-500/10 rounded-xl p-4">
@@ -550,7 +677,6 @@ export function StoreFront({
                         <li>شحن آمن في طبقات عزل هوائي مضادة للصدمات.</li>
                       </ul>
                     </div>
-                  </div>
 
                   {/* Information Details Column */}
                   <div className="flex flex-col justify-between">

@@ -4,6 +4,10 @@ import { StoreFront } from './components/StoreFront';
 import { Cart } from './components/Cart';
 import { Dashboard } from './components/Dashboard';
 import { MyOrders } from './components/MyOrders';
+import LiveChat from './components/LiveChat';
+import TrustPulse from './components/TrustPulse';
+import CommunityChat from './components/CommunityChat';
+import WalletModal from './components/WalletModal';
 import { Product, CartItem, Order, Coupon, CurrencyConfig } from './types';
 import { INITIAL_PRODUCTS, INITIAL_COUPONS, CATEGORIES, CURRENCIES } from './data';
 import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles } from 'lucide-react';
@@ -25,7 +29,53 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   inventoryTagline: 'إدارة مخزون ذكية وعالمية',
   inventorySubtitle: 'نظام إدارة لوجستي فائق الذكاء ومؤمن بالكامل',
   logoUrl: '/src/assets/images/luxury_gold_oriental_logo_1780193574767.png',
-  iconUrl: '/src/assets/images/luxury_gold_oriental_logo_1780193574767.png'
+  iconUrl: '/src/assets/images/luxury_gold_oriental_logo_1780193574767.png',
+  seoKeywords: 'عطر، ساعات، فخامة، دكان الشرق، بلاتيني، تسوق، اليمن، السعودية',
+  enableLiveChat: true,
+  enableSocialProof: true,
+  enableCommunityChat: true,
+  enableAds: true,
+  adScripts: [
+    {
+      id: '1',
+      provider: 'Custom',
+      location: 'top_header',
+      code: '<div class="bg-gold/5 p-2 text-center text-[10px] text-navy font-bold">✨ إعلان: خصم 20% لعملاء دكان الشرق الجدد! ✨</div>',
+      isActive: true
+    }
+  ],
+  promoBanners: [
+    {
+      id: '1',
+      title: 'مجموعة العطور الملكية 2024',
+      subtitle: 'اكتشف الفخامة في كل رشة',
+      mediaType: 'image',
+      mediaUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=1600&auto=format&fit=crop',
+      isActive: true
+    }
+  ],
+  redemptionOptions: [
+    {
+      id: 'r1',
+      title: 'تحويل لخصم مباشر (100 نقطة)',
+      description: 'استبدل 100 نقطة بـ 10 من عملة المتجر تضاف لرصيدك فوراً',
+      pointsRequired: 100,
+      rewardValue: 10,
+      rewardType: 'balance',
+      isActive: true
+    },
+    {
+      id: 'r2',
+      title: 'كوبون خصم 50 (500 نقطة)',
+      description: 'احصل على كود خصم بقيمة 50 نقطة لاستخدامه في طلبك القادم',
+      pointsRequired: 500,
+      rewardValue: 50,
+      rewardType: 'coupon',
+      isActive: true
+    }
+  ],
+  pointsRatio: 5, // Default: 5 points per 1 SAR
+  pointsRedeemRatio: 100 // Default: 100 points = 1 SAR discount
 };
 
 // Start with absolutely fresh data for the client
@@ -35,7 +85,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'store' | 'cart' | 'admin' | 'orders-tracking'>('store');
   
   // Customer Session States
-  const [currentUser, setCurrentUser] = useState<{name: string; phone: string} | null>(() => {
+  const [currentUser, setCurrentUser] = useState<import('./types').CustomerAccount | null>(() => {
     const saved = localStorage.getItem('dukkan_current_user');
     try {
       return saved ? JSON.parse(saved) : null;
@@ -54,6 +104,7 @@ export default function App() {
   });
 
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [customerModalMode, setCustomerModalMode] = useState<'login' | 'register'>('login');
   
   const [custName, setCustName] = useState('');
@@ -71,11 +122,22 @@ export default function App() {
 
   // Sync session states securely
   useEffect(() => {
-    localStorage.setItem('dukkan_current_user', JSON.stringify(currentUser));
+    if (currentUser) {
+      localStorage.setItem('dukkan_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('dukkan_current_user');
+    }
   }, [currentUser]);
 
   useEffect(() => {
     localStorage.setItem('dukkan_customer_accounts', JSON.stringify(customerAccounts));
+    // If a user is logged in, ensure they get updates from the main list (e.g. gifts from Dashboard)
+    if (currentUser) {
+      const latest = customerAccounts.find(acc => acc.phone === currentUser.phone);
+      if (latest && JSON.stringify(latest) !== JSON.stringify(currentUser)) {
+        setCurrentUser(latest);
+      }
+    }
   }, [customerAccounts]);
 
   const [yemeniGeodata, setYemeniGeodata] = useState<GovernorateData[]>(() => {
@@ -90,7 +152,22 @@ export default function App() {
   // State for site settings
   const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(() => {
     const saved = localStorage.getItem('dukkan_site_settings');
-    return saved ? JSON.parse(saved) : INITIAL_SITE_SETTINGS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { 
+          ...INITIAL_SITE_SETTINGS, 
+          ...parsed, 
+          promoBanners: parsed.promoBanners || INITIAL_SITE_SETTINGS.promoBanners,
+          adScripts: parsed.adScripts || INITIAL_SITE_SETTINGS.adScripts,
+          redemptionOptions: parsed.redemptionOptions || INITIAL_SITE_SETTINGS.redemptionOptions,
+          enableAds: parsed.enableAds !== undefined ? parsed.enableAds : INITIAL_SITE_SETTINGS.enableAds
+        };
+      } catch(e) {
+        return INITIAL_SITE_SETTINGS;
+      }
+    }
+    return INITIAL_SITE_SETTINGS;
   });
 
   useEffect(() => {
@@ -143,10 +220,26 @@ export default function App() {
       setGeneratedOTP(mockOTP);
       setLoginStep('otp');
       setCustAuthError('');
-      
-      // In a real app, you'd call an API here to send SMS/WhatsApp
       console.log(`[OTP DEBUG] Your code for ${cleanPhone} is: ${mockOTP}`);
-      alert(`محاكاة أمنية: تم إرسال رمز التحقق ${mockOTP} إلى جوالك (لأغراض العرض والتجربة حالياً)`);
+
+      // Auto Send via WhatsApp
+      let clean = cleanPhone.trim().replace(/\D/g, '');
+      if (clean.startsWith('00')) {
+        clean = clean.substring(2);
+      } else if (clean.startsWith('0')) {
+        clean = '967' + clean.substring(1);
+      } else if (!clean.startsWith('967') && clean.length === 9) {
+        clean = '967' + clean;
+      }
+      const msgText = `مرحباً بك عميلنا العزيز 👋\nرمز التحقق الخاص بك للدخول الآمن إلى حسابك في دكان الشرق هو: (${mockOTP}) 🔑.\nتأكيد الرمز في الموقع لإتمام تسجيل الدخول بنجاح.`;
+      const wpUrl = `https://wa.me/${clean}?text=${encodeURIComponent(msgText)}`;
+      setTimeout(() => {
+        try {
+          window.open(wpUrl, '_blank');
+        } catch (e) {
+          console.warn('Blocked popup redirection');
+        }
+      }, 150);
     } else {
       setCustAuthError('رقم الهاتف أو كلمة المرور غير صحيحة! يرجى المحاولة مجدداً أو إنشاء حساب جديد.');
     }
@@ -160,10 +253,11 @@ export default function App() {
       if (otpValue === generatedOTP || otpValue === '123456') { // Allow 123456 for easy testing
         const account = customerAccounts.find(acc => acc.phone === custPhone.trim());
         if (account) {
-          setCurrentUser({ name: account.name, phone: account.phone });
+          setCurrentUser(account);
         } else {
           // Fallback for special cases
-          setCurrentUser({ name: 'عميل مفعل حديثاً', phone: custPhone.trim() });
+          const guestAcc = { name: 'عميل مفعل حديثاً', phone: custPhone.trim(), password: '', points: 0 };
+          setCurrentUser(guestAcc);
         }
         setShowCustomerModal(false);
         setCustPhone('');
@@ -190,14 +284,26 @@ export default function App() {
       setCustAuthError('عذراً، هذا الرقم مسجل بالفعل بموقعنا! يرجى تسجيل الدخول مباشرة.');
       return;
     }
-    const newAcc = { name: custName.trim(), phone: cleanPhone, password: custPassword };
+    const newAcc = { name: custName.trim(), phone: cleanPhone, password: custPassword, points: 0 };
     setCustomerAccounts(prev => [...prev, newAcc]);
-    setCurrentUser({ name: newAcc.name, phone: newAcc.phone });
+    setCurrentUser(newAcc);
     setShowCustomerModal(false);
     setCustName('');
     setCustPhone('');
     setCustPassword('');
     setCustAuthError('');
+  };
+
+  const handleLoginSuccess = (user: import('./types').CustomerAccount) => {
+    setCurrentUser(user);
+    setCustomerAccounts(prev => {
+      const exists = prev.some(acc => acc.phone === user.phone);
+      if (exists) {
+        return prev.map(acc => acc.phone === user.phone ? { ...acc, ...user } : acc);
+      } else {
+        return [...prev, user];
+      }
+    });
   };
 
   const handleLogoutCustomer = () => {
@@ -266,11 +372,23 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
   });
 
-  // State for cart
-  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem('dukkan_cart');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // State for cart (dynamically loaded and saved per-user)
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  useEffect(() => {
+    const key = currentUser ? `dukkan_cart_${currentUser.phone}` : 'dukkan_cart_guest';
+    const saved = localStorage.getItem(key);
+    try {
+      setCartItems(saved ? JSON.parse(saved) : []);
+    } catch (e) {
+      setCartItems([]);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    const key = currentUser ? `dukkan_cart_${currentUser.phone}` : 'dukkan_cart_guest';
+    localStorage.setItem(key, JSON.stringify(cartItems));
+  }, [cartItems, currentUser]);
 
   // State for orders
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -323,10 +441,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('dukkan_products', JSON.stringify(products));
   }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('dukkan_cart', JSON.stringify(cartItems));
-  }, [cartItems]);
 
   useEffect(() => {
     localStorage.setItem('dukkan_orders', JSON.stringify(orders));
@@ -418,12 +532,14 @@ export default function App() {
     shippingCost: number;
     giftWrap: boolean;
     orderId?: string;
+    pointsUsed?: number;
   }) => {
     // 1. Compute prices
     const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
     const afterDiscount = Math.max(subtotal - customerInfo.discountApplied, 0);
-    const vat = afterDiscount * 0.15;
-    const finalTotal = afterDiscount + vat + customerInfo.shippingCost + (customerInfo.giftWrap ? 15 : 0);
+    const vat = 0; // VAT removed completely
+    const pointsDiscount = (customerInfo.pointsUsed || 0) / (siteSettings.pointsRedeemRatio || 100);
+    const finalTotal = Math.max(afterDiscount + vat + customerInfo.shippingCost + (customerInfo.giftWrap ? 15 : 0) - pointsDiscount, 0);
 
     // 2. Generate random ID or use passed ID
     const generatedId = customerInfo.orderId || ('ORD-' + Math.floor(100000 + Math.random() * 900000));
@@ -441,7 +557,12 @@ export default function App() {
       });
     });
 
-    // 4. Record order state
+    // 4. Calculate potential points (Manual product rewards + configured ratio) to be earned upon shipment
+    const productPoints = cartItems.reduce((sum, item) => sum + ((item.product as any).pointsReward || 0) * item.quantity, 0);
+    const purchasePoints = Math.floor(finalTotal * (siteSettings.pointsRatio || 5));
+    const totalPointsToAward = productPoints + purchasePoints;
+
+    // 5. Record order state
     const newOrder: Order = {
       id: generatedId,
       customerName: customerInfo.customerName,
@@ -457,10 +578,75 @@ export default function App() {
       localWalletName: customerInfo.localWalletName,
       currency: selectedCurrency.code,
       status: 'pending',
-      createdAt: today
+      createdAt: today,
+      earnedPoints: totalPointsToAward,
+      pointsAwarded: false,
+      pointsUsed: customerInfo.pointsUsed || 0
     };
 
+    if (currentUser) {
+      if (customerInfo.pointsUsed && customerInfo.pointsUsed > 0) {
+        const useTransaction: import('./types').Transaction = {
+          id: `TX-USE-${Date.now()}`,
+          type: 'spend',
+          amount: customerInfo.pointsUsed,
+          unit: 'points',
+          description: `استخدام نقاط عند سداد الطلب ${newOrder.id}`,
+          date: today
+        };
+        
+        const updatedUser = { 
+          ...currentUser, 
+          points: Math.max((currentUser.points || 0) - customerInfo.pointsUsed, 0),
+          transactions: [useTransaction, ...(currentUser.transactions || [])]
+        };
+        setCurrentUser(updatedUser);
+        setCustomerAccounts(prev => prev.map(acc => acc.phone === updatedUser.phone ? updatedUser : acc));
+      }
+    }
+
     setOrders(prev => [...prev, newOrder]);
+  };
+
+  const handleRedeemPoints = (option: import('./types').PointRedemptionOption) => {
+    if (!currentUser) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    
+    const spendTransaction: import('./types').Transaction = {
+      id: `TX-SPEND-${Date.now()}`,
+      type: 'spend',
+      amount: option.pointsRequired,
+      unit: 'points',
+      description: `استبدال نقاط مقابل: ${option.title}`,
+      date: today
+    };
+
+    if (option.rewardType === 'balance') {
+      const rewardValueInCurrency = option.rewardValue; // Assuming rewardValue is in base currency
+      const creditTransaction: import('./types').Transaction = {
+        id: `TX-CREDIT-${Date.now()}`,
+        amount: rewardValueInCurrency,
+        unit: 'currency',
+        type: 'deposit',
+        description: `رصيد من استبدال نقاط: ${option.title}`,
+        date: today
+      };
+
+      const updatedUser = {
+        ...currentUser,
+        points: (currentUser.points || 0) - option.pointsRequired,
+        balance: (currentUser.balance || 0) + rewardValueInCurrency,
+        transactions: [creditTransaction, spendTransaction, ...(currentUser.transactions || [])]
+      };
+
+      setCurrentUser(updatedUser);
+      setCustomerAccounts(prev => prev.map(acc => acc.phone === updatedUser.phone ? updatedUser : acc));
+      alert('🎉 مبروك! تم استبدال النقاط بنجاح وإضافة الرصيد لمحفظتك.');
+    } else {
+      // Handle coupon type if needed, but balance is standard for now
+      alert('تم استبدال الهدية بنجاح! تواصل مع الإدارة للحصول على الكود.');
+    }
   };
 
   const handleAddReview = (productId: string, rating: number, comment: string, username: string) => {
@@ -508,8 +694,65 @@ export default function App() {
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
     setOrders(prev => {
-      const updated = prev.map(o => o.id === orderId ? { ...o, status } : o);
       const targetOrder = prev.find(o => o.id === orderId);
+      const updated = prev.map(o => {
+        if (o.id === orderId) {
+          let pointsAwarded = o.pointsAwarded;
+          
+          // 1. Award potential points only if status becomes shipped and they haven't been awarded yet
+          if (status === 'shipped' && !pointsAwarded && o.earnedPoints && o.earnedPoints > 0) {
+            pointsAwarded = true;
+            const customerPhoneClean = o.customerPhone.trim();
+            const earnTransaction: import('./types').Transaction = {
+              id: `TX-EARN-${Date.now()}`,
+              type: 'earn',
+              amount: o.earnedPoints,
+              unit: 'points',
+              description: `مكافأة شحن الطلب رقم ${o.id} 🚚`,
+              date: new Date().toISOString().split('T')[0]
+            };
+            
+            setCustomerAccounts(prevAccs => prevAccs.map(acc => {
+              if (acc.phone === customerPhoneClean) {
+                return {
+                  ...acc,
+                  points: (acc.points || 0) + (o.earnedPoints || 0),
+                  transactions: [earnTransaction, ...(acc.transactions || [])]
+                };
+              }
+              return acc;
+            }));
+          }
+          
+          // 2. Refund used points if status becomes cancelled
+          if (status === 'cancelled' && o.pointsUsed && o.pointsUsed > 0) {
+            const customerPhoneClean = o.customerPhone.trim();
+            const refundTx: import('./types').Transaction = {
+              id: `TX-REFUND-${Date.now()}`,
+              type: 'deposit',
+              amount: o.pointsUsed,
+              unit: 'points',
+              description: `استرجاع نقاط الطلب الملغي رقم ${o.id} ❌`,
+              date: new Date().toISOString().split('T')[0]
+            };
+            
+            setCustomerAccounts(prevAccs => prevAccs.map(acc => {
+              if (acc.phone === customerPhoneClean) {
+                return {
+                  ...acc,
+                  points: (acc.points || 0) + (o.pointsUsed || 0),
+                  transactions: [refundTx, ...(acc.transactions || [])]
+                };
+              }
+              return acc;
+            }));
+          }
+          
+          return { ...o, status, pointsAwarded };
+        }
+        return o;
+      });
+
       if (targetOrder) {
         let ArabicStatusText = '';
         let statusEmoji = '';
@@ -533,24 +776,13 @@ export default function App() {
         const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://dukkan-east.sa';
         const directCustomerLink = `${siteOrigin}/?orderId=${orderId}`;
 
-        const statusMessage = `السلام عليكم ورحمة الله وبركاته يا فندم،
-أهلاً بك عميلنا العزيز: ${targetOrder.customerName} 👋
+        const statusMessage = `السلام عليكم ورحمة الله وبركاته يا فندم،\nأهلاً بك عميلنا العزيز: ${targetOrder.customerName} 👋\n\nتحديث رسمي من إدارة متجر "دكّان الشَّرق" بخصوص طلبك الفاخر:\n- رقم الفاتورة والطلب: ${orderId} 🧾\n- حالة طلبك الحالية أصبحت: ${ArabicStatusText} ${statusEmoji}\n\n🔗 يمكنك الاستعلام وتتبع تفاصيل طلبك مباشرة عبر الرابط التالي:\n${directCustomerLink}\n\nنسعد دوماً بخدمتك طوال أيام الأسبوع 🌸`;
 
-تحديث رسمي من إدارة متجر "دكّان الشَّرق" بخصوص طلبك الفاخر:
-- رقم الفاتورة والطلب: ${orderId} 🧾
-- حالة طلبك الحالية أصبحت: ${ArabicStatusText} ${statusEmoji}
-
-🔗 يمكنك الاستعلام وتتبع تفاصيل حالتك مباشرةً عبر موقعنا بضغطة واحدة:
-${directCustomerLink}
-
-يسعدنا دوماً تقديم الأفضل والأرقى لك في كل خطوة! 💎`;
-
-        const cleanPhone = targetOrder.customerPhone.replace(/[\s\+\-\(\)]/g, '');
-        const orderUpdateLink = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(statusMessage)}`;
-        
+        const customerPhoneClean = targetOrder.customerPhone.trim();
+        const whatsappLink = `https://wa.me/${customerPhoneClean.startsWith('+') ? customerPhoneClean.substring(1) : customerPhoneClean}?text=${encodeURIComponent(statusMessage)}`;
         setTimeout(() => {
           try {
-            window.open(orderUpdateLink, '_blank');
+            window.open(whatsappLink, '_blank');
           } catch(e) {
             console.warn('Blocked popup redirection');
           }
@@ -594,6 +826,7 @@ ${directCustomerLink}
           setCustomerModalMode('login');
           setShowCustomerModal(true);
         }}
+        onOpenWallet={() => setShowWalletModal(true)}
         isAdminLoggedIn={isAdminLoggedIn}
       />
 
@@ -621,8 +854,10 @@ ${directCustomerLink}
             onClearCart={handleClearCart} 
             onPlaceOrder={handlePlaceOrder} 
             currentUser={currentUser}
-            onLoginSuccess={(user) => setCurrentUser(user)}
+            onLoginSuccess={handleLoginSuccess}
             yemeniGeodata={yemeniGeodata}
+            siteSettings={siteSettings}
+            customerAccounts={customerAccounts}
           />
         )}
 
@@ -726,10 +961,65 @@ ${directCustomerLink}
               {loginStep === 'otp' ? (
                 <form onSubmit={handleVerifyOTP} className="space-y-6">
                   <div className="text-center space-y-2">
-                    <p className="text-sm font-bold text-gray-700">أدخل رمز التحقق 🗝️</p>
-                    <p className="text-xxs text-gray-500">
-                      لقد أرسلنا رمزاً مكوناً من 6 أرقام إلى الرقم <span className="font-mono text-amber-600 font-bold" dir="ltr">{custPhone}</span>
+                    <p className="text-sm font-black text-navy font-display">تأكيد رمز التحقق 🔑</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      لقد أرسلنا رمزاً مكوناً من 6 أرقام إلى الرقم:
+                      <br />
+                      <span className="font-mono text-amber-600 font-extrabold text-sm" dir="ltr">{custPhone}</span>
                     </p>
+                  </div>
+
+                  {/* Golden Interactive OTP Display Box */}
+                  <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 border border-amber-200/60 rounded-2xl p-4 text-center space-y-3 shadow-xs">
+                    <div className="text-[10px] text-amber-850 font-bold tracking-wide">الرمز الممنوح لك حالياً للتجربة والتحقق السريع:</div>
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-2xl font-black font-mono text-amber-900 tracking-wider bg-white px-4 py-1 rounded-xl border border-amber-200 shadow-sm col-span-2">
+                        {generatedOTP}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedOTP);
+                          alert('تم نسخ الرمز بنجاح 📋');
+                        }}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xxs rounded-lg transition-all cursor-pointer shadow-xs active:scale-95"
+                      >
+                        نسخ الرمز 📋
+                      </button>
+                    </div>
+
+                    <div className="pt-1 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          let clean = custPhone.trim().replace(/\D/g, '');
+                          if (clean.startsWith('00')) {
+                            clean = clean.substring(2);
+                          } else if (clean.startsWith('0')) {
+                            clean = '967' + clean.substring(1);
+                          } else if (!clean.startsWith('967') && clean.length === 9) {
+                            clean = '967' + clean;
+                          }
+                          const msgText = `مرحباً بك عميلنا العزيز 👋\nرمز التحقق الخاص بك للدخول الآمن إلى حسابك في دكان الشرق هو: (${generatedOTP}) 🔑.\nتأكيد الرمز في الموقع لإتمام تسجيل الدخول بنجاح.`;
+                          const wpUrl = `https://wa.me/${clean}?text=${encodeURIComponent(msgText)}`;
+                          window.open(wpUrl, '_blank');
+                        }}
+                        className="w-full py-2 bg-emerald-605 hover:bg-emerald-700 text-white font-extrabold text-xxs rounded-xl duration-200 transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                        إرسال الرمز مباشرة إلى رقمي عبر WhatsApp 💬
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpValue(generatedOTP);
+                        }}
+                        className="w-full py-1.5 bg-amber-100 hover:bg-amber-150 text-amber-900 font-extrabold text-xxs rounded-xl duration-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5 border border-amber-200"
+                      >
+                        ⚡ تعبئة تلقائية للرمز للتجربة الفورية
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex justify-center" dir="ltr">
@@ -864,6 +1154,16 @@ ${directCustomerLink}
         </div>
       )}
 
+      {/* Wallet Modal */}
+      <WalletModal 
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+        currentUser={currentUser}
+        selectedCurrency={selectedCurrency}
+        redemptionOptions={siteSettings.redemptionOptions}
+        onRedeem={handleRedeemPoints}
+      />
+
       {/* Floating Smart Chatbot UI */}
       <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end">
         {/* Chat window panel */}
@@ -958,18 +1258,10 @@ ${directCustomerLink}
           </div>
         )}
 
-        {/* Floating pulse button */}
-        <button
-          onClick={() => setIsChatOpen(!isChatOpen)}
-          className="bg-linear-to-tr from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white p-4 rounded-full shadow-2xl flex items-center justify-center cursor-pointer relative group transition-all duration-300 scale-105"
-          title="افتح بوت الرد السريع"
-        >
-          <span className="absolute -top-1 -right-1 bg-red-500 h-3 w-3 rounded-full border border-white animate-ping" />
-          <span className="absolute -top-1 -right-1 bg-red-500 h-3 w-3 rounded-full border border-white" />
-          <MessageSquare className="h-6 w-6" />
-        </button>
+        {siteSettings.enableSocialProof && <TrustPulse products={products} />}
+        {siteSettings.enableLiveChat && <LiveChat />}
+        {siteSettings.enableCommunityChat && <CommunityChat currentUser={currentUser} />}
       </div>
-
     </div>
   );
 }

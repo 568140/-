@@ -22,12 +22,15 @@ interface CartProps {
     shippingCost: number;
     giftWrap: boolean;
     orderId?: string;
+    pointsUsed?: number;
   }) => void;
   coupons: Coupon[];
   selectedCurrency: CurrencyConfig;
-  currentUser: { name: string; phone: string; } | null;
-  onLoginSuccess: (user: { name: string; phone: string }) => void;
+  currentUser: import('../types').CustomerAccount | null;
+  onLoginSuccess: (user: import('../types').CustomerAccount) => void;
   yemeniGeodata: GovernorateData[];
+  siteSettings: import('../types').SiteSettings;
+  customerAccounts?: import('../types').CustomerAccount[];
 }
 
 const GLOBAL_DESTINATIONS = [
@@ -45,13 +48,16 @@ export function Cart({
   currentUser,
   onLoginSuccess,
   yemeniGeodata,
+  siteSettings,
   localWallets = [],
+  customerAccounts = [],
 }: CartProps) {
   const [couponInput, setCouponInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponSuccess, setCouponSuccess] = useState<boolean>(false);
   const [lastGeneratedWhatsappUrl, setLastGeneratedWhatsappUrl] = useState('');
+  const [pointsUsed, setPointsUsed] = useState(0);
 
   // Customer Account Direct Handler States
   const [authTab, setAuthTab] = useState<'login' | 'register'>('register');
@@ -70,8 +76,7 @@ export function Cart({
       return;
     }
 
-    const savedAccounts = localStorage.getItem('dukkan_customer_accounts');
-    const accounts: { name: string; phone: string; password?: string }[] = savedAccounts ? JSON.parse(savedAccounts) : [];
+    const accounts = customerAccounts || [];
 
     if (authTab === 'register') {
       if (!authName.trim()) {
@@ -84,10 +89,7 @@ export function Cart({
         return;
       }
 
-      const newAcc = { name: authName.trim(), phone: cleanedPhone, password: authPassword };
-      accounts.push(newAcc);
-      localStorage.setItem('dukkan_customer_accounts', JSON.stringify(accounts));
-      localStorage.setItem('dukkan_current_user', JSON.stringify(newAcc));
+      const newAcc = { name: authName.trim(), phone: cleanedPhone, password: authPassword, points: 0, balance: 0, transactions: [] };
       onLoginSuccess(newAcc);
     } else {
       const found = accounts.find(acc => acc.phone === cleanedPhone);
@@ -100,7 +102,6 @@ export function Cart({
         return;
       }
 
-      localStorage.setItem('dukkan_current_user', JSON.stringify(found));
       onLoginSuccess(found);
     }
   };
@@ -183,8 +184,9 @@ export function Cart({
   const shippingCost = subtotal > 400 ? 0 : destObj.costSar;
   const giftWrapCost = giftWrap ? 15 : 0; // 15 SAR for custom wrapping with elegant ribbon card
   
-  const vatAmount = remainingAfterDiscount * 0.15; // 15% VAT
-  const totalAmount = remainingAfterDiscount + vatAmount + shippingCost + giftWrapCost;
+  const vatAmount = 0; // VAT removed
+  const pointsDiscountAmount = pointsUsed / (siteSettings.pointsRedeemRatio || 100);
+  const totalAmount = Math.max(remainingAfterDiscount + vatAmount + shippingCost + giftWrapCost - pointsDiscountAmount, 0);
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,6 +268,7 @@ export function Cart({
         shippingCost,
         giftWrap,
         orderId: generatedOrderId,
+        pointsUsed,
       });
 
       // Format complete order metrics for WhatsApp message
@@ -278,6 +281,10 @@ export function Cart({
 
       const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://dukkan-east.sa';
       const directRedirectionLink = `${siteOrigin}/?orderId=${generatedOrderId}`;
+
+      const pointsUsedText = pointsUsed > 0 
+        ? `\n- 🪙 نقاط ولاء مستخدمة: ${pointsUsed} نقطة (خصم مطبق: ${formatPrice(pointsDiscountAmount)})` 
+        : '';
 
       const whatsappMessage = `السلام عليكم ورحمة الله وبركاته،
 لقد قمت بإتمام طلبي بنجاح من متجر "دكّان الشَّرق"! 🌟
@@ -293,7 +300,7 @@ export function Cart({
 ${itemsString}
 
 💳 الفاتورة والحساب:
-- الإجمالي الكلي للطلب: ${formatPrice(totalAmount)}
+- الإجمالي الكلي للطلب: ${formatPrice(totalAmount)}${pointsUsedText}
 - طريقة الدفع المستخدمة: ${paymentMethod === 'local_wallet' ? 'محفظة محلية ' + (localWallets?.find(w => w.id === selectedWalletId)?.name || '') : paymentMethod.toUpperCase()}
 - الخصم المطبق: ${formatPrice(actualDiscount)}
 - قيمة الشحن والتوصيل: ${shippingCost === 0 ? 'شحن مجاني' : formatPrice(shippingCost)}
@@ -454,12 +461,14 @@ ${directRedirectionLink}
               {cartItems.map((item) => (
                 <div key={`${item.product.id}-${item.selectedSize || 'none'}`} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center space-x-4 space-x-reverse">
-                    <img
-                      src={item.product.image}
-                      alt={item.product.name}
-                      referrerPolicy="no-referrer"
-                      className="h-16 w-16 object-cover rounded-xl bg-gray-50 flex-none border border-gray-100"
-                    />
+                    {item.product.image && (
+                      <img
+                        src={item.product.image}
+                        alt={item.product.name}
+                        referrerPolicy="no-referrer"
+                        className="h-16 w-16 object-cover rounded-xl bg-gray-50 flex-none border border-gray-100"
+                      />
+                    )}
                     <div>
                       <h3 className="text-xs font-bold text-gray-900 font-sans line-clamp-1">
                         {item.product.name}
@@ -1019,6 +1028,55 @@ ${directRedirectionLink}
               )}
             </div>
 
+            {/* Loyalty Points Redemption Section */}
+            {currentUser && (currentUser.points || 0) > 0 && (
+              <div className="bg-charcoal rounded-3xl p-6 border border-gold/20 shadow-xl overflow-hidden relative group">
+                <div className="absolute -top-6 -left-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <Sparkles className="h-24 w-24 text-gold" />
+                </div>
+                
+                <h3 className="text-xs font-black text-gold mb-3 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  استخدام نقاط الولاء
+                </h3>
+                <div className="flex flex-col gap-4">
+                  <div className="flex justify-between items-center text-white/90">
+                    <span className="text-[10px] font-bold">رصيد نقاطك:</span>
+                    <span className="text-xs font-mono font-black">{currentUser.points} نقطة</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input 
+                        type="number" 
+                        max={currentUser.points}
+                        min={0}
+                        value={pointsUsed}
+                        onChange={(e) => {
+                          const val = Math.min(Number(e.target.value), (currentUser.points || 0));
+                          setPointsUsed(Math.max(0, val));
+                        }}
+                        placeholder="أدخل عدد النقاط"
+                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white font-mono flex-1 focus:outline-hidden focus:border-gold transition-all"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setPointsUsed(currentUser.points || 0)}
+                        className="bg-gold text-charcoal font-black text-[10px] px-3 rounded-xl hover:bg-gold-light transition-all cursor-pointer"
+                      >
+                        الكل
+                      </button>
+                    </div>
+                    {pointsUsed > 0 && (
+                      <p className="text-[10px] text-emerald-400 font-bold">
+                        💰 خصم بقيمة {formatPrice(pointsDiscountAmount)} لمشترياتكم
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Pricing breakdowns card */}
             <div className="bg-charcoal text-white rounded-[2rem] p-8 shadow-2xl border border-gold/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
@@ -1040,10 +1098,14 @@ ${directRedirectionLink}
                   </div>
                 )}
                 
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400 font-display">ضريبة القيمة المضافة</span>
-                  <span className="font-mono font-bold">{formatPrice(vatAmount)}</span>
-                </div>
+                {pointsUsed > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-400 font-bold">
+                    <span className="font-display">خصم نقاط الولاء</span>
+                    <span className="font-mono">-{formatPrice(pointsDiscountAmount)}</span>
+                  </div>
+                )}
+                
+                {/* VAT Row removed */}
                 
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400 font-display">الشحن الدولي المؤمّن</span>
