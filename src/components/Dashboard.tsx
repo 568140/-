@@ -366,6 +366,56 @@ export function Dashboard({
     setShowProductModal(true);
   };
 
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+      
+      const rows = text.split('\n');
+      const isHeader = rows[0].includes('name') || rows[0].includes('الاسم');
+      const startIdx = isHeader ? 1 : 0;
+      let imported = 0;
+
+      for (let i = startIdx; i < rows.length; i++) {
+        const row = rows[i].trim();
+        if (!row) continue;
+        
+        const cols = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        
+        if (cols.length >= 4) {
+          const name = cols[0].replace(/^"|"$/g, '').trim();
+          const desc = cols[1].replace(/^"|"$/g, '').trim();
+          const price = parseFloat(cols[2]) || 0;
+          const category = cols[3].replace(/^"|"$/g, '').trim();
+          const stock = cols.length > 4 ? (parseInt(cols[4]) || 50) : 50;
+          const image = cols.length > 5 ? cols[5].replace(/^"|"$/g, '').trim() : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60';
+          
+          if (name && price > 0) {
+            onAddProduct({
+              name,
+              description: desc || 'منتج مستورد',
+              price,
+              category: category || 'عام',
+              stock,
+              image,
+              rating: 4.5,
+              isFeatured: false,
+              pointsReward: 0
+            });
+            imported++;
+          }
+        }
+      }
+      alert(`تم استيراد ${imported} منتج بنجاح`);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   // Handle open Product modal for Edit
   const handleOpenEdit = (p: Product) => {
     setEditingProduct(p);
@@ -1300,13 +1350,21 @@ export function Dashboard({
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             </div>
 
-            <button
-              onClick={handleOpenCreate}
-              className="px-4 py-2 bg-gray-950 hover:bg-gray-800 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 space-x-reverse cursor-pointer shadow-xs"
-            >
-              <Plus className="h-4 w-4" />
-              <span>إضافة منتج جديد</span>
-            </button>
+            <div className="flex gap-2">
+              <label className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-xs rounded-xl flex items-center space-x-1.5 space-x-reverse cursor-pointer shadow-xs border border-gray-200">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                <span>استيراد CSV</span>
+                <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+              </label>
+
+              <button
+                onClick={handleOpenCreate}
+                className="px-4 py-2 bg-gray-950 hover:bg-gray-800 text-white font-bold text-xs rounded-xl flex items-center space-x-1.5 space-x-reverse cursor-pointer shadow-xs"
+              >
+                <Plus className="h-4 w-4" />
+                <span>إضافة منتج جديد</span>
+              </button>
+            </div>
           </div>
 
           {/* Products Table */}

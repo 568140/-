@@ -77,9 +77,14 @@ service cloud.firestore {
       return m.keys().hasAll(['id', 'userName', 'text', 'timestamp', 'role'])
         && isValStr(m.id, 64)
         && isValStr(m.userName, 256)
-        && isValStr(m.text, 1000)
         && isValStr(m.timestamp, 128)
-        && isValStr(m.role, 32);
+        && isValStr(m.role, 32); // Removed strict text limit to allow base64 or big text
+    }
+
+    function isValidPrivateMessage(m) {
+      return m.keys().hasAll(['id', 'senderId', 'receiverId', 'timestamp'])
+        && isValStr(m.id, 64)
+        && isValStr(m.timestamp, 128);
     }
 
     // Collection matches
@@ -128,6 +133,12 @@ service cloud.firestore {
     match /community_messages/{msgId} {
       allow read: if true;
       allow create, update: if isValidId(msgId) && isValidChatMessage(request.resource.data);
+      allow delete: if isValidId(msgId);
+    }
+
+    match /private_messages/{msgId} {
+      allow read: if true;
+      allow create, update: if isValidId(msgId) && isValidPrivateMessage(request.resource.data);
       allow delete: if isValidId(msgId);
     }
   }

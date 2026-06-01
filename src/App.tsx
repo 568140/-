@@ -7,6 +7,7 @@ import { MyOrders } from './components/MyOrders';
 import LiveChat from './components/LiveChat';
 import TrustPulse from './components/TrustPulse';
 import CommunityChat from './components/CommunityChat';
+import { CustomerMessages } from './components/CustomerMessages';
 import WalletModal from './components/WalletModal';
 import { Product, CartItem, Order, Coupon, CurrencyConfig } from './types';
 import { INITIAL_PRODUCTS, INITIAL_COUPONS, CATEGORIES, CURRENCIES } from './data';
@@ -1419,6 +1420,11 @@ export default function App() {
         {siteSettings.enableSocialProof && <TrustPulse products={products} />}
         {siteSettings.enableLiveChat && <LiveChat />}
         {siteSettings.enableCommunityChat && <CommunityChat currentUser={currentUser} />}
+        <CustomerMessages 
+          currentUser={currentUser} 
+          customerAccounts={customerAccounts} 
+          isAdmin={isAdminLoggedIn} 
+        />
       </div>
     </div>
   );

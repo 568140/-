@@ -35,15 +35,26 @@ const CommunityChat: React.FC<{ currentUser: any }> = ({ currentUser }) => {
         );
       } else {
         const list: ChatMessage[] = [];
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          list.push({
-            id: d.id,
-            userName: d.userName,
-            text: d.text,
-            timestamp: new Date(d.timestamp),
-            role: d.role
-          });
+        const now = Date.now();
+        const ONE_HOUR = 60 * 60 * 1000;
+        
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          const msgTime = new Date(d.timestamp).getTime();
+          
+          if (now - msgTime > ONE_HOUR) {
+             import('firebase/firestore').then(({ deleteDoc, doc }) => {
+                deleteDoc(doc(db, 'community_messages', d.id)).catch(() => {});
+             });
+          } else {
+            list.push({
+              id: d.id,
+              userName: d.userName,
+              text: d.text,
+              timestamp: new Date(d.timestamp),
+              role: d.role
+            });
+          }
         });
         // Sort oldest to newest
         list.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
