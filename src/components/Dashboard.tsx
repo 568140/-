@@ -2618,14 +2618,41 @@ export function Dashboard({
                           }}
                           className="block w-full bg-transparent font-black text-xs text-navy focus:outline-hidden mb-1"
                         />
-                        <input 
-                          value={banner.mediaUrl}
-                          onChange={(e) => {
-                            const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: e.target.value } : b);
-                            setSiteSettings({ ...siteSettings, promoBanners: newBanners });
-                          }}
-                          className="block w-full bg-transparent text-[10px] text-gray-400 font-mono focus:outline-hidden"
-                        />
+                        <div className="flex items-center gap-2">
+                          <input 
+                            value={banner.mediaUrl}
+                            onChange={(e) => {
+                              const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: e.target.value } : b);
+                              setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                            }}
+                            className="block w-full bg-transparent text-[10px] text-gray-400 font-mono focus:outline-hidden"
+                            placeholder="رابط الصورة أو الفيديو..."
+                          />
+                          {banner.mediaType === 'image' && (
+                            <label className="shrink-0 bg-gray-100 text-gray-600 px-2 py-1 rounded cursor-pointer text-[9px] font-bold transition hover:bg-gray-200">
+                              رفع صورة
+                              <input 
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    try {
+                                      // Compress to max 1200px width/height for banner size
+                                      const compressedBase64 = await compressImage(file, 1200);
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: compressedBase64 } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    } catch (err) {
+                                      console.error('Failed to compress banner image:', err);
+                                      alert('حدث خطأ أثناء معالجة الصورة');
+                                    }
+                                  }
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
                         <div className="mt-2 flex gap-2">
                            <button 
                             onClick={() => {
