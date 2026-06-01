@@ -9,6 +9,38 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { CATEGORIES } from '../data';
 import { GovernorateData } from '../utils/yemeniData';
 
+const compressImage = (file: File, maxSize: number = 600): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxSize || height > maxSize) {
+            if (width > height) {
+              height *= maxSize / width;
+              width = maxSize;
+            } else {
+              width *= maxSize / height;
+              height = maxSize;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        };
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 interface CategoryConfig {
   name: string;
   subcategories: string[];
@@ -60,33 +92,35 @@ export function Dashboard({
   onAdminLoginChange,
 }: DashboardProps) {
   // File Upload Handling
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 2 * 1024 * 1024) {
         alert('حجم الملف كبير جداً. يرجى اختيار صورة أقل من 2 ميجابايت');
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSiteSettings({ ...siteSettings, logoUrl: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImage(file, 400);
+        setSiteSettings({ ...siteSettings, logoUrl: compressedBase64 });
+      } catch (err) {
+        console.error('Failed to compress logo:', err);
+      }
     }
   };
 
-  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 1024 * 1024) {
         alert('حجم الملف كبير جداً. يرجى اختيار صورة أقل من 1 ميجابايت');
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSiteSettings({ ...siteSettings, iconUrl: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImage(file, 150);
+        setSiteSettings({ ...siteSettings, iconUrl: compressedBase64 });
+      } catch (err) {
+        console.error('Failed to compress icon:', err);
+      }
     }
   };
 
@@ -3030,16 +3064,15 @@ export function Dashboard({
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              if (event.target?.result) {
-                                setProdImage(event.target.result as string);
-                              }
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const compressedBase64 = await compressImage(file, 600);
+                              setProdImage(compressedBase64);
+                            } catch (err) {
+                              console.error('Failed to compress image:', err);
+                            }
                           }
                         }}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
