@@ -676,7 +676,8 @@ export default function App() {
       }
     }
 
-    setDoc(doc(db, 'orders', newOrder.id), newOrder).catch(e =>
+    const cleanOrder = JSON.parse(JSON.stringify(newOrder));
+    setDoc(doc(db, 'orders', newOrder.id), cleanOrder).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, `orders/${newOrder.id}`)
     );
   };
@@ -752,18 +753,23 @@ export default function App() {
 
   // ADMIN OPERATIONS
   const handleAddProduct = (newProdData: Omit<Product, 'id'>) => {
-    const newId = 'prod-' + (products.length + 101); // avoid duplicate IDs
+    const newId = 'prod-' + Date.now(); // avoid duplicate IDs
     const newProduct: Product = {
       ...newProdData,
       id: newId
     };
-    setDoc(doc(db, 'products', newId), newProduct).catch(e =>
+    
+    // Strip undefined values which Firebase rejects
+    const cleanProduct = JSON.parse(JSON.stringify(newProduct));
+
+    setDoc(doc(db, 'products', newId), cleanProduct).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, `products/${newId}`)
     );
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
-    setDoc(doc(db, 'products', updatedProduct.id), updatedProduct).catch(e =>
+    const cleanProduct = JSON.parse(JSON.stringify(updatedProduct));
+    setDoc(doc(db, 'products', updatedProduct.id), cleanProduct).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, `products/${updatedProduct.id}`)
     );
   };
@@ -880,7 +886,8 @@ export default function App() {
   };
 
   const handleAddCoupon = (newCoupon: Coupon) => {
-    setDoc(doc(db, 'coupons', newCoupon.code), newCoupon).catch(e =>
+    const cleanCoupon = JSON.parse(JSON.stringify(newCoupon));
+    setDoc(doc(db, 'coupons', newCoupon.code), cleanCoupon).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, `coupons/${newCoupon.code}`)
     );
   };
@@ -893,7 +900,8 @@ export default function App() {
 
   const handleSetSiteSettings = (val: import('./types').SiteSettings | ((prev: import('./types').SiteSettings) => import('./types').SiteSettings)) => {
     const nextSettings = typeof val === 'function' ? val(siteSettings) : val;
-    setDoc(doc(db, 'site_settings', 'general'), nextSettings).catch(e =>
+    const cleanSettings = JSON.parse(JSON.stringify(nextSettings));
+    setDoc(doc(db, 'site_settings', 'general'), cleanSettings).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
     );
   };
@@ -902,27 +910,57 @@ export default function App() {
     const nextCategories = typeof val === 'function' ? val(categoriesState) : val;
     nextCategories.forEach((cat, idx) => {
       const catId = `cat_${idx}`;
-      setDoc(doc(db, 'category_states', catId), cat).catch(e =>
+      const cleanCat = JSON.parse(JSON.stringify(cat));
+      setDoc(doc(db, 'category_states', catId), cleanCat).catch(e =>
         handleFirestoreError(e, OperationType.WRITE, `category_states/${catId}`)
       );
     });
+    
+    // Cleanup any removed indices
+    for (let i = nextCategories.length; i < categoriesState.length; i++) {
+      deleteDoc(doc(db, 'category_states', `cat_${i}`)).catch(e =>
+        handleFirestoreError(e, OperationType.DELETE, `category_states/cat_${i}`)
+      );
+    }
   };
 
   const handleSetLocalWallets = (val: any[] | ((prev: any[]) => any[])) => {
     const nextWallets = typeof val === 'function' ? val(localWallets) : val;
     nextWallets.forEach(w => {
-      setDoc(doc(db, 'local_wallets', w.id), w).catch(e =>
+      const cleanWallet = JSON.parse(JSON.stringify(w));
+      setDoc(doc(db, 'local_wallets', w.id), cleanWallet).catch(e =>
         handleFirestoreError(e, OperationType.WRITE, `local_wallets/${w.id}`)
       );
+    });
+    
+    // Delete missing wallets
+    const nextIds = nextWallets.map(w => w.id);
+    localWallets.forEach(w => {
+      if (!nextIds.includes(w.id)) {
+        deleteDoc(doc(db, 'local_wallets', w.id)).catch(e =>
+          handleFirestoreError(e, OperationType.DELETE, `local_wallets/${w.id}`)
+        );
+      }
     });
   };
 
   const handleSetCustomerAccounts = (val: import('./types').CustomerAccount[] | ((prev: import('./types').CustomerAccount[]) => import('./types').CustomerAccount[])) => {
     const nextAccs = typeof val === 'function' ? val(customerAccounts) : val;
     nextAccs.forEach(acc => {
-      setDoc(doc(db, 'customer_accounts', acc.phone), acc).catch(e =>
+      const cleanAcc = JSON.parse(JSON.stringify(acc));
+      setDoc(doc(db, 'customer_accounts', acc.phone), cleanAcc).catch(e =>
         handleFirestoreError(e, OperationType.WRITE, `customer_accounts/${acc.phone}`)
       );
+    });
+
+    // Delete missing accounts
+    const nextPhones = nextAccs.map(a => a.phone);
+    customerAccounts.forEach(a => {
+      if (!nextPhones.includes(a.phone)) {
+        deleteDoc(doc(db, 'customer_accounts', a.phone)).catch(e =>
+          handleFirestoreError(e, OperationType.DELETE, `customer_accounts/${a.phone}`)
+        );
+      }
     });
   };
 
