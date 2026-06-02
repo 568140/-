@@ -1,4 +1,23 @@
+# Robots.txt file for LUXORA - دكان الشرق البلاتيني
+# Optimized for Googlebot and global search engines indexing
+
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /config/
 
+# Explicit instructions for Googlebot
+User-agent: Googlebot
+Allow: /
+Allow: /?code=
+Allow: /?search=
+Disallow: /admin/
+
+# Explicit instructions for Bing
+User-agent: Bingbot
+Allow: /
+Disallow: /admin/
+
+# Sitemap location
 Sitemap: https://rho-liart-59.vercel.app/sitemap.xml
