@@ -56,6 +56,19 @@ export const CustomerMessages: React.FC<{
     }
   };
 
+
+  const parseTimestamp = (value: any): Date => {
+    if (!value) return new Date();
+    if (value && typeof value.toDate === 'function') {
+      return value.toDate();
+    }
+    if (value && typeof value.seconds === 'number') {
+      return new Date(value.seconds * 1000 + (value.nanoseconds || 0) / 1000000);
+    }
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
   // Load private messages from Firestore
   useEffect(() => {
     const q = collection(db, 'private_messages');
@@ -66,12 +79,10 @@ export const CustomerMessages: React.FC<{
       
       snapshot.forEach(docSnap => {
         const d = docSnap.data();
-        const msgTime = new Date(d.timestamp).getTime();
+        const msgTime = parseTimestamp(d.timestamp).getTime();
         
-        // Auto-delete after 1 hour setup
-        if (now - msgTime > ONE_HOUR) {
-          deleteDoc(docSnap.ref).catch(() => {});
-        } else {
+        // Filter out expired documents on the client-side to prevent recursive deleting quota crashes
+        if (now - msgTime <= ONE_HOUR) {
           list.push({
             id: d.id,
             senderId: d.senderId,
@@ -80,7 +91,7 @@ export const CustomerMessages: React.FC<{
             text: d.text || '',
             mediaUrl: d.mediaUrl,
             mediaType: d.mediaType,
-            timestamp: new Date(d.timestamp),
+            timestamp: parseTimestamp(d.timestamp),
           });
         }
       });
@@ -123,38 +134,37 @@ export const CustomerMessages: React.FC<{
            (m.senderId === 'admin' && m.receiverId === currentUser.phone);
   });
 
-  // Play audio chime when a real new message is received
+  // Play audio chime when a real new message is received from the other party
   useEffect(() => {
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
-      const isConversational = isAdmin 
-        ? (activeContact && (lastMsg.senderId === activeContact.phone || lastMsg.receiverId === activeContact.phone))
-        : (currentUser && (lastMsg.senderId === currentUser.phone || lastMsg.receiverId === 'admin'));
+      const isIncoming = isAdmin
+        ? (lastMsg.senderId !== 'admin' && lastMsg.receiverId === 'admin')
+        : (currentUser && lastMsg.senderId === 'admin' && lastMsg.receiverId === currentUser.phone);
 
-      if (isConversational) {
-        const isMe = isAdmin ? lastMsg.senderId === 'admin' : lastMsg.senderId === currentUser?.phone;
-        if (!isMe && lastMsgRef.current !== lastMsg.id) {
-          playNotificationSound();
-        }
+      if (isIncoming && lastMsgRef.current !== lastMsg.id) {
+        playNotificationSound();
       }
       lastMsgRef.current = lastMsg.id;
     }
-  }, [messages, isAdmin, currentUser, activeContact]);
+  }, [messages, isAdmin, currentUser]);
 
-  // Unread messages calculation for badges
+  // Unread messages calculation for badges (Admin gets notified of any user's message, user gets notified of admin's replies)
   const unreadMessagesCount = React.useMemo(() => {
     if (isOpen) return 0;
     return messages.filter(m => {
-      const isConversational = isAdmin
-        ? (activeContact && (m.senderId === activeContact.phone || m.receiverId === activeContact.phone))
-        : (currentUser && (m.senderId === currentUser.phone || m.receiverId === 'admin'));
-      
-      if (!isConversational) return false;
-      
-      const isMe = isAdmin ? m.senderId === 'admin' : m.senderId === currentUser?.phone;
-      return !isMe && m.timestamp.getTime() > lastReadTimestamp;
+      if (isAdmin) {
+        const isMe = m.senderId === 'admin';
+        return !isMe && m.receiverId === 'admin' && m.timestamp.getTime() > lastReadTimestamp;
+      } else {
+        if (!currentUser) return false;
+        const isMe = m.senderId === currentUser.phone;
+        const isConversational = (m.senderId === currentUser.phone && m.receiverId === 'admin') ||
+                                 (m.senderId === 'admin' && m.receiverId === currentUser.phone);
+        return isConversational && !isMe && m.timestamp.getTime() > lastReadTimestamp;
+      }
     }).length;
-  }, [messages, isOpen, lastReadTimestamp, isAdmin, currentUser, activeContact]);
+  }, [messages, isOpen, lastReadTimestamp, isAdmin, currentUser]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -219,6 +229,7 @@ export const CustomerMessages: React.FC<{
     if (!isAdmin) {
       return [{ name: 'الدعم الفني والإدارة', phone: 'admin' }];
     }
+
     const map = new Map<string, { name: string; phone: string }>();
     
     // Add known registered customer accounts
@@ -260,6 +271,11 @@ export const CustomerMessages: React.FC<{
             {contacts.length === 0 && <p className="text-xs text-center p-4 text-gray-400">لا يوجد جهات اتصال مسجلة</p>}
             {contacts.map(c => {
               const isSelected = activeContact?.phone === c.phone;
+              const contactUnreadCount = messages.filter(m => 
+                m.senderId === c.phone && 
+                m.receiverId === 'admin' && 
+                m.timestamp.getTime() > lastReadTimestamp
+              ).length;
               return (
                 <button 
                   key={c.phone} 
@@ -277,7 +293,14 @@ export const CustomerMessages: React.FC<{
                     {c.name.charAt(0)}
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <div className={`text-xs font-bold leading-none ${isSelected ? 'text-white' : 'text-navy'}`}>{c.name}</div>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-bold leading-none ${isSelected ? 'text-white' : 'text-navy'}`}>{c.name}</span>
+                      {contactUnreadCount > 0 && (
+                        <span className="bg-rose-500 text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-pulse shrink-0">
+                          {contactUnreadCount}
+                        </span>
+                      )}
+                    </div>
                     <div className={`text-[9px] font-mono mt-1 ${isSelected ? 'text-amber-200' : 'text-gray-400'}`}>{c.phone}</div>
                   </div>
                 </button>
@@ -438,7 +461,7 @@ export const CustomerMessages: React.FC<{
 
             {/* Content Area */}
             <div className="flex flex-1 overflow-hidden" dir="rtl">
-              {!currentUser ? (
+              {!currentUser && !isAdmin ? (
                 // Sign in Prompt for guest users
                 <div className="w-full flex flex-col items-center justify-center p-6 text-center bg-gray-50/50">
                   <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 mb-4 animate-bounce">
@@ -563,21 +586,35 @@ export const CustomerMessages: React.FC<{
                 <div className="w-full flex flex-col overflow-y-auto bg-gray-50/50 p-2 space-y-1">
                   <div className="text-[10px] font-bold text-gray-400 mb-2 px-2 pt-2">اختر المستلم للتواصل الخاص:</div>
                   {contacts.length === 0 && <p className="text-xs text-center p-4 text-gray-400 font-bold font-sans">لا يوجد رسائل أو جهات اتصال</p>}
-                  {contacts.map(c => (
-                    <button 
-                      key={c.phone} 
-                      onClick={() => setActiveContact(c)}
-                      className="w-full text-right p-3 hover:bg-white bg-transparent rounded-xl transition-all border border-transparent hover:border-gray-100 flex items-center gap-3 cursor-pointer"
-                    >
-                      <div className="h-8 w-8 rounded-full bg-navy text-gold flex items-center justify-center font-bold text-xs uppercase shadow-xxs">
-                        {c.name.charAt(0)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-xs font-bold text-gray-800 font-sans">{c.name}</div>
-                        <div className="text-[9px] text-gray-400 font-mono">{c.phone}</div>
-                      </div>
-                    </button>
-                  ))}
+                  {contacts.map(c => {
+                    const contactUnreadCount = messages.filter(m => 
+                      m.senderId === c.phone && 
+                      m.receiverId === 'admin' && 
+                      m.timestamp.getTime() > lastReadTimestamp
+                    ).length;
+                    return (
+                      <button 
+                        key={c.phone} 
+                        onClick={() => setActiveContact(c)}
+                        className="w-full text-right p-3 hover:bg-white bg-transparent rounded-xl transition-all border border-transparent hover:border-gray-100 flex items-center gap-3 cursor-pointer"
+                      >
+                        <div className="h-8 w-8 rounded-full bg-navy text-gold flex items-center justify-center font-bold text-xs uppercase shadow-xxs">
+                          {c.name.charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-gray-800 font-sans">{c.name}</span>
+                            {contactUnreadCount > 0 && (
+                              <span className="bg-rose-500 text-white font-mono text-[9px] font-bold px-1.5 py-0.5 rounded-full animate-pulse shrink-0">
+                                {contactUnreadCount}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[9px] text-gray-400 font-mono">{c.phone}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 // Chat Area (Only for Admin)

@@ -19,8 +19,15 @@ const CommunityChat: React.FC<{ currentUser: any }> = ({ currentUser }) => {
   const [activeRoom, setActiveRoom] = useState<'general' | 'vip'>('general');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load live messages from Firestore
+  // Load live messages from Firestore with client-side age filtering to prevent storage loops and sync delays
   useEffect(() => {
+    const parseTime = (val: any): Date => {
+      if (!val) return new Date();
+      if (val && typeof val.toDate === 'function') return val.toDate();
+      const p = new Date(val);
+      return isNaN(p.getTime()) ? new Date() : p;
+    };
+
     const unsub = onSnapshot(collection(db, 'community_messages'), (snapshot) => {
       if (snapshot.empty) {
         const defaultMsg = {
@@ -40,18 +47,16 @@ const CommunityChat: React.FC<{ currentUser: any }> = ({ currentUser }) => {
         
         snapshot.forEach(docSnap => {
           const d = docSnap.data();
-          const msgTime = new Date(d.timestamp).getTime();
+          const parsedDate = parseTime(d.timestamp);
+          const msgTime = parsedDate.getTime();
           
-          if (now - msgTime > ONE_HOUR) {
-             import('firebase/firestore').then(({ deleteDoc, doc }) => {
-                deleteDoc(doc(db, 'community_messages', d.id)).catch(() => {});
-             });
-          } else {
+          // Only show messages younger than 1 hour; do not auto-delete on listener trigger (prevents recursion loops)
+          if (now - msgTime <= ONE_HOUR) {
             list.push({
               id: d.id,
               userName: d.userName,
               text: d.text,
-              timestamp: new Date(d.timestamp),
+              timestamp: parsedDate,
               role: d.role
             });
           }

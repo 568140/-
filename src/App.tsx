@@ -385,14 +385,25 @@ export default function App() {
     const unsub = onSnapshot(collection(db, 'products'), (snapshot) => {
       if (snapshot.empty) {
         INITIAL_PRODUCTS.forEach(p => {
-          setDoc(doc(db, 'products', p.id), p).catch(e => 
+          const promoWithCode = {
+            ...p,
+            code: p.code || ('LX-' + Math.floor(10000 + Math.random() * 90000))
+          };
+          setDoc(doc(db, 'products', p.id), promoWithCode).catch(e => 
             handleFirestoreError(e, OperationType.WRITE, `products/${p.id}`)
           );
         });
       } else {
         const list: Product[] = [];
         snapshot.forEach(docSnap => {
-          list.push(docSnap.data() as Product);
+          const prodData = docSnap.data() as Product;
+          if (!prodData.code) {
+            const randomCode = 'LX-' + Math.floor(10000 + Math.random() * 90000);
+            prodData.code = randomCode;
+            // Update Firestore on-the-fly to permanently assign a unique code
+            setDoc(doc(db, 'products', prodData.id), prodData).catch(() => {});
+          }
+          list.push(prodData);
         });
         setProducts(list);
       }
@@ -757,7 +768,8 @@ export default function App() {
     const newId = 'prod-' + Date.now(); // avoid duplicate IDs
     const newProduct: Product = {
       ...newProdData,
-      id: newId
+      id: newId,
+      code: newProdData.code || ('LX-' + Math.floor(10000 + Math.random() * 90000))
     };
     
     // Strip undefined values which Firebase rejects
