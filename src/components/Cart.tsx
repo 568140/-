@@ -1028,54 +1028,6 @@ ${directRedirectionLink}
               )}
             </div>
 
-            {/* Loyalty Points Redemption Section */}
-            {currentUser && (currentUser.points || 0) > 0 && (
-              <div className="bg-charcoal rounded-3xl p-6 border border-gold/20 shadow-xl overflow-hidden relative group">
-                <div className="absolute -top-6 -left-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <Sparkles className="h-24 w-24 text-gold" />
-                </div>
-                
-                <h3 className="text-xs font-black text-gold mb-3 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
-                  استخدام نقاط الولاء
-                </h3>
-                <div className="flex flex-col gap-4">
-                  <div className="flex justify-between items-center text-white/90">
-                    <span className="text-[10px] font-bold">رصيد نقاطك:</span>
-                    <span className="text-xs font-mono font-black">{currentUser.points} نقطة</span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <input 
-                        type="number" 
-                        max={currentUser.points}
-                        min={0}
-                        value={pointsUsed}
-                        onChange={(e) => {
-                          const val = Math.min(Number(e.target.value), (currentUser.points || 0));
-                          setPointsUsed(Math.max(0, val));
-                        }}
-                        placeholder="أدخل عدد النقاط"
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white font-mono flex-1 focus:outline-hidden focus:border-gold transition-all"
-                      />
-                      <button 
-                        type="button"
-                        onClick={() => setPointsUsed(currentUser.points || 0)}
-                        className="bg-gold text-charcoal font-black text-[10px] px-3 rounded-xl hover:bg-gold-light transition-all cursor-pointer"
-                      >
-                        الكل
-                      </button>
-                    </div>
-                    {pointsUsed > 0 && (
-                      <p className="text-[10px] text-emerald-400 font-bold">
-                        💰 خصم بقيمة {formatPrice(pointsDiscountAmount)} لمشترياتكم
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Pricing breakdowns card */}
             <div className="bg-charcoal text-white rounded-[2rem] p-8 shadow-2xl border border-gold/10 relative overflow-hidden">
@@ -1098,12 +1050,6 @@ ${directRedirectionLink}
                   </div>
                 )}
                 
-                {pointsUsed > 0 && (
-                  <div className="flex justify-between text-sm text-emerald-400 font-bold">
-                    <span className="font-display">خصم نقاط الولاء</span>
-                    <span className="font-mono">-{formatPrice(pointsDiscountAmount)}</span>
-                  </div>
-                )}
                 
                 {/* VAT Row removed */}
                 
@@ -1148,6 +1094,34 @@ ${directRedirectionLink}
                     <span className="font-display text-sm tracking-wide">تأكيد المشتريات والدفع</span>
                   </>
                 )}
+              </button>
+
+              <button
+                type="button"
+                className="w-full mt-3 py-3 bg-white text-navy font-bold rounded-2xl border border-gray-200 hover:border-navy transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => {
+                   const itemsText = cartItems.map(i => `- ${i.product.name} (عدد: ${i.quantity})`).join('\n');
+                   const shareText = `هل يمكنك إلقاء نظرة على سلة مشترياتي المذهلة من دكان الشرق؟\n\nالمنتجات:\n${itemsText}\n\nالإجمالي: ${formatPrice(totalAmount)}`;
+                   const fallbackCopy = () => {
+                     navigator.clipboard.writeText(shareText);
+                     alert('تم نسخ محتوى السلة لمشاركتها');
+                   };
+                   if (navigator.share) {
+                     navigator.share({
+                       title: 'سلة مشترياتي في دكان الشرق',
+                       text: shareText,
+                       url: window.location.href,
+                     }).catch((err) => {
+                        console.error(err);
+                        fallbackCopy();
+                     });
+                   } else {
+                     fallbackCopy();
+                   }
+                }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                <span>مشاركة السلة مع صديق</span>
               </button>
             </div>
           </div>

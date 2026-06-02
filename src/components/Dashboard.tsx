@@ -8,6 +8,7 @@ import { Product, Order, Coupon, LocalWallet, Transaction, CustomerAccount } fro
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 import { CATEGORIES } from '../data';
 import { GovernorateData } from '../utils/yemeniData';
+import { CustomerMessages } from './CustomerMessages';
 
 const compressImage = (file: File, maxSize: number = 600): Promise<string> => {
   return new Promise((resolve) => {
@@ -124,7 +125,7 @@ export function Dashboard({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages'>('metrics');
   
   // Admin Authentication / Credentials Configuration
   const [adminUsername, setAdminUsername] = useState(() => {
@@ -173,7 +174,7 @@ export function Dashboard({
 
   // Gift Giving Custom Modal states
   const [giftingAccount, setGiftingAccount] = useState<CustomerAccount | null>(null);
-  const [giftType, setGiftType] = useState<'points' | 'product'>('points');
+  const [giftType, setGiftType] = useState<'points' | 'product' | 'deduct' | 'reset'>('points');
   const [giftPoints, setGiftPoints] = useState<string>('');
   const [giftProduct, setGiftProduct] = useState<string>('');
   const [giftSuccessMsg, setGiftSuccessMsg] = useState<string | null>(null);
@@ -707,6 +708,16 @@ export function Dashboard({
             👥 إدارة العملاء ({(customerAccounts || []).length})
           </button>
           <button
+            onClick={() => setActiveTab('private-messages')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'private-messages'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            💬 رسائل العملاء الخاصة
+          </button>
+          <button
             onClick={() => setActiveTab('coupons')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'coupons'
@@ -854,14 +865,7 @@ export function Dashboard({
                 >
                   الطلبات
                 </button>
-                <button
-                  onClick={() => setStatMetric('points')}
-                  className={`px-3 py-1.5 rounded-lg text-xxs font-bold transition-all cursor-pointer ${
-                    statMetric === 'points' ? 'bg-white text-navy font-black shadow-sm' : 'text-gray-350 hover:text-white'
-                  }`}
-                >
-                  النقاط والولاء
-                </button>
+
               </div>
             </div>
           </div>
@@ -897,29 +901,29 @@ export function Dashboard({
               </div>
             </div>
 
-            {/* KPI 3: Loyalty points used */}
+            {/* KPI 3: Registered Customers */}
             <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
               <div>
-                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">نقاط مستخدمة (فواتير وهدايا)</span>
-                <span className="text-2xl font-black text-amber-600 font-mono">{interactivePointsUsed}</span>
-                <span className="text-xs font-bold text-gray-450 font-sans pr-1">نقاط</span>
-                <p className="text-[9px] text-amber-700 font-sans font-semibold mt-1">المستهلكة لتسديد المشتريات</p>
+                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">إجمالي العملاء المسجلين</span>
+                <span className="text-2xl font-black text-amber-600 font-mono">{(customerAccounts || []).length}</span>
+                <span className="text-xs font-bold text-gray-450 font-sans pr-1">حساب</span>
+                <p className="text-[9px] text-amber-700 font-sans font-semibold mt-1">مشترك مالي مسجل بالمتجر</p>
               </div>
               <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 group-hover:scale-110 transition-transform">
-                <Trophy className="h-6 w-6" />
+                <Users className="h-6 w-6" />
               </div>
             </div>
 
-            {/* KPI 4: Loyalty points awarded */}
+            {/* KPI 4: Active Coupons */}
             <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
               <div>
-                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">إجمالي النقاط الممنوحة</span>
-                <span className="text-2xl font-black text-emerald-600 font-mono">{interactivePointsAwarded}</span>
-                <span className="text-xs font-bold text-gray-450 font-sans pr-1">نقاط</span>
-                <p className="text-[9px] text-emerald-700 font-sans font-semibold mt-1">التي كسبها العملاء حديثاً</p>
+                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">الكوبونات الملكية الفعالة</span>
+                <span className="text-2xl font-black text-emerald-600 font-mono">{(coupons || []).length}</span>
+                <span className="text-xs font-bold text-gray-450 font-sans pr-1">كوبون</span>
+                <p className="text-[9px] text-emerald-700 font-sans font-semibold mt-1">عروض ترويجية نشطة حالياً</p>
               </div>
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 group-hover:scale-110 transition-transform">
-                <Gem className="h-6 w-6" />
+                <BadgePercent className="h-6 w-6" />
               </div>
             </div>
 
@@ -2020,6 +2024,22 @@ export function Dashboard({
         </motion.div>
       )}
 
+      {/* PRIVATE MESSAGES TAB */}
+      {activeTab === 'private-messages' && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6 text-right font-sans"
+        >
+          <CustomerMessages 
+            currentUser={null}
+            customerAccounts={customerAccounts || []}
+            isAdmin={true}
+            embedInDashboard={true}
+          />
+        </motion.div>
+      )}
+
       {/* STORE LAYOUT CUSTOMIZATION TAB */}
       {activeTab === 'layout' && siteSettings && setSiteSettings && (
         <div className="space-y-6 text-right font-sans mx-auto max-w-4xl">
@@ -2516,126 +2536,7 @@ export function Dashboard({
               </div>
             </div>
 
-            {/* Loyalty & Redemption Management section */}
-            <div className="mt-8 border-t border-gray-100 pt-8">
-              <h3 className="text-sm font-black text-navy mb-6 flex items-center gap-2">
-                <BadgePercent className="h-5 w-5 text-gold" /> نظام الولاء والمكافآت (Loyalty & Rewards)
-              </h3>
 
-              {/* Global Earning Ratio Setting */}
-              <div className="bg-white p-6 rounded-3xl border border-gold/10 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-right">
-                  <h4 className="text-xs font-black text-navy mb-1">معدل اكتساب النقاط التلقائي</h4>
-                  <p className="text-[10px] text-gray-500">تحكم في عدد النقاط التي يكتسبها العميل مقابل كل 1 من رصيد الشراء.</p>
-                </div>
-                <div className="flex items-center gap-3 bg-gray-50 p-2 px-4 rounded-2xl border border-gray-100">
-                  <input 
-                    type="number"
-                    value={siteSettings.pointsRatio || 0}
-                    onChange={(e) => setSiteSettings({ ...siteSettings, pointsRatio: Number(e.target.value) })}
-                    className="w-20 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-center font-mono font-bold text-navy focus:outline-hidden focus:border-gold"
-                  />
-                  <span className="text-[10px] font-black text-navy">نقطة كسب لكل 1 ريال</span>
-                </div>
-                <div className="flex items-center gap-3 bg-gray-50 p-2 px-4 rounded-2xl border border-gray-100">
-                  <input 
-                    type="number"
-                    value={siteSettings.pointsRedeemRatio || 0}
-                    onChange={(e) => setSiteSettings({ ...siteSettings, pointsRedeemRatio: Number(e.target.value) })}
-                    className="w-20 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-center font-mono font-bold text-navy focus:outline-hidden focus:border-gold"
-                  />
-                  <span className="text-[10px] font-black text-navy">نقطة استبدال لكل 1 ريال</span>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(siteSettings.redemptionOptions || []).map((option) => (
-                  <div key={option.id} className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-3 group relative">
-                     <button 
-                       onClick={() => {
-                         const newOptions = siteSettings.redemptionOptions.filter(o => o.id !== option.id);
-                         setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
-                       }}
-                       className="absolute top-3 left-3 p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                     >
-                       <Trash2 className="h-4 w-4" />
-                     </button>
-
-                     <div className="space-y-3">
-                       <div>
-                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">اسم العرض / المكافأة</label>
-                         <input 
-                           type="text" 
-                           value={option.title}
-                           onChange={(e) => {
-                             const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, title: e.target.value } : o);
-                             setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
-                           }}
-                           className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-xs font-black text-navy focus:outline-hidden"
-                         />
-                       </div>
-                       <div>
-                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">الوصف المختصر</label>
-                         <input 
-                           type="text" 
-                           value={option.description}
-                           onChange={(e) => {
-                             const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, description: e.target.value } : o);
-                             setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
-                           }}
-                           className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-[10px] text-gray-600 focus:outline-hidden"
-                         />
-                       </div>
-                       <div className="grid grid-cols-2 gap-3">
-                         <div>
-                           <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">النقاط المطلوبة</label>
-                           <input 
-                             type="number" 
-                             value={option.pointsRequired}
-                             onChange={(e) => {
-                               const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, pointsRequired: Number(e.target.value) } : o);
-                               setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
-                             }}
-                             className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-xs font-mono font-bold text-navy select-all"
-                           />
-                         </div>
-                         <div>
-                           <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">القيمة (رصيد)</label>
-                           <input 
-                             type="number" 
-                             value={option.rewardValue}
-                             onChange={(e) => {
-                               const newOptions = siteSettings.redemptionOptions.map(o => o.id === option.id ? { ...o, rewardValue: Number(e.target.value) } : o);
-                               setSiteSettings({ ...siteSettings, redemptionOptions: newOptions });
-                             }}
-                             className="w-full bg-white px-3 py-2 border border-gray-150 rounded-xl text-xs font-mono font-bold text-emerald-600 select-all"
-                           />
-                         </div>
-                       </div>
-                     </div>
-                  </div>
-                ))}
-                
-                <button 
-                  onClick={() => {
-                    const newOption: import('../types').PointRedemptionOption = {
-                      id: 'ro' + Date.now(),
-                      title: 'مكافأة جديدة',
-                      description: 'استبدل نقاطك بهذا العرض',
-                      pointsRequired: 100,
-                      rewardValue: 10,
-                      rewardType: 'balance',
-                      isActive: true
-                    };
-                    setSiteSettings({ ...siteSettings, redemptionOptions: [...(siteSettings.redemptionOptions || []), newOption] });
-                  }}
-                  className="border-2 border-dashed border-gray-200 rounded-3xl p-6 flex flex-col items-center justify-center text-gray-400 hover:border-gold hover:text-gold transition-all group cursor-pointer"
-                >
-                  <PlusCircle className="h-8 w-8 mb-2 group-hover:scale-110 transition-transform" />
-                  <span className="text-xs font-black">إضافة خيار استبدال نقاط مخصص</span>
-                </button>
-              </div>
-            </div>
 
             {/* Banners Management section */}
             <div className="mt-8 border-t border-gray-100 pt-8">
@@ -2684,9 +2585,9 @@ export function Dashboard({
                               setSiteSettings({ ...siteSettings, promoBanners: newBanners });
                             }}
                             className="block w-full bg-transparent text-[10px] text-gray-400 font-mono focus:outline-hidden"
-                            placeholder="رابط الصورة أو الفيديو..."
+                            placeholder={banner.mediaType === "image" ? "رابط الصورة المباشر..." : "رابط فيديو خارجي مباشر (مثال: mp4/web/youtube)..."}
                           />
-                          {banner.mediaType === 'image' && (
+                          {banner.mediaType === 'image' ? (
                             <label className="shrink-0 bg-gray-100 text-gray-600 px-2 py-1 rounded cursor-pointer text-[9px] font-bold transition hover:bg-gray-200">
                               رفع صورة
                               <input 
@@ -2697,7 +2598,6 @@ export function Dashboard({
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     try {
-                                      // Compress to max 1200px width/height for banner size
                                       const compressedBase64 = await compressImage(file, 1200);
                                       const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: compressedBase64 } : b);
                                       setSiteSettings({ ...siteSettings, promoBanners: newBanners });
@@ -2709,6 +2609,10 @@ export function Dashboard({
                                 }}
                               />
                             </label>
+                          ) : (
+                            <div className="shrink-0 bg-amber-50 text-amber-800 border border-amber-200/50 px-2.5 py-1.5 rounded-lg text-[9px] font-extrabold select-none">
+                               استضافة خارجية 🌐
+                             </div>
                           )}
                         </div>
                         <div className="mt-2 flex gap-2">
@@ -3190,7 +3094,7 @@ export function Dashboard({
                   <label htmlFor="isFeatured" className="text-xs text-gray-700 cursor-pointer font-sans select-none">تمثيل المنتج كمنتج مميز (Featured) بالصفحة الرئيسية</label>
                 </div>
 
-                <div className="border-t border-gray-100 pt-5 mt-4 flex justify-end space-x-2 space-x-reverse">
+                <div className="border-t border-gray-150 pt-5 mt-4 flex justify-end space-x-2 space-x-reverse">
                   <button
                     type="button"
                     onClick={() => setShowProductModal(false)}
@@ -3288,8 +3192,10 @@ export function Dashboard({
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
 
-        {/* Custom Gift Giver Modal (IFrame compatible) */}
+      {/* Custom Gift Giver Modal (IFrame compatible) */}
+      <AnimatePresence>
          {giftingAccount && (
            <motion.div
              initial={{ opacity: 0 }}
@@ -3313,13 +3219,13 @@ export function Dashboard({
 
                <h3 className="text-base font-black text-gray-950 pb-3 border-b border-gray-100 mb-4 flex items-center justify-start gap-2">
                  <Sparkles className="h-5 w-5 text-amber-600" />
-                 <span>إهداء العميل: {giftingAccount.name} 🎁</span>
+                 <span>إهداء وتعديل نقاط العميل: {giftingAccount.name} 💎</span>
                </h3>
 
                {giftSuccessMsg ? (
                  <div className="py-8 text-center space-y-3">
                    <div className="h-14 w-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-                     <CheckCircle className="h-8 w-8" />
+                     <CheckCircle className="h-8 w-8 text-emerald-600" />
                    </div>
                    <p className="text-sm font-black text-emerald-800">{giftSuccessMsg}</p>
                  </div>
@@ -3327,29 +3233,74 @@ export function Dashboard({
                  <form onSubmit={(e) => {
                    e.preventDefault();
                    const today = new Date().toISOString().split('T')[0];
-                   if (giftType === 'points') {
-                     const pointsToAdd = Number(giftPoints);
-                     if (isNaN(pointsToAdd) || pointsToAdd === 0) return;
-                     const giftTransaction: Transaction = {
-                       id: `GIFT-${Date.now()}`,
-                       type: 'deposit',
-                       amount: pointsToAdd,
-                       unit: 'points',
-                       description: 'هدية خاصة (نقاط) من إدارة المتجر 🎁',
-                       date: today
-                     };
-                     const updatedAccount: CustomerAccount = { 
-                       ...giftingAccount, 
-                       points: (giftingAccount.points || 0) + pointsToAdd,
-                       transactions: [giftTransaction, ...(giftingAccount.transactions || [])]
-                     };
-                     setCustomerAccounts?.(prev => prev.map(a => a.phone === giftingAccount.phone ? updatedAccount : a));
-                     setGiftSuccessMsg(`تم إهداء ${pointsToAdd} نقطة بنجاح! 🎁`);
-                     setTimeout(() => {
-                       setGiftingAccount(null);
-                       setGiftSuccessMsg(null);
-                     }, 2500);
-                   } else {
+                    if (giftType === 'points') {
+                      const amountToAdd = Number(giftPoints);
+                      if (isNaN(amountToAdd) || amountToAdd === 0) return;
+                      const giftTransaction: Transaction = {
+                        id: `GIFT-${Date.now()}`,
+                        type: 'deposit',
+                        amount: amountToAdd,
+                        unit: 'currency',
+                        description: 'شحن رصيد إضافي من إدارة المتجر 💰',
+                        date: today
+                      };
+                      const updatedAccount: CustomerAccount = { 
+                        ...giftingAccount, 
+                        balance: (giftingAccount.balance || 0) + amountToAdd,
+                        transactions: [giftTransaction, ...(giftingAccount.transactions || [])]
+                      };
+                      setCustomerAccounts?.(prev => prev.map(a => a.phone === giftingAccount.phone ? updatedAccount : a));
+                      setGiftSuccessMsg(`تم شحن رصيد المحفظة بقيمة ${amountToAdd} ر.س بنجاح! 💰`);
+                      setTimeout(() => {
+                        setGiftingAccount(null);
+                        setGiftSuccessMsg(null);
+                      }, 2500);
+                    } else if (giftType === 'deduct') {
+                      const amountToDeduct = Number(giftPoints);
+                      if (isNaN(amountToDeduct) || amountToDeduct === 0) return;
+                      const currentBalance = giftingAccount.balance || 0;
+                      const newBalance = Math.max(0, currentBalance - amountToDeduct);
+                      const giftTransaction: Transaction = {
+                        id: `DEDUCT-${Date.now()}`,
+                        type: 'spend',
+                        amount: amountToDeduct,
+                        unit: 'currency',
+                        description: 'سحب وخصم رصيد يدوي من الإدارة ⚠️',
+                        date: today
+                      };
+                      const updatedAccount: CustomerAccount = { 
+                        ...giftingAccount, 
+                        balance: newBalance,
+                        transactions: [giftTransaction, ...(giftingAccount.transactions || [])]
+                      };
+                      setCustomerAccounts?.(prev => prev.map(a => a.phone === giftingAccount.phone ? updatedAccount : a));
+                      setGiftSuccessMsg(`تم خصم ${amountToDeduct} ر.س بنجاح! الرصيد المتبقي: ${newBalance} ر.س 💎`);
+                      setTimeout(() => {
+                        setGiftingAccount(null);
+                        setGiftSuccessMsg(null);
+                      }, 2500);
+                    } else if (giftType === 'reset') {
+                      const currentBalance = giftingAccount.balance || 0;
+                      const giftTransaction: Transaction = {
+                        id: `RESET-${Date.now()}`,
+                        type: 'spend',
+                        amount: currentBalance,
+                        unit: 'currency',
+                        description: 'تصفير رصيد المحفظة بالكامل 🗑️',
+                        date: today
+                      };
+                      const updatedAccount: CustomerAccount = { 
+                        ...giftingAccount, 
+                        balance: 0,
+                        transactions: [giftTransaction, ...(giftingAccount.transactions || [])]
+                      };
+                      setCustomerAccounts?.(prev => prev.map(a => a.phone === giftingAccount.phone ? updatedAccount : a));
+                      setGiftSuccessMsg(`تم تصفير جميع رصيد المحفظة للعميل بنجاح! 🗑️`);
+                      setTimeout(() => {
+                        setGiftingAccount(null);
+                        setGiftSuccessMsg(null);
+                      }, 2500);
+                    } else {
                      if (!giftProduct.trim()) return;
                      const giftTransaction: Transaction = {
                        id: `GIFT-PROD-${Date.now()}`,
@@ -3372,25 +3323,47 @@ export function Dashboard({
                    }
                  }} className="space-y-4">
                    <div>
-                     <label className="block text-xs font-bold text-gray-500 mb-2">نوع الهدية الممنوحة</label>
+                     <label className="block text-xs font-bold text-gray-500 mb-2">نوع الإجراء المرغوب</label>
                      <div className="grid grid-cols-2 gap-2">
                        <button
                          type="button"
                          onClick={() => setGiftType('points')}
-                         className={`py-2 text-xs font-bold rounded-xl border cursor-pointer ${
+                         className={`py-2 text-[11px] font-bold rounded-xl border cursor-pointer transition-all ${
                            giftType === 'points'
-                             ? 'bg-amber-50 border-amber-300 text-amber-900'
+                             ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-xxs font-black'
                              : 'bg-white border-gray-150 text-gray-500 hover:bg-gray-50'
                          }`}
                        >
-                         نقاط ولاء إضافية
+                         شحن رصيد إيجابي
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setGiftType('deduct')}
+                         className={`py-2 text-[11px] font-bold rounded-xl border cursor-pointer transition-all ${
+                           giftType === 'deduct'
+                             ? 'bg-rose-50 border-rose-305 text-rose-900 shadow-xxs font-black'
+                             : 'bg-white border-gray-150 text-gray-550 hover:bg-gray-50'
+                         }`}
+                       >
+                         سحب/خصم رصيد
+                       </button>
+                       <button
+                         type="button"
+                         onClick={() => setGiftType('reset')}
+                         className={`py-2 text-[11px] font-bold rounded-xl border cursor-pointer transition-all ${
+                           giftType === 'reset'
+                             ? 'bg-red-50 border-red-300 text-red-900 shadow-xxs font-black'
+                             : 'bg-white border-gray-150 text-gray-550 hover:bg-gray-50'
+                         }`}
+                       >
+                         تصفير رصيد المحفظة
                        </button>
                        <button
                          type="button"
                          onClick={() => setGiftType('product')}
-                         className={`py-2 text-xs font-bold rounded-xl border cursor-pointer ${
+                         className={`py-2 text-[11px] font-bold rounded-xl border cursor-pointer transition-all ${
                            giftType === 'product'
-                             ? 'bg-amber-50 border-amber-300 text-amber-900'
+                             ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-xxs font-black'
                              : 'bg-white border-gray-150 text-gray-500 hover:bg-gray-50'
                          }`}
                        >
@@ -3399,19 +3372,52 @@ export function Dashboard({
                      </div>
                    </div>
 
-                   {giftType === 'points' ? (
+                   {giftType === 'points' && (
                      <div>
-                       <label className="block text-xs font-bold text-gray-500 mb-1">عدد النقاط المراد إهداؤها</label>
+                       <div className="flex items-center justify-between mb-1.5">
+                         <span className="text-xxs text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded">رصيد المحفظة الحالي: {giftingAccount.balance || 0} ر.س</span>
+                         <label className="block text-xs font-bold text-gray-500">المبلغ المراد إيداعه بحساب العميل</label>
+                       </div>
                        <input
                          type="number"
                          required
-                         placeholder="أدخل عدد النقاط (مثلاً: 50)"
+                         placeholder="أدخل المبلغ بالريال السعودي (مثلاً: 100)"
                          value={giftPoints}
                          onChange={(e) => setGiftPoints(e.target.value)}
                          className="w-full text-right p-3 bg-gray-50 border border-gray-150 focus:border-amber-500 focus:outline-hidden rounded-xl font-bold font-mono"
                        />
                      </div>
-                   ) : (
+                   )}
+
+                   {giftType === 'deduct' && (
+                     <div>
+                       <div className="flex items-center justify-between mb-1.5">
+                         <span className="text-xxs text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded">رصيد المحفظة الحالي: {giftingAccount.balance || 0} ر.س</span>
+                         <label className="block text-xs font-bold text-gray-500">المبلغ المراد خصمه من حساب العميل</label>
+                       </div>
+                       <input
+                         type="number"
+                         required
+                         placeholder="أدخل المبلغ لخصمه"
+                         value={giftPoints}
+                         onChange={(e) => setGiftPoints(e.target.value)}
+                         className="w-full text-right p-3 bg-gray-50 border border-gray-150 focus:border-rose-500 focus:outline-hidden rounded-xl font-bold font-mono"
+                       />
+                     </div>
+                   )}
+
+                   {giftType === 'reset' && (
+                     <div className="p-4 bg-red-50/50 rounded-2xl border border-red-150 space-y-2">
+                       <p className="text-xs text-red-800 font-bold leading-relaxed">
+                         ⚠️ ستؤدي هذه العملية إلى مسح وتصفير كافة رصيد محفظة العميل ({giftingAccount.balance || 0} ر.س) نهائياً دون حذف حساب العميل بالكامل.
+                       </p>
+                       <p className="text-[10px] text-gray-500">
+                         هذه هي الطريقة الآمنة لإعادة الرصيد للصفر لتصحيح القيود المالية.
+                       </p>
+                     </div>
+                   )}
+
+                   {giftType === 'product' && (
                      <div>
                        <label className="block text-xs font-bold text-gray-500 mb-1">اسم أو تفاصيل الهدية</label>
                        <input
@@ -3428,9 +3434,13 @@ export function Dashboard({
                    <div className="flex gap-3 pt-2">
                      <button
                        type="submit"
-                       className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-amber-600/10 cursor-pointer text-center"
+                       className={`flex-1 py-3 text-white font-extrabold text-xs rounded-xl shadow-lg cursor-pointer text-center ${
+                         giftType === 'reset' || giftType === 'deduct'
+                           ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/10'
+                           : 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 shadow-amber-600/10'
+                       }`}
                      >
-                       منح الهدية الآن 🎁
+                       {giftType === 'reset' ? 'تأكيد تصفير رصيد المحفظة 🗑️' : giftType === 'deduct' ? 'تأكيد الخصم الفوري ⚠️' : 'منح وإجراء التحديث الآن 🎁'}
                      </button>
                      <button
                        type="button"
@@ -3444,9 +3454,12 @@ export function Dashboard({
                )}
              </motion.div>
            </motion.div>
-         )}
+          )}
+
+        </AnimatePresence>
 
          {/* Custom Delete Account Confirm Modal */}
+         <AnimatePresence>
          {deletingAccount && (
            <motion.div
              initial={{ opacity: 0 }}

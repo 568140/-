@@ -1058,11 +1058,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-right font-sans">
           
           <div>
-            <div className="flex items-center gap-2 mb-3 md:justify-start justify-center">
+            <div className="flex items-center gap-3 mb-4 md:justify-start justify-center">
               {siteSettings.logoUrl && (
-                <img src={siteSettings.logoUrl} alt="Store Logo" className="h-8 object-contain" />
+                <img src={siteSettings.logoUrl} alt="Store Logo" className="h-14 w-auto max-w-[180px] object-contain" />
               )}
-              <h3 className="text-lg font-bold font-sans tracking-tight text-white">{siteSettings.storeName}</h3>
+              {!siteSettings.logoUrl && (
+                <h3 className="text-xl font-bold font-display tracking-tight text-white">{siteSettings.storeName}</h3>
+              )}
             </div>
             <p className="text-xs text-gray-400 font-sans leading-relaxed line-clamp-3">
               {siteSettings.aboutUs}
@@ -1085,8 +1087,14 @@ export default function App() {
 
         </div>
 
-        <div className="max-w-7xl mx-auto border-t border-gray-800 mt-8 pt-6 text-center text-xxs text-gray-500 font-mono">
-          {siteSettings.copyrightText}
+        <div className="max-w-7xl mx-auto border-t border-gray-800 mt-8 pt-6 flex flex-col md:flex-row items-center justify-between text-center text-xxs text-gray-500 font-mono gap-4">
+          <div>{siteSettings.copyrightText}</div>
+          <button 
+            onClick={() => setCurrentView('admin')} 
+            className="text-gray-600 hover:text-gold cursor-pointer transition-colors px-3 py-1 rounded-md hover:bg-gray-800"
+          >
+            بوابة الإدارة
+          </button>
         </div>
       </footer>
 
