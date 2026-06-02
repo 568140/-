@@ -1,87 +1,63 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- sitemap.xml for LUXORA - دكان الشرق البلاتيني -->
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-  
-  <!-- الصفحة الرئيسية للمتجر -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://rho-liart-59.vercel.app/</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-
-  <!-- الصفحة الرئيسية للخدمات والمبيعات -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?search=</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
-
-  <!-- منتج 1: سماعات رأس لاسلكية إلخيت إلإضافية -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-4018</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- منتج 2: ساعة ذكية رياضية برو -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-7052</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- منتج 3: عطر دهن العود الفاخر -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-9011</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- منتج 4: بخور مروكي ملكي غابات غاطس -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-2088</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- منتج 5: ماكينة إسبريسو احترافية منزلية -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-5201</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- منتج 6: حبوب قهوة مختصة كولومبية -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-1105</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- منتج 7: فستان صيفي قطني ناعم -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-8720</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
-  <!-- منتج 8: جاكيت شتوي أنيق مقاوم للماء -->
   <url>
     <loc>https://rho-liart-59.vercel.app/?code=LX-6624</loc>
     <lastmod>2026-06-02</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
-
 </urlset>
