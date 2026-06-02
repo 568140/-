@@ -14,7 +14,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     reviews: [
       { id: '1', username: 'عبدالرحمن العتيبي', rating: 5, comment: 'جودة صوت ممتازة وعزل الضجيج رائع جداً!', date: '2026-05-15' },
       { id: '2', username: 'سميرة الحربي', rating: 4, comment: 'منتج ممتاز وجميل جداً ومريح للرأس للاستماع الطويل.', date: '2026-05-19' }
-    ]
+    ],
+    code: 'LX-4018'
   },
   {
     id: 'prod-2',
@@ -28,7 +29,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     isFeatured: true,
     reviews: [
       { id: '1', username: 'محمد الشهري', rating: 5, comment: 'مقاومة الماء ممتازة وخفيفة في اليد جداً وسريعة الاستجابة.', date: '2026-05-12' }
-    ]
+    ],
+    code: 'LX-7052'
   },
   {
     id: 'prod-3',
@@ -42,7 +44,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     isFeatured: true,
     reviews: [
       { id: '1', username: 'فيصل السديري', rating: 5, comment: 'رائحة ملكية فخمة جدا وثبات يدوم لأكثر من يومين داهن عود بمعنى الكلمة.', date: '2026-05-20' }
-    ]
+    ],
+    code: 'LX-9011'
   },
   {
     id: 'prod-4',
@@ -53,7 +56,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: 'عطور وبخور',
     stock: 20,
     rating: 4.7,
-    reviews: []
+    reviews: [],
+    code: 'LX-2088'
   },
   {
     id: 'prod-5',
@@ -67,7 +71,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     isFeatured: true,
     reviews: [
       { id: '1', username: 'فاطمة الدوسري', rating: 5, comment: 'سهلة ومميزة لاستخدام الصباح السريع والتبخير ممتاز وقوي.', date: '2026-05-14' }
-    ]
+    ],
+    code: 'LX-5201'
   },
   {
     id: 'prod-6',
@@ -78,7 +83,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: 'قهوة ومستلزمات',
     stock: 35,
     rating: 4.5,
-    reviews: []
+    reviews: [],
+    code: 'LX-1105'
   },
   {
     id: 'prod-7',
@@ -91,7 +97,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.4,
     reviews: [],
     sizes: ['S', 'M', 'L', 'XL'],
-    sizeStock: { 'S': 4, 'M': 5, 'L': 3, 'XL': 2 }
+    sizeStock: { 'S': 4, 'M': 5, 'L': 3, 'XL': 2 },
+    code: 'LX-8720'
   },
   {
     id: 'prod-8',
@@ -104,7 +111,8 @@ export const INITIAL_PRODUCTS: Product[] = [
     rating: 4.7,
     reviews: [],
     sizes: ['M', 'L', 'XL'],
-    sizeStock: { 'M': 3, 'L': 5, 'XL': 2 }
+    sizeStock: { 'M': 3, 'L': 5, 'XL': 2 },
+    code: 'LX-6624'
   }
 ];
 

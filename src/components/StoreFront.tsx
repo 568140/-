@@ -20,7 +20,14 @@ export function StoreFront({
   selectedCurrency,
   onAddReview
 }: StoreFrontProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('code') || params.get('search') || '';
+    } catch (e) {
+      return '';
+    }
+  });
   const [selectedCategory, setSelectedCategory] = useState('الكل');
   const [selectedSubCategory, setSelectedSubCategory] = useState('الكل');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -55,7 +62,8 @@ export function StoreFront({
         const matchesCategory = selectedCategory === 'الكل' || product.category === selectedCategory;
         const matchesSubCategory = selectedSubCategory === 'الكل' || !product.subCategory || product.subCategory === selectedSubCategory;
         const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              product.description.toLowerCase().includes(searchQuery.toLowerCase());
+                              product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              (product.code && product.code.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchesPrice = product.price <= priceRange;
         return matchesCategory && matchesSubCategory && matchesSearch && matchesPrice;
       })
@@ -474,16 +482,25 @@ export function StoreFront({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      const shareText = `شاهد هذا المنتج الرائع: ${product.name}\nالسعر: ${product.price}\n\nزر موقع دكان الشرق لشرائه الآن!`;
+                      const shareCode = product.code || '';
+                      // Build a precise URL with the product code so it auto-search filters on load!
+                      const baseOrigin = window.location.origin + window.location.pathname;
+                      const shareUrl = shareCode ? `${baseOrigin}?code=${encodeURIComponent(shareCode)}` : window.location.href;
+                      const shareText = `شاهد هذا المنتج الفاخر: ${product.name}\n${shareCode ? `الرمز الفريد: ${shareCode}\n` : ''}السعر: ${product.price} ر.س\n\nابحث بالرمز في دكان الشرق للوصول السريع والدقيق! 👑`;
+                      
                       const fallbackCopy = () => {
-                        navigator.clipboard.writeText(shareText);
-                        alert('تم نسخ تفاصيل المنتج ومشاركته');
+                        try {
+                          navigator.clipboard.writeText(shareText + '\n' + shareUrl);
+                          alert('تم نسخ رابط ورمز الصنف لمشاركته بدقة! 📋');
+                        } catch (err) {
+                          alert('تم نسخ تفاصيل هذا الصنف الفاخر');
+                        }
                       };
                       if (navigator.share) {
                         navigator.share({
                           title: product.name,
                           text: shareText,
-                          url: window.location.href,
+                          url: shareUrl,
                         }).catch((err) => {
                            console.error(err);
                            fallbackCopy();
@@ -538,12 +555,20 @@ export function StoreFront({
 
                   <h3 
                     onClick={() => handleSelectProduct(product)}
-                    className="text-sm md:text-base font-black text-navy font-display mb-2 group-hover:text-gold transition-colors cursor-pointer line-clamp-1"
+                    className="text-sm md:text-base font-black text-navy font-display mb-1 group-hover:text-gold transition-colors cursor-pointer line-clamp-1 text-right"
                   >
                     {product.name}
                   </h3>
                   
-                  <p className="text-[10px] md:text-xs text-gray-400 font-sans mb-4 line-clamp-2 flex-1 leading-relaxed opacity-80">
+                  {product.code && (
+                    <div className="flex justify-start mb-2">
+                      <span className="text-[9px] font-mono font-bold text-amber-800 bg-amber-50 border border-amber-200/50 rounded-md px-2 py-0.5 leading-none shadow-xxs">
+                        {product.code}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <p className="text-[10px] md:text-xs text-gray-400 font-sans mb-4 line-clamp-2 flex-1 leading-relaxed opacity-80 text-right">
                     {product.description}
                   </p>
 
@@ -710,6 +735,11 @@ export function StoreFront({
                   <div className="flex flex-col justify-between">
                     <div>
                       <div className="flex flex-wrap gap-2 mb-3">
+                        {selectedProduct.code && (
+                          <span className="inline-block px-3 py-1 bg-gray-900 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-black font-mono">
+                            رمز الصنف: {selectedProduct.code}
+                          </span>
+                        )}
                         <span className="inline-block px-3 py-1 bg-amber-50 text-amber-850 border border-amber-200 rounded-lg text-xs font-bold font-sans">
                           {selectedProduct.category}
                         </span>

@@ -22,6 +22,7 @@ export interface Product {
   videoUrl?: string;
   sizes?: string[];
   sizeStock?: Record<string, number>; // خرائط المقاسات لحفظ كمية كل مقاس
+  code?: string; // الرمز الفريد للتنقيب والبحث والمشاركة الفائقة
 }
 
 export interface CartItem {

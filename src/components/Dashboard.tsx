@@ -168,6 +168,7 @@ export function Dashboard({
   const [prodPointsReward, setProdPointsReward] = useState(0);
   const [prodVideoUrl, setProdVideoUrl] = useState('');
   const [prodSizeStock, setProdSizeStock] = useState<Record<string, number>>({});
+  const [prodCode, setProdCode] = useState('');
 
   // Order search query state for Owner lookup
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -364,6 +365,7 @@ export function Dashboard({
     setProdIsFeatured(false);
     setProdPointsReward(10);
     setProdVideoUrl('');
+    setProdCode('LX-' + Math.floor(10000 + Math.random() * 90000));
     setShowProductModal(true);
   };
 
@@ -434,6 +436,7 @@ export function Dashboard({
     setProdIsFeatured(!!p.isFeatured);
     setProdPointsReward(p.pointsReward || 0);
     setProdVideoUrl(p.videoUrl || '');
+    setProdCode(p.code || ('LX-' + Math.floor(10000 + Math.random() * 90000)));
     setShowProductModal(true);
   };
 
@@ -476,7 +479,8 @@ export function Dashboard({
         pointsReward: Number(prodPointsReward),
         videoUrl: prodVideoUrl,
         sizes: parsedSizes,
-        sizeStock: filteredSizeStock
+        sizeStock: filteredSizeStock,
+        code: prodCode
       });
     } else {
       onAddProduct({
@@ -492,7 +496,8 @@ export function Dashboard({
         pointsReward: Number(prodPointsReward),
         videoUrl: prodVideoUrl,
         sizes: parsedSizes,
-        sizeStock: filteredSizeStock
+        sizeStock: filteredSizeStock,
+        code: prodCode
       });
     }
     setShowProductModal(false);
@@ -1391,7 +1396,14 @@ export function Dashboard({
                       <div className="flex items-center space-x-3 space-x-reverse">
                         {p.image && <img src={p.image} alt={p.name} className="h-10 w-10 object-cover rounded-xl bg-gray-100 border border-gray-50" referrerPolicy="no-referrer" />}
                         <div>
-                          <p className="font-bold text-gray-900 text-right">{p.name}</p>
+                          <div className="flex items-center gap-1.5 justify-start">
+                            <p className="font-bold text-gray-900 text-right">{p.name}</p>
+                            {p.code && (
+                              <span className="text-[9px] font-mono leading-none font-bold bg-amber-55 text-amber-900 border border-amber-150 px-1 py-0.5 rounded">
+                                {p.code}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-xxs text-gray-400 font-sans truncate max-w-xs text-right">{p.description}</p>
                           {p.sizes && p.sizes.length > 0 && (
                             <div className="flex gap-1 items-center mt-1 flex-wrap justify-start">
@@ -2834,7 +2846,7 @@ export function Dashboard({
               </div>
 
               <form onSubmit={handleSaveProduct} className="p-6 space-y-4 max-h-160 overflow-y-auto">
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">اسم المنتج الفخم *</label>
                     <input
@@ -2847,6 +2859,20 @@ export function Dashboard({
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">الرمز الفريد للصنف (توليد تلقائي) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="LX-XXXX"
+                      value={prodCode || ''}
+                      onChange={(e) => setProdCode(e.target.value.toUpperCase())}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-mono text-amber-900 border-amber-500/20 font-bold focus:outline-hidden focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">الوصف والتفاصيل الكاملة *</label>
                     <textarea
