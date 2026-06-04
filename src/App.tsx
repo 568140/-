@@ -83,7 +83,10 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   pointsRedeemRatio: 100, // Default: 100 points = 1 SAR discount
   headerShippingText: 'شحن مجاني لكافة البلدان للطلبات فوق ٤٠٠ ر.س',
   headerPaymentText: 'دفع آمن بالكامل ومحمي ١٠٠٪',
-  headerOffersText: 'عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط'
+  headerOffersText: 'عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط',
+  enableCod: true,
+  enableLocalWallets: true,
+  enableExternalCards: false
 };
 
 // Start with absolutely fresh data for the client
@@ -600,52 +603,91 @@ export default function App() {
   }, [selectedCurrency]);
 
   // Cart operations
-  const handleAddToCart = (product: Product, selectedSize?: string) => {
+  const handleAddToCart = (
+    product: Product, 
+    selectedSize?: string, 
+    selectedColor?: string, 
+    selectedVariantId?: string, 
+    customPrice?: number
+  ) => {
     setCartItems(prev => {
-      const existing = prev.find(item => item.product.id === product.id && item.selectedSize === selectedSize);
+      const existing = prev.find(item => 
+        item.product.id === product.id && 
+        item.selectedSize === selectedSize && 
+        item.selectedColor === selectedColor
+      );
       
-      // Check stock limits in the storefront
       const currentInCartQty = prev
-        .filter(item => item.product.id === product.id)
+        .filter(item => item.product.id === product.id && item.selectedColor === selectedColor)
         .reduce((sum, item) => sum + item.quantity, 0);
 
-      if (currentInCartQty >= product.stock) {
-        alert('نعتذر، لقد تجاوزت الكمية المتاحة في المخزون لهذا المنتج!');
+      // Check stock limits (support variant stock check)
+      const allowedStock = customPrice !== undefined && selectedVariantId
+        ? (product.variants?.find(v => v.id === selectedVariantId)?.stock ?? product.stock)
+        : product.stock;
+
+      if (currentInCartQty >= allowedStock) {
+        alert('نعتذر، لقد تجاوزت الكمية المتاحة في المخزون لهذا البديل!');
         return prev;
       }
 
       if (existing) {
         return prev.map(item =>
-          item.product.id === product.id && item.selectedSize === selectedSize
+          item.product.id === product.id && 
+          item.selectedSize === selectedSize && 
+          item.selectedColor === selectedColor
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...prev, { product, quantity: 1, selectedSize }];
+      return [...prev, { 
+        product, 
+        quantity: 1, 
+        selectedSize, 
+        selectedColor, 
+        selectedVariantId, 
+        customPrice 
+      }];
     });
   };
 
-  const handleUpdateQuantity = (productId: string, quantity: number, selectedSize?: string) => {
+  const handleUpdateQuantity = (productId: string, quantity: number, selectedSize?: string, selectedColor?: string) => {
     if (quantity <= 0) {
-      handleRemoveItem(productId, selectedSize);
+      handleRemoveItem(productId, selectedSize, selectedColor);
       return;
     }
 
     const product = products.find(p => p.id === productId);
-    if (product && quantity > product.stock) {
-      alert(`عذراً، الكمية المطلوبة غير متوفرة. الأقصى المتاح حالياً هو: ${product.stock} حبة.`);
-      return;
-    }
+    let activeStock = product ? product.stock : 999;
 
-    setCartItems(prev =>
-      prev.map(item =>
-        (item.product.id === productId && item.selectedSize === selectedSize) ? { ...item, quantity } : item
-      )
-    );
+    setCartItems(prev => {
+      const match = prev.find(item => item.product.id === productId && item.selectedSize === selectedSize && item.selectedColor === selectedColor);
+      if (match && match.selectedVariantId && match.product.variants) {
+        const variantObj = match.product.variants.find(v => v.id === match.selectedVariantId);
+        if (variantObj) {
+          activeStock = variantObj.stock ?? activeStock;
+        }
+      }
+
+      if (quantity > activeStock) {
+        alert(`عذراً، الكمية المطلوبة غير متوفرة لهذا الموديل. الأقصى المتاح هو: ${activeStock} حبة.`);
+        return prev;
+      }
+
+      return prev.map(item =>
+        (item.product.id === productId && item.selectedSize === selectedSize && item.selectedColor === selectedColor) 
+          ? { ...item, quantity } 
+          : item
+      );
+    });
   };
 
-  const handleRemoveItem = (productId: string, selectedSize?: string) => {
-    setCartItems(prev => prev.filter(item => !(item.product.id === productId && item.selectedSize === selectedSize)));
+  const handleRemoveItem = (productId: string, selectedSize?: string, selectedColor?: string) => {
+    setCartItems(prev => prev.filter(item => !(
+      item.product.id === productId && 
+      item.selectedSize === selectedSize && 
+      item.selectedColor === selectedColor
+    )));
   };
 
   const handleClearCart = () => {

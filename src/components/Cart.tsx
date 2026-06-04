@@ -7,8 +7,8 @@ import { GovernorateData } from '../utils/yemeniData';
 interface CartProps {
   cartItems: CartItem[];
   localWallets?: LocalWallet[];
-  onUpdateQuantity: (productId: string, quantity: number, selectedSize?: string) => void;
-  onRemoveItem: (productId: string, selectedSize?: string) => void;
+  onUpdateQuantity: (productId: string, quantity: number, selectedSize?: string, selectedColor?: string) => void;
+  onRemoveItem: (productId: string, selectedSize?: string, selectedColor?: string) => void;
   onClearCart: () => void;
   onPlaceOrder: (customerInfo: {
     customerName: string;
@@ -159,6 +159,39 @@ export function Cart({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState<string | null>(null); // Contains Order ID on success
 
+  React.useEffect(() => {
+    const isVisaEnabled = siteSettings.enableExternalCards !== false;
+    const isCodEnabled = siteSettings.enableCod !== false;
+    const isLocalEnabled = siteSettings.enableLocalWallets !== false;
+
+    // Check if the current payment method should be adjusted
+    if (paymentMethod === 'visa' || paymentMethod === 'applepay' || paymentMethod === 'paypal') {
+      if (!isVisaEnabled) {
+        if (isLocalEnabled) {
+          setPaymentMethod('local_wallet');
+        } else if (isCodEnabled) {
+          setPaymentMethod('cod');
+        }
+      }
+    } else if (paymentMethod === 'cod') {
+      if (!isCodEnabled) {
+        if (isLocalEnabled) {
+          setPaymentMethod('local_wallet');
+        } else if (isVisaEnabled) {
+          setPaymentMethod('visa');
+        }
+      }
+    } else if (paymentMethod === 'local_wallet') {
+      if (!isLocalEnabled) {
+        if (isCodEnabled) {
+          setPaymentMethod('cod');
+        } else if (isVisaEnabled) {
+          setPaymentMethod('visa');
+        }
+      }
+    }
+  }, [siteSettings, paymentMethod]);
+
   // Conversion rates calculations helper
   const formatPrice = (sarPrice: number) => {
     const converted = sarPrice * selectedCurrency.rate;
@@ -167,7 +200,7 @@ export function Cart({
   };
 
   // Compute pricing
-  const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((acc, item) => acc + (item.customPrice || item.product.price) * item.quantity, 0);
   
   const discountAmount = appliedCoupon
     ? appliedCoupon.discountType === 'percentage'
@@ -271,13 +304,20 @@ export function Cart({
         pointsUsed,
       });
 
-      // Format complete order metrics for WhatsApp message
       const itemsString = cartItems
         .map(
-          (item) =>
-            `• ${item.product.name} ${item.selectedSize ? `(مقاس ${item.selectedSize})` : ''} × ${item.quantity} حبة`
+          (item, idx) => {
+            const itemPrice = item.customPrice || item.product.price;
+            return `🛍️ الصنف [ ${idx + 1} ] : ${item.product.name}
+   - رمز الصنف (الكود): ${item.product.code || 'غير محدد'}
+   - اللون / البديل الفخم: ${item.selectedColor || 'الأساسي / الافتراضي'}
+   - المقاس المختار: ${item.selectedSize || 'مقاس موحد'}
+   - الكمية المطلوبة: ${item.quantity} حبة
+   - السعر الفردي: ${formatPrice(itemPrice)}
+   - الإجمالي للصنف: ${formatPrice(itemPrice * item.quantity)}`;
+          }
         )
-        .join('\n');
+        .join('\n\n📌 --------------------------------------\n\n');
 
       const siteOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://dukkan-east.sa';
       const directRedirectionLink = `${siteOrigin}/?orderId=${generatedOrderId}`;
@@ -286,30 +326,40 @@ export function Cart({
         ? `\n- 🪙 نقاط ولاء مستخدمة: ${pointsUsed} نقطة (خصم مطبق: ${formatPrice(pointsDiscountAmount)})` 
         : '';
 
-      const whatsappMessage = `السلام عليكم ورحمة الله وبركاته،
-لقد قمت بإتمام طلبي بنجاح من متجر "دكّان الشَّرق"! 🌟
+      const whatsappMessage = `*السلام عليكم ورحمة الله وبركاته،*
+لقد قمت بإتمام طلبي بنجاح من متجر *"دكّان الشَّرق"* الفاخر! 🌟
 
-🛍️ تفاصيل الطلب والمجموع:
-- الرمز المميز للطلب (المعرف الفريد): ${generatedOrderId}
-- العميل: ${customerName}
-- رقم الجوال للتواصل: ${customerPhone}
-- البريد الإلكتروني: ${customerEmail}
-- عنوان التوصيل الفاخر: ${isYemen ? finalAddress : `${destObj.cityAr} - ${customerAddress}`}
+================================
+   📋 *تفاصيل الطلب الرئيسي:*
+================================
+- *رقم مميز للطلب (ID الفريد):* \`${generatedOrderId}\`
+- *العميل العزيز:* ${customerName}
+- *رقم جوال العميل:* ${customerPhone}
+- *البريد الإلكتروني:* ${customerEmail}
+- *عنوان التوصيل التفصيلي والآمن:* ${isYemen ? finalAddress : `${destObj.cityAr} - ${customerAddress}`}
 
-📦 المنتجات المشتراة:
+================================
+   📦 *المنتجات والموديلات المطلوبة بالتفصيل:*
+================================
 ${itemsString}
 
-💳 الفاتورة والحساب:
-- الإجمالي الكلي للطلب: ${formatPrice(totalAmount)}${pointsUsedText}
-- طريقة الدفع المستخدمة: ${paymentMethod === 'local_wallet' ? 'محفظة محلية ' + (localWallets?.find(w => w.id === selectedWalletId)?.name || '') : paymentMethod.toUpperCase()}
-- الخصم المطبق: ${formatPrice(actualDiscount)}
-- قيمة الشحن والتوصيل: ${shippingCost === 0 ? 'شحن مجاني' : formatPrice(shippingCost)}
-- تغليف هدايا ملكي: ${giftWrap ? 'نعم (مرفق بطاقة إهداء)' : 'لا'}
+================================
+   💳 *الفاتورة والعملية الحسابية:*
+================================
+- *المجموع (إجمالي البضاعة):* ${formatPrice(subtotal)}
+- *الخصم المطبق (الكوبون):* ${formatPrice(actualDiscount)} ${pointsUsedText}
+- *قيمة الشحن والتوصيل:* ${shippingCost === 0 ? 'شحن مجاني فخم' : formatPrice(shippingCost)}
+- *تغليف هدايا ملكي بالحرير:* ${giftWrap ? 'نعم (مشمول بطاقة إهداء)' : 'لا'}
+--------------------------------
+- *💰 الإجمالي النهائي المطلوب دفعه:* *${formatPrice(totalAmount)}*
+- *طريقة الدفع:* ${paymentMethod === 'local_wallet' ? 'محفظة محلية: ' + (localWallets?.find(w => w.id === selectedWalletId)?.name || '') : paymentMethod === 'cod' ? 'الدفع نقداً عند الاستلام' : paymentMethod.toUpperCase()}
 
-🔗 رابط تتبع وإدارة الطلب فورياً في الموقع (اضغط للانتقال مباشرة للموقع):
+================================
+   🔗 *رابط تتبع وإدارة الطلب ومكافأة الولاء:*
+================================
 ${directRedirectionLink}
 
-ملاحظة للمالك: يرجى استعراض وتجهيز هذا الطلب من لوحة التحكم باستخدام الرمز المميز الفريد الخاص بي: ${generatedOrderId}`;
+_ملاحظة لمالك المتجر: يرجى تجهيز البضائع والموديلات المحددة أعلاه بدقة، وتفادي الخلط البريدي بناءً على الأكواد والألوان المذكورة._`;
 
       const targetPhone = "967774919194";
       const whatsappLink = `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(whatsappMessage)}`;
@@ -458,73 +508,92 @@ ${directRedirectionLink}
             </h2>
 
             <div className="divide-y divide-gray-100">
-              {cartItems.map((item) => (
-                <div key={`${item.product.id}-${item.selectedSize || 'none'}`} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div className="flex items-center space-x-4 space-x-reverse">
-                    {item.product.image && (
-                      <img
-                        src={item.product.image}
-                        alt={item.product.name}
-                        referrerPolicy="no-referrer"
-                        className="h-16 w-16 object-cover rounded-xl bg-gray-50 flex-none border border-gray-100"
-                      />
-                    )}
-                    <div>
-                      <h3 className="text-xs font-bold text-gray-900 font-sans line-clamp-1">
-                        {item.product.name}
-                      </h3>
-                      <div className="flex items-center gap-1.5 mt-0.5 mb-1 flex-wrap">
-                        <span className="text-[10px] text-gray-400 font-sans">{item.product.category}</span>
-                        {item.product.subCategory && (
-                          <span className="text-[10px] text-gray-450 bg-gray-100 px-1 py-0.2 rounded text-gray-500">{item.product.subCategory}</span>
-                        )}
-                        {item.selectedSize && (
-                          <span className="text-[10px] bg-gold/5 text-gold-dark px-1.5 py-0.2 rounded border border-gold/10 font-bold">
-                            مقاس: {item.selectedSize}
-                          </span>
-                        )}
+              {cartItems.map((item) => {
+                const itemPrice = item.customPrice || item.product.price;
+                
+                // Get the variant image if available for premium visual alignment
+                let displayImg = item.product.image;
+                if (item.selectedColor && item.product.variants) {
+                  const matchVar = item.product.variants.find(v => v.colorName === item.selectedColor);
+                  if (matchVar && matchVar.images && matchVar.images.length > 0) {
+                    displayImg = matchVar.images[0];
+                  }
+                }
+
+                return (
+                  <div key={`${item.product.id}-${item.selectedSize || 'none'}-${item.selectedColor || 'none'}`} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center space-x-4 space-x-reverse">
+                      {displayImg && (
+                        <img
+                          src={displayImg}
+                          alt={item.product.name}
+                          referrerPolicy="no-referrer"
+                          className="h-16 w-16 object-cover rounded-xl bg-gray-50 flex-none border border-gray-100"
+                        />
+                      )}
+                      <div>
+                        <h3 className="text-xs font-bold text-gray-900 font-sans line-clamp-1">
+                          {item.product.name}
+                        </h3>
+                        <div className="flex items-center gap-1.5 mt-0.5 mb-1 flex-wrap">
+                          <span className="text-[10px] text-gray-400 font-sans">{item.product.category}</span>
+                          {item.product.subCategory && (
+                            <span className="text-[10px] text-gray-450 bg-gray-100 px-1 py-0.2 rounded text-gray-500">{item.product.subCategory}</span>
+                          )}
+                          {item.selectedColor && (
+                            <span className="text-[10px] bg-amber-500/10 text-amber-900 px-1.5 py-0.2 rounded border border-amber-250 font-bold flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-600"></span>
+                              <span>بديل: {item.selectedColor}</span>
+                            </span>
+                          )}
+                          {item.selectedSize && (
+                            <span className="text-[10px] bg-gold/5 text-gold-dark px-1.5 py-0.2 rounded border border-gold/10 font-bold">
+                              مقاس: {item.selectedSize}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold text-gray-500 font-mono">
+                          {formatPrice(itemPrice)} / للقطعة الواحد
+                        </span>
                       </div>
-                      <span className="text-[11px] font-bold text-gray-500 font-mono">
-                        {formatPrice(item.product.price)} / للقطعة الواحد
-                      </span>
+                    </div>
+
+                    {/* Increment/Decrement controls & Delete */}
+                    <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
+                      <div className="flex items-center space-x-1 space-x-reverse bg-gray-50/80 px-2 py-1.5 rounded-2xl border border-gray-100">
+                        <button
+                          onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1, item.selectedSize, item.selectedColor)}
+                          className="p-1 text-gray-400 hover:text-charcoal transition-colors cursor-pointer"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="w-8 text-center text-xs font-bold font-mono text-charcoal">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1, item.selectedSize, item.selectedColor)}
+                          className="p-1 text-gray-400 hover:text-charcoal transition-colors cursor-pointer"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center space-x-3 space-x-reverse">
+                        <span className="text-sm font-bold font-mono text-charcoal">
+                          {formatPrice(itemPrice * item.quantity)}
+                        </span>
+
+                        <button
+                          onClick={() => onRemoveItem(item.product.id, item.selectedSize, item.selectedColor)}
+                          className="p-1.5 text-gray-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50 cursor-pointer"
+                        >
+                          <Trash2 className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Increment/Decrement controls & Delete */}
-                  <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
-                    <div className="flex items-center space-x-1 space-x-reverse bg-gray-50/80 px-2 py-1.5 rounded-2xl border border-gray-100">
-                      <button
-                        onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1, item.selectedSize)}
-                        className="p-1 text-gray-400 hover:text-charcoal transition-colors cursor-pointer"
-                      >
-                        <Minus className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="w-8 text-center text-xs font-bold font-mono text-charcoal">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1, item.selectedSize)}
-                        className="p-1 text-gray-400 hover:text-charcoal transition-colors cursor-pointer"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center space-x-3 space-x-reverse">
-                      <span className="text-sm font-bold font-mono text-charcoal">
-                        {formatPrice(item.product.price * item.quantity)}
-                      </span>
-
-                      <button
-                        onClick={() => onRemoveItem(item.product.id, item.selectedSize)}
-                        className="p-1.5 text-gray-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50 cursor-pointer"
-                      >
-                        <Trash2 className="h-4.5 w-4.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -709,10 +778,16 @@ ${directRedirectionLink}
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
                 {[
-                  { id: 'visa', labelAr: 'فيزا / ماستر' },
-                  { id: 'applepay', labelAr: 'Apple Pay' },
-                  { id: 'cod', labelAr: 'الدفع نقداً' },
-                  { id: 'local_wallet', labelAr: 'محافظ محلية' },
+                  ...(siteSettings.enableExternalCards !== false ? [
+                    { id: 'visa', labelAr: 'فيزا / ماستر كارد' },
+                    { id: 'applepay', labelAr: 'Apple Pay' }
+                  ] : []),
+                  ...(siteSettings.enableCod !== false ? [
+                    { id: 'cod', labelAr: 'الدفع عند الاستلام (COD)' }
+                  ] : []),
+                  ...(siteSettings.enableLocalWallets !== false ? [
+                    { id: 'local_wallet', labelAr: 'محافظ وحوالات محلية' }
+                  ] : [])
                 ].map((pm) => (
                   <button
                     key={pm.id}

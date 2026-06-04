@@ -178,9 +178,48 @@ export function MyOrders({ orders, currentUser }: MyOrdersProps) {
                 <div className="py-4 text-xs text-gray-655 space-y-1">
                   <p><span className="text-gray-400 font-sans">العميل المستلم:</span> <span className="font-semibold text-gray-800">{order.customerName}</span></p>
                   <p><span className="text-gray-400 font-sans">عنوان التوصيل:</span> <span className="font-semibold text-gray-800">{order.customerAddress}</span></p>
-                  <p><span className="text-gray-400 font-sans">طريقة الدفع:</span> <span className="font-semibold text-gray-800">{order.paymentMethod === 'local_wallet' ? 'محفظة محلية ' + (order.localWalletName ? `(${order.localWalletName})` : '') : order.paymentMethod.toUpperCase()}</span></p>
-                  <p><span className="text-gray-400 font-sans">شحنة بقيمة:</span> <span className="font-mono text-amber-800 font-bold">{formatOrderPrice(order.totalPrice, order.currency)}</span></p>
+                  <p><span className="text-gray-400 font-sans">طريقة الدفع:</span> <span className="font-semibold text-gray-800">{order.paymentMethod === 'local_wallet' ? 'محفظة محلية ' + (order.localWalletName ? `(${order.localWalletName})` : '') : order.paymentMethod === 'cod' ? 'الدفع نقداً عند الاستلام' : order.paymentMethod.toUpperCase()}</span></p>
+                  <p><span className="text-gray-400 font-sans">شحنة بقيمة:</span> <span className="font-mono text-amber-850 font-bold">{formatOrderPrice(order.totalPrice, order.currency)}</span></p>
                 </div>
+
+                {/* Ordered Items List */}
+                {order.items && order.items.length > 0 && (
+                  <div className="mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                    <span className="block text-[10px] text-gray-400 font-bold font-sans mb-1">📦 السلع والأقسام المشمولة بالطلب:</span>
+                    <div className="divide-y divide-gray-200/60">
+                      {order.items.map((it, idx) => {
+                        const activeItemPrice = it.customPrice || it.product.price;
+                        return (
+                          <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2.5">
+                              {it.product.image && (
+                                <img src={it.product.image} className="w-10 h-10 object-cover rounded-lg border border-gray-150" referrerPolicy="no-referrer" />
+                              )}
+                              <div className="flex flex-col text-right">
+                                <span className="font-bold text-gray-800 font-sans line-clamp-1">{it.product.name}</span>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  {it.product.code && (
+                                    <span className="text-[9px] text-gray-400 font-mono bg-white px-1 border border-gray-100 rounded">كود: {it.product.code}</span>
+                                  )}
+                                  {it.selectedColor && (
+                                    <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200/50 px-1 rounded font-bold">اللون: {it.selectedColor}</span>
+                                  )}
+                                  {it.selectedSize && (
+                                    <span className="text-[9px] text-blue-700 bg-blue-50 border border-blue-200/50 px-1 rounded font-bold">المقاس: {it.selectedSize}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-left font-mono">
+                              <span className="text-gray-500 font-medium">{it.quantity} حبة × </span>
+                              <span className="text-amber-900 font-extrabold">{formatOrderPrice(activeItemPrice, order.currency)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Pipeline layout output */}
                 {renderStatusProgress(order.status)}
@@ -216,11 +255,50 @@ export function MyOrders({ orders, currentUser }: MyOrdersProps) {
                       </div>
                     </div>
 
-                    <div className="py-4 text-xs text-gray-650 space-y-1">
-                      <p><span className="text-gray-400">العميل:</span> <span className="font-semibold text-gray-850">{order.customerName}</span></p>
-                      <p><span className="text-gray-400">الدفع:</span> <span className="font-semibold text-gray-850">{order.paymentMethod === 'local_wallet' ? 'محفظة محلية ' + (order.localWalletName ? `(${order.localWalletName})` : '') : order.paymentMethod.toUpperCase()}</span></p>
+                    <div className="py-4 text-xs text-gray-655 space-y-1">
+                      <p><span className="text-gray-400">العميل المستلم:</span> <span className="font-semibold text-gray-850">{order.customerName}</span></p>
+                      <p><span className="text-gray-400">طريقة الدفع:</span> <span className="font-semibold text-gray-850">{order.paymentMethod === 'local_wallet' ? 'محفظة محلية ' + (order.localWalletName ? `(${order.localWalletName})` : '') : order.paymentMethod === 'cod' ? 'الدفع نقداً عند الاستلام' : order.paymentMethod.toUpperCase()}</span></p>
                       <p><span className="text-gray-400">مجموع الفاتورة:</span> <span className="font-mono font-bold text-amber-800">{formatOrderPrice(order.totalPrice, order.currency)}</span></p>
                     </div>
+
+                    {/* Ordered Items List */}
+                    {order.items && order.items.length > 0 && (
+                      <div className="mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                        <span className="block text-[10px] text-gray-400 font-bold font-sans mb-1">📦 السلع والأقسام المشمولة بالطلب:</span>
+                        <div className="divide-y divide-gray-200/60 font-sans">
+                          {order.items.map((it, idx) => {
+                            const activeItemPrice = it.customPrice || it.product.price;
+                            return (
+                              <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between text-xs font-sans">
+                                <div className="flex items-center gap-2.5">
+                                  {it.product.image && (
+                                    <img src={it.product.image} className="w-10 h-10 object-cover rounded-lg border border-gray-150" referrerPolicy="no-referrer" />
+                                  )}
+                                  <div className="flex flex-col text-right">
+                                    <span className="font-bold text-gray-800 font-sans line-clamp-1">{it.product.name}</span>
+                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      {it.product.code && (
+                                        <span className="text-[9px] text-gray-400 font-mono bg-white px-1 border border-gray-100 rounded font-sans">كود: {it.product.code}</span>
+                                      )}
+                                      {it.selectedColor && (
+                                        <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200/50 px-1 rounded font-bold">اللون: {it.selectedColor}</span>
+                                      )}
+                                      {it.selectedSize && (
+                                        <span className="text-[9px] text-blue-700 bg-blue-50 border border-blue-200/50 px-1 rounded font-bold">المقاس: {it.selectedSize}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-left font-mono">
+                                  <span className="text-gray-500 font-medium">{it.quantity} حبة × </span>
+                                  <span className="text-amber-900 font-extrabold">{formatOrderPrice(activeItemPrice, order.currency)}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {renderStatusProgress(order.status)}
 

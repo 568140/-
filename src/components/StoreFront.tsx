@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck, PlayCircle, Trophy, Video } from 'lucide-react';
+import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck, PlayCircle, Trophy, Video, ChevronDown, ChevronLeft, ChevronRight, Folder, FolderOpen, Layers } from 'lucide-react';
 import { Product, CurrencyConfig, PromoBanner } from '../types';
 
 interface StoreFrontProps {
   products: Product[];
   categories: { name: string; subcategories: string[]; }[];
   siteSettings: import('../types').SiteSettings;
-  onAddToCart: (product: Product, selectedSize?: string) => void;
+  onAddToCart: (product: Product, selectedSize?: string, selectedColor?: string, selectedVariantId?: string, customPrice?: number) => void;
   selectedCurrency: CurrencyConfig;
   onAddReview: (productId: string, rating: number, comment: string, username: string) => void;
 }
@@ -30,9 +30,39 @@ export function StoreFront({
   });
   const [selectedCategory, setSelectedCategory] = useState('الكل');
   const [selectedSubCategory, setSelectedSubCategory] = useState('الكل');
+  const [expandedCategoryNames, setExpandedCategoryNames] = useState<Record<string, boolean>>({});
+  const [isTreeMenuOpen, setIsTreeMenuOpen] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedColorState, setSelectedColorState] = useState<any | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [selectedSizeForModal, setSelectedSizeForModal] = useState<string>('');
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating'>('recommended');
+
+  React.useEffect(() => {
+    setActiveImageIndex(0);
+    if (selectedProduct) {
+      if (selectedProduct.variants && selectedProduct.variants.length > 0) {
+        setSelectedColorState(selectedProduct.variants[0]);
+        if (selectedProduct.variants[0].sizes && selectedProduct.variants[0].sizes.length > 0) {
+          setSelectedSizeForModal(selectedProduct.variants[0].sizes[0]);
+        } else if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
+          setSelectedSizeForModal(selectedProduct.sizes[0]);
+        } else {
+          setSelectedSizeForModal('');
+        }
+      } else {
+        setSelectedColorState(null);
+        if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
+          setSelectedSizeForModal(selectedProduct.sizes[0]);
+        } else {
+          setSelectedSizeForModal('');
+        }
+      }
+    } else {
+      setSelectedColorState(null);
+      setSelectedSizeForModal('');
+    }
+  }, [selectedProduct]);
   
   // Calculate dynamic maximum price to avoid hiding premium or newly added products
   const maxProductPrice = useMemo(() => {
@@ -115,9 +145,15 @@ export function StoreFront({
       });
   }, [products, searchQuery, selectedCategory, selectedSubCategory, sortBy, priceRange]);
 
-  const handleAddToCartWithAlert = (product: Product, size?: string) => {
+  const handleAddToCartWithAlert = (
+    product: Product, 
+    size?: string, 
+    selectedColor?: string, 
+    selectedVariantId?: string, 
+    customPrice?: number
+  ) => {
     const chosenSize = size || product.sizes?.[0] || '';
-    onAddToCart(product, chosenSize);
+    onAddToCart(product, chosenSize, selectedColor, selectedVariantId, customPrice);
     setNotification({ name: product.name, size: chosenSize });
     setTimeout(() => {
       setNotification(null);
@@ -410,6 +446,173 @@ export function StoreFront({
         </div>
         
         {renderAds('sidebar')}
+
+        {/* --- DYNAMIC COLLAPSIBLE CATEGORIES TREE MENU (Requirement 1) --- */}
+        <div className="mt-8 bg-white rounded-3xl p-5 border border-amber-100 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xs font-black text-gray-900 font-sans flex items-center gap-2">
+              <Layers className="h-5 w-5 text-amber-700" />
+              <span>📂 تصفح شجرة الأقسام المتقدمة (منسدلة ومنطوية)</span>
+            </h3>
+            <button
+              onClick={() => setIsTreeMenuOpen(!isTreeMenuOpen)}
+              className="text-xxs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1"
+            >
+              <span>{isTreeMenuOpen ? 'طي القائمة 🔺' : 'فرد القائمة 🔻'}</span>
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {isTreeMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden space-y-2 border-t border-gray-100 pt-4"
+              >
+                {/* Clean All Item */}
+                <div
+                  onClick={() => {
+                    setSelectedCategory('الكل');
+                    setSelectedSubCategory('الكل');
+                  }}
+                  className={`flex justify-between items-center px-4 py-2.5 rounded-2xl cursor-pointer text-xs transition-all ${
+                    selectedCategory === 'الكل'
+                      ? 'bg-charcoal text-gold font-bold shadow-xs'
+                      : 'bg-gray-50 hover:bg-gray-100/70 text-gray-600'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    <span>كل المعروضات الملكية</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/10">
+                    {products.length} منتج
+                  </span>
+                </div>
+
+                {/* Categories tree lists */}
+                {categories.map((catObj) => {
+                  const isCatSelected = selectedCategory === catObj.name;
+                  const isExpanded = expandedCategoryNames[catObj.name] ?? false;
+                  
+                  // Compute products inside this cat
+                  const catCount = products.filter(p => p.category === catObj.name).length;
+
+                  return (
+                    <div key={catObj.name} className="space-y-1 bg-gray-50/50 rounded-2xl p-1.5 border border-gray-100">
+                      {/* Main Category Header Item */}
+                      <div className="flex items-center justify-between">
+                        <div
+                          onClick={() => {
+                            setSelectedCategory(catObj.name);
+                            setSelectedSubCategory('الكل');
+                            // Toggle expansion on click as well
+                            setExpandedCategoryNames(prev => ({
+                              ...prev,
+                              [catObj.name]: !isExpanded
+                            }));
+                          }}
+                          className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer text-xs transition-all ${
+                            isCatSelected
+                              ? 'bg-amber-600 text-white font-bold'
+                              : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? (
+                              <FolderOpen className="h-4 w-4 text-amber-500/80" />
+                            ) : (
+                              <Folder className="h-4 w-4 text-gray-400" />
+                            )}
+                            <span>{catObj.name}</span>
+                          </div>
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                            isCatSelected ? 'bg-white/20' : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            {catCount}
+                          </span>
+                        </div>
+
+                        {/* Collapsible toggle expander button */}
+                        {catObj.subcategories.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setExpandedCategoryNames(prev => ({
+                                ...prev,
+                                [catObj.name]: !isExpanded
+                              }));
+                            }}
+                            className="p-2 text-gray-400 hover:text-amber-800 transition-colors"
+                          >
+                            <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${
+                              isExpanded ? 'rotate-180 text-amber-700' : ''
+                            }`} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Nested subcategories */}
+                      <AnimatePresence>
+                        {isExpanded && catObj.subcategories.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden pr-6 pl-2 pt-1 pb-2 space-y-1 border-r border-amber-200/50 mr-4"
+                          >
+                            {/* Option to show all of this category inside sub-tree */}
+                            <div
+                              onClick={() => {
+                                setSelectedCategory(catObj.name);
+                                setSelectedSubCategory('الكل');
+                              }}
+                              className={`flex justify-between items-center px-3 py-1.5 rounded-xl cursor-pointer text-[11px] transition-all ${
+                                isCatSelected && selectedSubCategory === 'الكل'
+                                  ? 'font-black text-amber-900 bg-amber-100/50'
+                                  : 'text-gray-500 hover:text-gray-800'
+                              }`}
+                            >
+                              <span>الكل في {catObj.name}</span>
+                            </div>
+
+                            {catObj.subcategories.map((subName) => {
+                              const isSubSelected = isCatSelected && selectedSubCategory === subName;
+                              const subCount = products.filter(p => p.category === catObj.name && p.subCategory === subName).length;
+
+                              return (
+                                <div
+                                  key={subName}
+                                  onClick={() => {
+                                    setSelectedCategory(catObj.name);
+                                    setSelectedSubCategory(subName);
+                                  }}
+                                  className={`flex justify-between items-center px-3 py-1.5 rounded-xl cursor-pointer text-[11px] transition-all ${
+                                    isSubSelected
+                                      ? 'font-black text-amber-900 bg-amber-500/20 shadow-xxs border-r-2 border-amber-600'
+                                      : 'text-gray-500 hover:text-gray-800'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-amber-400 font-sans">•</span>
+                                    <span>{subName}</span>
+                                  </div>
+                                  <span className="text-[9px] font-mono text-gray-400">
+                                    {subCount}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Categories Pills */}
         <div className="mt-8 flex flex-wrap gap-3 border-t border-gray-100 pt-8">
@@ -749,40 +952,74 @@ export function StoreFront({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   
                   {/* Image/Video Column */}
-                  <div>
-                    <div className="aspect-square bg-gray-50 relative rounded-2xl overflow-hidden shadow-xs border border-gray-100">
-                      {selectedProduct.videoUrl ? (
-                         <div className="relative w-full h-full">
-                            {selectedProduct.videoUrl && (
-                              <video 
-                                src={selectedProduct.videoUrl} 
-                                controls 
-                                autoPlay 
-                                className="w-full h-full object-cover"
+                  {(() => {
+                    const modalImagesList = [selectedProduct.image];
+                    if (selectedProduct.images && selectedProduct.images.length > 0) {
+                      modalImagesList.push(...selectedProduct.images);
+                    }
+                    // Override with variant photo gallery if selected and present
+                    const activeGallery = (selectedColorState && selectedColorState.images && selectedColorState.images.length > 0)
+                      ? selectedColorState.images
+                      : modalImagesList;
+
+                    // Bound active index safely
+                    const safeImageIndex = activeImageIndex < activeGallery.length ? activeImageIndex : 0;
+                    const visibleImage = activeGallery[safeImageIndex] || selectedProduct.image;
+
+                    return (
+                      <div>
+                        <div className="aspect-square bg-gray-150 relative rounded-3xl overflow-hidden shadow-xs border border-gray-200">
+                          {selectedProduct.videoUrl ? (
+                             <div className="relative w-full h-full">
+                                <video 
+                                  src={selectedProduct.videoUrl} 
+                                  controls 
+                                  autoPlay 
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute top-4 left-4 bg-navy/85 backdrop-blur-md text-gold text-[10px] px-3 py-1 rounded-full font-black border border-gold/25 flex items-center gap-2">
+                                  <Video className="h-3 w-3" /> فيديو تعريفي حصري
+                                </div>
+                             </div>
+                          ) : (
+                            visibleImage && (
+                              <img
+                                src={visibleImage}
+                                alt={selectedProduct.name}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-cover transition-all duration-300 transform hover:scale-105"
                               />
-                            )}
-                            <div className="absolute top-4 left-4 bg-navy/80 backdrop-blur-md text-gold text-[10px] px-3 py-1 rounded-full font-black border border-gold/20 flex items-center gap-2">
-                              <Video className="h-3 w-3" /> فيديو تعريفي حصري
-                            </div>
-                         </div>
-                      ) : (
-                        selectedProduct.image && (
-                          <img
-                            src={selectedProduct.image}
-                            alt={selectedProduct.name}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
-                          />
-                        )
-                      )}
-                      
-                      {selectedProduct.stock > 0 && selectedProduct.stock < 5 && (
-                        <span className="absolute bottom-4 right-4 bg-rose-650 bg-rose-600 text-white text-xs font-bold px-3 py-1 rounded-md">
-                          مخزون حرج ({selectedProduct.stock} قطع متبقية)
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                            )
+                          )}
+                          
+                          {selectedProduct.stock > 0 && selectedProduct.stock < 5 && (
+                            <span className="absolute bottom-4 right-4 bg-rose-600 text-white text-[10px] font-bold px-3 py-1 rounded-md">
+                              مخزون حرج ({selectedProduct.stock} قطع متبقية)
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Interactive Thumbnails for Multi-Images */}
+                        {activeGallery.length > 1 && (
+                          <div className="mt-3 flex gap-2 overflow-x-auto py-1 scrollbar-thin">
+                            {activeGallery.map((img, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setActiveImageIndex(idx)}
+                                className={`relative shrink-0 w-14 h-14 rounded-xl overflow-hidden border transition-all cursor-pointer ${
+                                  safeImageIndex === idx 
+                                    ? 'border-amber-600 ring-2 ring-amber-100 scale-95' 
+                                    : 'border-gray-200 hover:border-gray-400'
+                                }`}
+                              >
+                                <img src={img} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                     
                     {/* Multi-points technical specs */}
                     <div className="mt-6 bg-amber-50/40 border border-amber-500/10 rounded-xl p-4">
@@ -833,6 +1070,51 @@ export function StoreFront({
                         {selectedProduct.description}
                       </p>
 
+                      {/* --- Dynamic Color Variants Picker (Requirement 2) --- */}
+                      {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                        <div className="mb-5 bg-amber-50/25 p-4 rounded-2xl border border-amber-100">
+                          <label className="block text-[10px] font-black text-amber-900 mb-2.5 font-sans">
+                            🎨 الألوان والخيارات الفاخرة المتاحة للطلب:
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProduct.variants.map((v: any) => {
+                              const isSelected = selectedColorState && selectedColorState.id === v.id;
+                              return (
+                                <button
+                                  key={v.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedColorState(v);
+                                    // Choose its size
+                                    if (v.sizes && v.sizes.length > 0) {
+                                      setSelectedSizeForModal(v.sizes[0]);
+                                    } else if (selectedProduct.sizes && selectedProduct.sizes.length > 0) {
+                                      setSelectedSizeForModal(selectedProduct.sizes[0]);
+                                    } else {
+                                      setSelectedSizeForModal('');
+                                    }
+                                    setActiveImageIndex(0);
+                                  }}
+                                  className={`px-3 py-2 rounded-xl text-xxs font-bold transition-all border shrink-0 flex items-center gap-1.5 cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-charcoal text-gold border-charcoal shadow-sm scale-102 ring-2 ring-amber-100'
+                                      : 'bg-white text-gray-600 border-gray-150 hover:border-gray-300'
+                                  }`}
+                                >
+                                  {v.images && v.images.length > 0 && (
+                                    <img src={v.images[0]} className="w-5.5 h-5.5 object-cover rounded-md" referrerPolicy="no-referrer" />
+                                  )}
+                                  <span>{v.colorName}</span>
+                                  {v.price && v.price !== selectedProduct.price && (
+                                    <span className="text-[9px] text-amber-800 font-mono">({formatPrice(v.price)})</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Brand marketing promotion & purchase intent (رغبة الشراء والترويج الذكي) */}
                       <div className="mb-6 p-4 bg-linear-to-r from-amber-500/5 via-amber-500/10 to-orange-500/5 rounded-2xl border border-amber-500/10 space-y-2 text-right">
                         <div className="flex items-center gap-1.5 text-rose-600 animate-pulse text-xxs font-extrabold font-sans">
@@ -844,58 +1126,76 @@ export function StoreFront({
                           <span>اشترِ قطعتين أو أكثر اليوم للحصول على شحن بلاتيني مجاني وتأمين تغليف هدايا ملكي بالحرير مجاناً.</span>
                         </div>
                       </div>
-
-                      <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-gray-400 font-sans">القيمة والعملة الحالية</span>
-                          <span className="text-2xl font-black text-amber-950 font-mono">
-                            {formatPrice(selectedProduct.price)}
-                          </span>
-                        </div>
-
-                        <div className="text-left md:text-right">
-                          <span className="block text-[10px] text-gray-400 font-sans">حالة التوفر</span>
-                          <span className={`text-xs font-bold ${selectedProduct.stock > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                            {selectedProduct.stock > 0 ? `جاهز للشحن الفوري (${selectedProduct.stock} حبات)` : 'نفذ بالكامل'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Product Sizing Option Selector inside StoreFront Details Modal */}
-                      {selectedProduct.sizes && selectedProduct.sizes.length > 0 && (
-                        <div className="mb-6 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                          <label className="block text-[10px] font-bold text-gray-400 mb-2 font-sans">اختر مقاسك الفخم المفصل:</label>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedProduct.sizes.map((sz) => (
-                              <button
-                                key={sz}
-                                type="button"
-                                onClick={() => setSelectedSizeForModal(sz)}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all duration-200 cursor-pointer border ${
-                                  selectedSizeForModal === sz
-                                    ? 'bg-amber-600 text-white border-amber-700 shadow-sm scale-102'
-                                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-350 hover:bg-gray-50'
-                                }`}
-                              >
-                                {sz}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
 
-                    <button
-                      disabled={selectedProduct.stock === 0}
-                      onClick={() => {
-                        handleAddToCartWithAlert(selectedProduct, selectedSizeForModal);
-                        setSelectedProduct(null);
-                      }}
-                      className="w-full py-4.5 bg-gray-950 hover:bg-gray-900 text-amber-400 font-extrabold text-sm rounded-xl hover:text-white shadow-md transition-all duration-300 flex items-center justify-center space-x-2 space-x-reverse cursor-pointer disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                    >
-                      <ShoppingBag className="h-5 w-5 text-amber-400" />
-                      <span>إضافة الفورية لحقيبة التسوق</span>
-                    </button>
+                    {(() => {
+                        const activePrice = selectedColorState ? (selectedColorState.price || selectedProduct.price) : selectedProduct.price;
+                        const activeStock = selectedColorState ? (selectedColorState.stock ?? selectedProduct.stock) : selectedProduct.stock;
+                        const activeSizes = (selectedColorState && selectedColorState.sizes && selectedColorState.sizes.length > 0)
+                          ? selectedColorState.sizes 
+                          : (selectedProduct.sizes || []);
+
+                        return (
+                          <>
+                            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100 mb-6">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-400 font-sans">القيمة والعملة الحالية</span>
+                                <span className="text-2xl font-black text-amber-950 font-mono">
+                                  {formatPrice(activePrice)}
+                                </span>
+                              </div>
+
+                              <div className="text-left md:text-right">
+                                <span className="block text-[10px] text-gray-400 font-sans">حالة التوفر وعملاء الشحن</span>
+                                <span className={`text-xs font-bold ${activeStock > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                  {activeStock > 0 ? `جاهز للشحن الفوري (${activeStock} حبة متبقية)` : 'نفذ هذا الموديل بالكامل'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Product Sizing Option Selector inside StoreFront Details Modal */}
+                            {activeSizes.length > 0 && (
+                              <div className="mb-6 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                <label className="block text-[10px] font-bold text-gray-400 mb-2 font-sans">اختر مقاسك الفخم المفصل المطلوب:</label>
+                                <div className="flex flex-wrap gap-2">
+                                  {activeSizes.map((sz: string) => (
+                                    <button
+                                      key={sz}
+                                      type="button"
+                                      onClick={() => setSelectedSizeForModal(sz)}
+                                      className={`px-4 py-1.5 rounded-lg text-xs font-bold uppercase transition-all duration-200 cursor-pointer border ${
+                                        selectedSizeForModal === sz
+                                          ? 'bg-amber-600 text-white border-amber-700 shadow-sm scale-102'
+                                          : 'bg-white text-gray-700 border-gray-200 hover:border-gray-350 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      {sz}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <button
+                              disabled={activeStock === 0}
+                              onClick={() => {
+                                handleAddToCartWithAlert(
+                                  selectedProduct, 
+                                  selectedSizeForModal, 
+                                  selectedColorState?.colorName, 
+                                  selectedColorState?.id,
+                                  activePrice
+                                );
+                                setSelectedProduct(null);
+                              }}
+                              className="w-full py-4.5 bg-gray-950 hover:bg-gray-900 text-amber-400 font-extrabold text-sm rounded-xl hover:text-white shadow-md transition-all duration-300 flex items-center justify-center space-x-2 space-x-reverse cursor-pointer disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            >
+                              <ShoppingBag className="h-5 w-5 text-amber-400" />
+                              <span>إضافة الفورية لحقيبة التسوق</span>
+                            </button>
+                          </>
+                        );
+                      })()}
                   </div>
 
                 </div>

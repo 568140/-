@@ -6,6 +6,16 @@ export interface ProductReview {
   date: string;
 }
 
+export interface ProductVariant {
+  id: string;
+  colorName: string; // اسم اللون (e.g. أزرق، أحمر)
+  price?: number; // السعر المخصص لهذا الخيار (إذا كان مختلف)
+  stock: number; // المخزون الخاص بهذا الخيار
+  sizeStock?: Record<string, number>; // توزيع المقاسات لهذا اللون بالذات
+  images: string[]; // ألبوم صور مخصص لهذا اللون بالذات (يدعم حتى أكثر من 15 صورة)
+  sizes?: string[]; // المقاسات المتوفرة لهذا اللون بالذات
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -23,12 +33,17 @@ export interface Product {
   sizes?: string[];
   sizeStock?: Record<string, number>; // خرائط المقاسات لحفظ كمية كل مقاس
   code?: string; // الرمز الفريد للتنقيب والبحث والمشاركة الفائقة
+  images?: string[]; // ألبوم صور إضافي عام للمنتج (يدعم رفع عدد كبير من الصور)
+  variants?: ProductVariant[]; // متغيرات وخيارات الألوان والأسعار والمخزون المخصصة
 }
 
 export interface CartItem {
   product: Product;
   quantity: number;
   selectedSize?: string;
+  selectedColor?: string;
+  selectedVariantId?: string;
+  customPrice?: number; // السعر الفعلي للمتغير المختار وقت الإضافة
 }
 
 export interface Order {
@@ -114,6 +129,9 @@ export interface SiteSettings {
   headerShippingText?: string;
   headerPaymentText?: string;
   headerOffersText?: string;
+  enableCod?: boolean;
+  enableLocalWallets?: boolean;
+  enableExternalCards?: boolean;
 }
 
 export interface PointRedemptionOption {

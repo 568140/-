@@ -188,6 +188,8 @@ export function Dashboard({
   const [prodVideoUrl, setProdVideoUrl] = useState('');
   const [prodSizeStock, setProdSizeStock] = useState<Record<string, number>>({});
   const [prodCode, setProdCode] = useState('');
+  const [prodImages, setProdImages] = useState<string[]>([]);
+  const [prodVariants, setProdVariants] = useState<import('../types').ProductVariant[]>([]);
 
   // Order search query state for Owner lookup
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -387,6 +389,8 @@ export function Dashboard({
     setProdPointsReward(10);
     setProdVideoUrl('');
     setProdCode('LX-' + Math.floor(10000 + Math.random() * 90000));
+    setProdImages([]);
+    setProdVariants([]);
     setShowProductModal(true);
   };
 
@@ -458,6 +462,8 @@ export function Dashboard({
     setProdPointsReward(p.pointsReward || 0);
     setProdVideoUrl(p.videoUrl || '');
     setProdCode(p.code || ('LX-' + Math.floor(10000 + Math.random() * 90000)));
+    setProdImages(p.images || []);
+    setProdVariants(p.variants || []);
     setShowProductModal(true);
   };
 
@@ -501,7 +507,9 @@ export function Dashboard({
         videoUrl: prodVideoUrl,
         sizes: parsedSizes,
         sizeStock: filteredSizeStock,
-        code: prodCode
+        code: prodCode,
+        images: prodImages,
+        variants: prodVariants
       });
     } else {
       onAddProduct({
@@ -518,7 +526,9 @@ export function Dashboard({
         videoUrl: prodVideoUrl,
         sizes: parsedSizes,
         sizeStock: filteredSizeStock,
-        code: prodCode
+        code: prodCode,
+        images: prodImages,
+        variants: prodVariants
       });
     }
     setShowProductModal(false);
@@ -3294,6 +3304,243 @@ export function Dashboard({
                         <p className="text-xxs font-bold text-gray-600 font-sans">تم حفظ الصورة المعتمدة بنجاح.</p>
                         <p className="text-[9px] text-amber-900 font-mono truncate max-w-xs">{prodImage}</p>
                       </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* --- EXTRA IMAGES GALLERY EDITOR (Supports 10+ Images!) --- */}
+                <div className="bg-amber-50/30 rounded-2xl p-4 border border-amber-100/50 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xxs font-black text-amber-900 uppercase font-sans">📸 معرض صور المنتج الإضافي (يدعم أكثر من 10 صور فرعية)</h4>
+                    <span className="text-[9px] text-amber-700 bg-amber-100/50 px-2 py-0.5 rounded-full font-mono">{prodImages.length} صور مضافة</span>
+                  </div>
+                  
+                  {prodImages.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2 bg-white/60 p-2 rounded-xl border border-gray-100">
+                      {prodImages.map((imgUrl, imageIndex) => (
+                        <div key={imageIndex} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-250 bg-gray-100">
+                          <img src={imgUrl} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProdImages(prev => prev.filter((_, i) => i !== imageIndex));
+                            }}
+                            className="absolute inset-x-0 bottom-0 bg-red-650/90 text-white text-[8px] font-bold py-1 text-center hover:bg-red-700 transition-colors"
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      id="newExtraImgUrl"
+                      placeholder="رابط فوتوغرافي سريع أو اسحب..."
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xxs font-mono text-gray-800 focus:outline-hidden"
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val) {
+                            setProdImages(prev => [...prev, val]);
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }
+                      }}
+                    />
+                    <label className="relative shrink-0 flex items-center justify-center px-3 py-2 bg-amber-600 font-sans hover:bg-amber-750 text-white font-bold text-xxs rounded-xl cursor-pointer transition-colors">
+                      رفع 📁
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              const compressed = await compressImage(file, 600);
+                              setProdImages(prev => [...prev, compressed]);
+                            } catch (err) {
+                              console.error('Failed extra image load:', err);
+                            }
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <p className="text-[9px] text-gray-400 font-sans leading-none">اكتب الرابط أو ارفع الصور ثم اضغط Enter لتبويبها في المعرض.</p>
+                </div>
+
+                {/* --- DETAILED PRODUCT VARIANTS / COLORS MANAGER (Requirement 2) --- */}
+                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-4">
+                  <div className="flex justify-between items-center border-b border-gray-150 pb-2">
+                    <h4 className="text-xxs font-black text-charcoal uppercase font-sans flex items-center gap-1.5">
+                      <span>🎨 ألوان ومواصفات المنتج الفردية البديلة</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newVariant: import('../types').ProductVariant = {
+                          id: 'var-' + Math.floor(1000 + Math.random() * 9000),
+                          colorName: 'لون جديد',
+                          price: Number(prodPrice),
+                          stock: 10,
+                          sizes: parsedSizesArray.length > 0 ? [...parsedSizesArray] : ['S', 'M', 'L'],
+                          sizeStock: {},
+                          images: [],
+                        };
+                        setProdVariants(prev => [...prev, newVariant]);
+                      }}
+                      className="px-2 py-1 bg-charcoal hover:bg-amber-950 text-gold text-[9px] font-bold rounded-lg transition-all flex items-center gap-1"
+                    >
+                      ➕ إضافة لون جديد
+                    </button>
+                  </div>
+
+                  {prodVariants.length === 0 ? (
+                    <p className="text-[10px] text-gray-400 text-center font-sans py-2">لا يوجد ألوان أو بدائل مخصصة مضافة حالياً. (سيعتمد النظام على السعر والمقاس الأساسي)</p>
+                  ) : (
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {prodVariants.map((variant, index) => (
+                        <div key={variant.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-xs relative space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProdVariants(prev => prev.filter((_, i) => i !== index));
+                            }}
+                            className="absolute top-2 left-2 text-red-600 hover:text-red-800 text-[10px] font-bold"
+                          >
+                            حذف اللون ❌
+                          </button>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[9px] text-gray-400 font-bold mb-0.5">اسم اللون المخصص *</label>
+                              <input
+                                type="text"
+                                required
+                                value={variant.colorName}
+                                onChange={(e) => {
+                                  const name = e.target.value;
+                                  setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, colorName: name } : v));
+                                }}
+                                className="w-full p-2 bg-gray-50 border border-gray-150 rounded-lg text-xxs font-sans text-gray-800"
+                                placeholder="مثال: أسود ملكي، ذهبي مرصع"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] text-gray-400 font-bold mb-0.5">سجل السعر الخاص بهذا البديل (ر.س) *</label>
+                              <input
+                                type="number"
+                                required
+                                min="0"
+                                value={variant.price}
+                                onChange={(e) => {
+                                  const pVal = Number(e.target.value);
+                                  setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, price: pVal } : v));
+                                }}
+                                className="w-full p-2 bg-gray-50 border border-gray-150 rounded-lg text-xxs font-mono text-gray-800"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[9px] text-gray-400 font-bold mb-0.5">مخزون اللون ككل (حبة) *</label>
+                              <input
+                                type="number"
+                                required
+                                min="0"
+                                value={variant.stock}
+                                onChange={(e) => {
+                                  const stkVal = Number(e.target.value);
+                                  setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, stock: stkVal } : v));
+                                }}
+                                className="w-full p-2 bg-gray-50 border border-gray-150 rounded-lg text-xxs font-mono text-gray-800"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[9px] text-gray-400 font-bold mb-0.5">مقاسات هذا البديل (فواصل)</label>
+                              <input
+                                type="text"
+                                value={variant.sizes ? variant.sizes.join(', ') : ''}
+                                onChange={(e) => {
+                                  const szs = e.target.value.split(/[,,،]/).map(s => s.trim()).filter(Boolean);
+                                  setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, sizes: szs } : v));
+                                }}
+                                className="w-full p-2 bg-gray-50 border border-gray-150 rounded-lg text-xxs font-sans text-gray-800"
+                                placeholder="S, M, L"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Option to specify images specific to this color */}
+                          <div className="space-y-1 pt-1.5 border-t border-dashed border-gray-150">
+                            <span className="block text-[8px] text-amber-800 font-bold">📷 صور الحزمة الخاصة بهذا الفصيل الملون بالذات:</span>
+                            {variant.images && variant.images.length > 0 && (
+                              <div className="flex gap-1 overflow-x-auto py-1">
+                                {variant.images.map((vimg, vi) => (
+                                  <div key={vi} className="relative shrink-0 w-8 h-8 rounded border border-gray-150 overflow-hidden bg-gray-50">
+                                    <img src={vimg} className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, images: (v.images || []).filter((_, imi) => imi !== vi) } : v));
+                                      }}
+                                      className="absolute inset-0 bg-red-600/80 text-white font-bold flex items-center justify-center text-[7px]"
+                                    >
+                                      حذف
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex gap-1.5">
+                              <input
+                                type="url"
+                                placeholder="أضف رابط صورة للون لتظهر عند التحديد..."
+                                className="w-full p-1.5 bg-gray-50 border border-gray-150 rounded-lg text-[10px] font-mono"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const val = (e.target as HTMLInputElement).value.trim();
+                                    if (val) {
+                                      setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, images: [...(v.images || []), val] } : v));
+                                      (e.target as HTMLInputElement).value = '';
+                                    }
+                                  }
+                                }}
+                              />
+                              <label className="shrink-0 flex items-center justify-center px-2 py-1 bg-amber-600 text-white text-[9px] font-bold rounded-lg cursor-pointer">
+                                رفع 📁
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      try {
+                                        const compressed = await compressImage(file, 600);
+                                        setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, images: [...(v.images || []), compressed] } : v));
+                                      } catch (err) {
+                                        console.error('Failed variant image upload', err);
+                                      }
+                                    }
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
