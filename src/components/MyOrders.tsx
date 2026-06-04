@@ -1,15 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Search, ClipboardList, Check, Clock, Truck, Home, CircleAlert } from 'lucide-react';
 import { Order } from '../types';
 import { CURRENCIES } from '../data';
 
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+
 interface MyOrdersProps {
-  orders: Order[];
   currentUser: { name: string; phone: string } | null;
 }
 
-export function MyOrders({ orders, currentUser }: MyOrdersProps) {
+export function MyOrders({ currentUser }: MyOrdersProps) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -19,9 +23,61 @@ export function MyOrders({ orders, currentUser }: MyOrdersProps) {
     return currentUser ? currentUser.phone : '';
   });
 
+  const handleSearch = async (val: string) => {
+    if (!val.trim()) {
+      setOrders([]);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const q = collection(db, 'orders');
+      const results: Order[] = [];
+      const v = val.trim();
+      
+      // We try to match by ID, phone, or email. Since Firestore doesn't support OR across multiple fields easily
+      // without complex setup, we'll do targeted searches.
+      
+      // 1. By ID (primary)
+      const qId = query(q, where('id', '==', v));
+      const sId = await getDocs(qId);
+      sId.forEach(d => results.push(d.data() as Order));
+
+      if (results.length === 0) {
+        // 2. By Phone
+        const qPhone = query(q, where('customerPhone', '==', v), limit(20));
+        const sPhone = await getDocs(qPhone);
+        sPhone.forEach(d => results.push(d.data() as Order));
+      }
+
+      if (results.length === 0) {
+        // 3. By Email
+        const qEmail = query(q, where('customerEmail', '==', v.toLowerCase()), limit(20));
+        const sEmail = await getDocs(qEmail);
+        sEmail.forEach(d => results.push(d.data() as Order));
+      }
+
+      // De-duplicate if needed
+      const unique = Array.from(new Map(results.map(o => [o.id, o])).values());
+      unique.sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      setOrders(unique);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'orders_search');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (searchQuery) {
+      handleSearch(searchQuery);
+    }
+  }, []);
+
   React.useEffect(() => {
     if (currentUser) {
       setSearchQuery(currentUser.phone);
+      handleSearch(currentUser.phone);
     }
   }, [currentUser]);
 
@@ -33,18 +89,9 @@ export function MyOrders({ orders, currentUser }: MyOrdersProps) {
     return `${converted.toFixed(decimals)} ${curr.symbol}`;
   };
 
-  // Find all matches based on phone number or email of customer
   const filteredOrders = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    
-    const query = searchQuery.trim().toLowerCase();
-    return orders.filter(o => 
-      o.customerEmail.toLowerCase().includes(query) || 
-      o.customerPhone.includes(query) ||
-      o.customerName.toLowerCase().includes(query) ||
-      o.id.toLowerCase().includes(query)
-    );
-  }, [orders, searchQuery]);
+    return orders;
+  }, [orders]);
 
   // Total user orders placed regardless of search (local backup)
   const automaticOrders = useMemo(() => {
@@ -144,9 +191,15 @@ export function MyOrders({ orders, currentUser }: MyOrdersProps) {
             placeholder="أدخل بريدك الإلكتروني، رقم الجوال أو رقم الطلب (مثال: ORD-...)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch(searchQuery)}
             className="w-full pr-11 pl-4 py-3 bg-gray-50 border border-gray-100 focus:border-amber-500 rounded-xl focus:outline-hidden text-xs text-gray-850 placeholder-gray-400 font-sans"
           />
-          <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <button 
+            onClick={() => handleSearch(searchQuery)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer"
+          >
+            <Search className={`h-5 w-5 ${isLoading ? 'text-amber-500 animate-spin' : 'text-gray-400'}`} />
+          </button>
         </div>
       </div>
 

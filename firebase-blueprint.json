@@ -75,19 +75,20 @@
     },
     "LocalWallet": {
       "title": "LocalWallet",
-      "description": "Registered local wallet details.",
+      "description": "Registered local wallet details with icons.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "accountNumber": { "type": "string" },
-        "isActive": { "type": "boolean" }
+        "isActive": { "type": "boolean" },
+        "iconUrl": { "type": "string" }
       },
       "required": ["id", "name", "accountNumber", "isActive"]
     },
     "SiteSettings": {
       "title": "SiteSettings",
-      "description": "Comprehensive site configuration settings, styling, ads, and ratios.",
+      "description": "Comprehensive site configuration settings including shipping destinations and banners.",
       "type": "object",
       "properties": {
         "storeName": { "type": "string" },
@@ -102,9 +103,21 @@
         "logoUrl": { "type": "string" },
         "iconUrl": { "type": "string" },
         "pointsRatio": { "type": "number" },
-        "pointsRedeemRatio": { "type": "number" }
+        "pointsRedeemRatio": { "type": "number" },
+        "promoBanners": { "type": "array" },
+        "shippingDestinations": { "type": "array" }
       },
       "required": ["storeName"]
+    },
+    "VisitorStat": {
+      "title": "VisitorStat",
+      "description": "Daily visitor count tracking.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "count": { "type": "number" }
+      },
+      "required": ["date", "count"]
     },
     "CategoryState": {
       "title": "CategoryState",
@@ -145,6 +158,10 @@
     "category_states": {
       "schema": "CategoryState",
       "description": "List of product categories and sub-categories"
+    },
+    "visitor_stats": {
+      "schema": "VisitorStat",
+      "description": "Daily store visit records"
     }
   }
 }

@@ -162,17 +162,6 @@ export default function App() {
   // State for site settings
   const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(INITIAL_SITE_SETTINGS);
 
-  // Real-time visitor tracking
-  useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    const statRef = doc(db, 'visitor_stats', today);
-    
-    // We import dynamically to keep startup light
-    import('firebase/firestore').then(({ increment }) => {
-      setDoc(statRef, { date: today, count: increment(1) }, { merge: true }).catch(() => {});
-    });
-  }, []);
-
   useEffect(() => {
     localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(yemeniGeodata));
   }, [yemeniGeodata]);
@@ -584,37 +573,6 @@ export default function App() {
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'category_states');
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'orders'), (snapshot) => {
-      const list: Order[] = [];
-      snapshot.forEach(docSnap => {
-        list.push(docSnap.data() as Order);
-      });
-      list.sort((a, b) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      });
-      setOrders(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'orders');
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'customer_accounts'), (snapshot) => {
-      const list: import('./types').CustomerAccount[] = [];
-      snapshot.forEach(docSnap => {
-        list.push(docSnap.data() as import('./types').CustomerAccount);
-      });
-      setCustomerAccounts(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'customer_accounts');
     });
     return () => unsub();
   }, []);
@@ -1153,6 +1111,7 @@ export default function App() {
           <Dashboard 
             products={products} 
             orders={orders} 
+            setOrders={setOrders}
             coupons={coupons}
             localWallets={localWallets}
             setLocalWallets={handleSetLocalWallets}
@@ -1176,7 +1135,6 @@ export default function App() {
 
         {currentView === 'orders-tracking' && (
           <MyOrders 
-            orders={orders} 
             currentUser={currentUser}
           />
         )}

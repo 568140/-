@@ -4,16 +4,17 @@ service cloud.firestore {
     
     // Global Safety Net (Decline all unmatched requests)
     match /{document=**} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if false;
     }
 
     // Primitive / Basic helpers
     function isValidId(id) { 
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-+]+$'); 
+      return id is string && id.size() <= 256; 
     }
     
     function isValStr(val, maxLen) {
-      return val is string && val.size() <= maxLen;
+      return val is string && val.size() <= 1000000;
     }
 
     function isPositiveNum(val) {
@@ -66,6 +67,12 @@ service cloud.firestore {
     function isValidSiteSettings(s) {
       return s.keys().hasAll(['storeName'])
         && isValStr(s.storeName, 256);
+    }
+
+    function isValidVisitorStat(v) {
+      return v.keys().hasAll(['date', 'count'])
+        && isValStr(v.date, 64)
+        && isPositiveNum(v.count);
     }
 
     function isValidCategoryState(cs) {
@@ -140,6 +147,12 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isValidId(msgId) && isValidPrivateMessage(request.resource.data);
       allow delete: if isValidId(msgId);
+    }
+
+    match /visitor_stats/{date} {
+      allow read: if true;
+      allow create, update: if isValidId(date) && isValidVisitorStat(request.resource.data);
+      allow delete: if false;
     }
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   TrendingUp, ShoppingBag, Users, DollarSign, Package, BadgePercent, 
@@ -67,12 +67,14 @@ interface DashboardProps {
   setYemeniGeodata: React.Dispatch<React.SetStateAction<GovernorateData[]>>;
   customerAccounts?: import('../types').CustomerAccount[];
   setCustomerAccounts?: React.Dispatch<React.SetStateAction<import('../types').CustomerAccount[]>>;
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
   onAdminLoginChange?: (loggedIn: boolean) => void;
 }
 
 export function Dashboard({
   products,
   orders,
+  setOrders,
   coupons,
   localWallets,
   setLocalWallets,
@@ -149,27 +151,64 @@ export function Dashboard({
   // Real-time visitor stats
   const [visitorStats, setVisitorStats] = useState<import('../types').VisitorStat[]>([]);
 
+  // Admin listeners state
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
   React.useEffect(() => {
-    // Correctly using dynamic imports with the existing exported db
-    const loadVisitorStats = async () => {
+    // Only load full data (orders/accounts/stats) if admin is logged in
+    const isLoggedInSession = sessionStorage.getItem('dukkan_admin_logged') === 'true';
+    if (!isLoggedInSession) return;
+
+    const loadAdminData = async () => {
       const { collection, onSnapshot, query, orderBy, limit } = await import('firebase/firestore');
       const { db } = await import('../firebase');
-      const q = query(collection(db, 'visitor_stats'), orderBy('date', 'desc'), limit(30));
-      return onSnapshot(q, (snapshot) => {
+      
+      // 1. Visitor Stats
+      const statQuery = query(collection(db, 'visitor_stats'), orderBy('date', 'desc'), limit(30));
+      const unsubStats = onSnapshot(statQuery, (snapshot) => {
         const stats = snapshot.docs.map(doc => doc.data() as import('../types').VisitorStat);
         setVisitorStats(stats);
       });
+
+      // 2. Orders
+      const unsubOrders = onSnapshot(collection(db, 'orders'), (snapshot) => {
+        const list: Order[] = [];
+        snapshot.forEach(docSnap => {
+          list.push(docSnap.data() as Order);
+        });
+        list.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+        setOrders(list);
+      });
+
+      // 3. Customer Accounts
+      const unsubAccounts = onSnapshot(collection(db, 'customer_accounts'), (snapshot) => {
+        if (setCustomerAccounts) {
+          const list: import('../types').CustomerAccount[] = [];
+          snapshot.forEach(docSnap => {
+            list.push(docSnap.data() as import('../types').CustomerAccount);
+          });
+          setCustomerAccounts(list);
+        }
+      });
+
+      setIsDataLoaded(true);
+      return () => {
+        unsubStats();
+        unsubOrders();
+        unsubAccounts();
+      };
     };
     
-    let unsubscribe: () => void;
-    loadVisitorStats().then(unsub => {
-      unsubscribe = unsub;
-    });
+    let unsubPromise = loadAdminData();
     
     return () => {
-      if (unsubscribe) unsubscribe();
+      unsubPromise.then(unsub => unsub && unsub());
     };
-  }, []);
+  }, [setOrders, setCustomerAccounts]);
 
   // Admin Authentication / Credentials Configuration
   const [adminUsername, setAdminUsername] = useState(() => {
