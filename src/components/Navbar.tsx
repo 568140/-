@@ -40,11 +40,11 @@ export function Navbar({
           <div className="flex items-center space-x-4 space-x-reverse text-gray-300">
             <span className="flex items-center space-x-1 space-x-reverse bg-amber-600/20 text-amber-400 px-2 py-0.5 rounded-md font-bold text-[10px]">
               <Truck className="h-3 w-3" />
-              <span>شحن مجاني لكافة البلدان للطلبات فوق ٤٠٠ ر.س</span>
+              <span>{siteSettings.headerShippingText || 'شحن مجاني لكافة البلدان للطلبات فوق ٤٠٠ ر.س'}</span>
             </span>
             <span className="hidden md:flex items-center space-x-1 space-x-reverse text-gray-400">
               <ShieldCheck className="h-3 w-3 text-emerald-500" />
-              <span>دفع آمن بالكامل ومحمي ١٠٠٪</span>
+              <span>{siteSettings.headerPaymentText || 'دفع آمن بالكامل ومحمي ١٠٠٪'}</span>
             </span>
           </div>
 
@@ -52,7 +52,9 @@ export function Navbar({
           <div className="flex items-center space-x-3 space-x-reverse">
             <div className="flex items-center space-x-1.5 space-x-reverse text-amber-500 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/20">
               <span className="text-sm">🇾🇪</span>
-              <span className="font-bold text-amber-400 text-xs font-sans">عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط</span>
+              <span className="font-bold text-amber-400 text-xs font-sans">
+                {siteSettings.headerOffersText || 'عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط'}
+              </span>
             </div>
           </div>
 

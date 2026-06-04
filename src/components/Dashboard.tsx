@@ -33,7 +33,7 @@ const compressImage = (file: File, maxSize: number = 600): Promise<string> => {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.6));
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
         };
         img.src = event.target.result as string;
       }
@@ -92,17 +92,36 @@ export function Dashboard({
   setCustomerAccounts,
   onAdminLoginChange,
 }: DashboardProps) {
+  // Local editing states for Storefront Customization, Ads, and Marketing to prevent keystroke Firestore write concurrency conflicts
+  const [localSettings, setLocalSettings] = useState<import('../types').SiteSettings>(siteSettings);
+  const [isSettingsDirty, setIsSettingsDirty] = useState(false);
+  const [showSaveAllSuccess, setShowSaveAllSuccess] = useState(false);
+
+  React.useEffect(() => {
+    if (!isSettingsDirty) {
+      setLocalSettings(siteSettings);
+    }
+  }, [siteSettings, isSettingsDirty]);
+
+  const handleUpdateLocalSettings = (val: import('../types').SiteSettings | ((prev: import('../types').SiteSettings) => import('../types').SiteSettings)) => {
+    setLocalSettings(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      return next;
+    });
+    setIsSettingsDirty(true);
+  };
+
   // File Upload Handling
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('حجم الملف كبير جداً. يرجى اختيار صورة أقل من 2 ميجابايت');
+      if (file.size > 20 * 1024 * 1024) {
+        alert('حجم الملف كبير جداً. يرجى اختيار صورة أقل من 20 ميجابايت');
         return;
       }
       try {
-        const compressedBase64 = await compressImage(file, 400);
-        setSiteSettings({ ...siteSettings, logoUrl: compressedBase64 });
+        const compressedBase64 = await compressImage(file, 1000);
+        handleUpdateLocalSettings((prev) => ({ ...prev, logoUrl: compressedBase64 }));
       } catch (err) {
         console.error('Failed to compress logo:', err);
       }
@@ -112,13 +131,13 @@ export function Dashboard({
   const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) {
-        alert('حجم الملف كبير جداً. يرجى اختيار صورة أقل من 1 ميجابايت');
+      if (file.size > 20 * 1024 * 1024) {
+        alert('حجم الملف كبير جداً. يرجى اختيار صورة أقل من 20 ميجابايت');
         return;
       }
       try {
-        const compressedBase64 = await compressImage(file, 150);
-        setSiteSettings({ ...siteSettings, iconUrl: compressedBase64 });
+        const compressedBase64 = await compressImage(file, 512);
+        handleUpdateLocalSettings((prev) => ({ ...prev, iconUrl: compressedBase64 }));
       } catch (err) {
         console.error('Failed to compress icon:', err);
       }
@@ -2055,72 +2074,122 @@ export function Dashboard({
       )}
 
       {/* STORE LAYOUT CUSTOMIZATION TAB */}
-      {activeTab === 'layout' && siteSettings && setSiteSettings && (
-        <div className="space-y-6 text-right font-sans mx-auto max-w-4xl">
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
-            <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-600" />
-              <span>تخصيص واجهة المتجر والنصوص</span>
-            </h2>
-            <p className="text-xxs text-gray-400 font-sans mt-2">تعديل المسميات والعناوين التي تظهر للعملاء في الصفحة الرئيسية.</p>
-            
-            <div className="mt-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">الشعار (Logo) - رابط أو رفع ملف</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={siteSettings.logoUrl}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, logoUrl: e.target.value })}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono"
-                      dir="ltr"
-                      placeholder="https://..."
-                    />
-                    <label className="flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors text-gray-600">
-                      <Upload className="h-4 w-4" />
-                      <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                    </label>
-                  </div>
-                  {siteSettings.logoUrl && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded-lg flex items-center justify-between border border-dashed border-gray-200">
-                      <img src={siteSettings.logoUrl} alt="Logo Preview" className="h-10 object-contain" />
-                      <button 
-                        onClick={() => setSiteSettings({ ...siteSettings, logoUrl: '' })}
-                        className="p-1 text-gray-400 hover:text-red-500"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+      {activeTab === 'layout' && (() => {
+        const siteSettings = localSettings;
+        const setSiteSettings = handleUpdateLocalSettings;
+        return (
+          <div className="space-y-6 text-right font-sans mx-auto max-w-4xl">
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
+              <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-600" />
+                <span>تخصيص واجهة المتجر والنصوص</span>
+              </h2>
+              <p className="text-xxs text-gray-400 font-sans mt-2">
+                تعديل المسميات والعناوين التي تظهر للعملاء في الصفحة الرئيسية.
+                <span className="block mt-1.5 text-amber-600 font-bold bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed text-right">
+                  🚀 يدعم المتجر الآن رفع صور فائقة الدقة والوضوح (للشعار أو الأيقونة) بحجم ملف يصل حتى <strong>20 ميجابايت</strong> مع ضغط فائق الجودة ذكي وتلقائي لتجاوز حدود قاعدة البيانات، كما يمكنك إدخال رابط مباشر خارجي (External Image URL) واستخدامه لتخزين صورتك خارجياً بالكامل!
+                </span>
+              </p>
+              
+              <div className="mt-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">الشعار (Logo) - رابط أو رفع ملف</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={siteSettings.logoUrl}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, logoUrl: e.target.value })}
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono"
+                        dir="ltr"
+                        placeholder="https://..."
+                      />
+                      <label className="flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors text-gray-600">
+                        <Upload className="h-4 w-4" />
+                        <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                      </label>
                     </div>
-                  )}
+                    {siteSettings.logoUrl && (
+                      <div className="mt-2 p-2 bg-gray-50 rounded-lg flex items-center justify-between border border-dashed border-gray-200">
+                        <img src={siteSettings.logoUrl} alt="Logo Preview" className="h-10 object-contain" />
+                        <button 
+                          onClick={() => setSiteSettings({ ...siteSettings, logoUrl: '' })}
+                          className="p-1 text-gray-400 hover:text-red-500"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">الأيقونة (Icon) - رابط أو رفع ملف</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={siteSettings.iconUrl}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, iconUrl: e.target.value })}
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono"
+                        dir="ltr"
+                        placeholder="https://..."
+                      />
+                      <label className="flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors text-gray-600">
+                        <Upload className="h-4 w-4" />
+                        <input type="file" className="hidden" accept="image/*" onChange={handleIconUpload} />
+                      </label>
+                    </div>
+                    {siteSettings.iconUrl && (
+                      <div className="mt-2 p-2 bg-gray-50 rounded-lg flex items-center justify-between border border-dashed border-gray-200">
+                        <img src={siteSettings.iconUrl} alt="Icon Preview" className="h-10 w-10 object-contain rounded-full" />
+                        <button 
+                          onClick={() => setSiteSettings({ ...siteSettings, iconUrl: '' })}
+                          className="p-1 text-gray-400 hover:text-red-500"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">الأيقونة (Icon) - رابط أو رفع ملف</label>
-                  <div className="flex gap-2">
+
+              {/* Customizable Top Promo Announcement Bar (Requested by User) */}
+              <div className="bg-amber-500/5 p-5 rounded-2xl border border-amber-500/10 space-y-4 mb-4">
+                <h3 className="text-xs font-black text-amber-900 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <span>تخصيص شريط الترويجات والمزايا (رأس الصفحة)</span>
+                </h3>
+                <p className="text-[10px] text-amber-800/70">تعديل العبارات المعروضة في الشريط الأسود العلوي جداً من الصفحة الرئيسية للمتجر (شحن مجاني، دفع آمن، عروض المتجر).</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xxs font-black text-gray-700 mb-1">ميزة الشحن (افتراضي: شحن مجاني...)</label>
                     <input 
                       type="text" 
-                      value={siteSettings.iconUrl}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, iconUrl: e.target.value })}
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono"
-                      dir="ltr"
-                      placeholder="https://..."
+                      value={siteSettings.headerShippingText || ''}
+                      onChange={(e) => setSiteSettings({ ...siteSettings, headerShippingText: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-xs bg-white"
+                      placeholder="شحن مجاني لكافة البلدان للطلبات فوق ٤٠٠ ر.س"
                     />
-                    <label className="flex items-center justify-center p-2 bg-gray-100 hover:bg-gray-200 rounded-xl cursor-pointer transition-colors text-gray-600">
-                      <Upload className="h-4 w-4" />
-                      <input type="file" className="hidden" accept="image/*" onChange={handleIconUpload} />
-                    </label>
                   </div>
-                  {siteSettings.iconUrl && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded-lg flex items-center justify-between border border-dashed border-gray-200">
-                      <img src={siteSettings.iconUrl} alt="Icon Preview" className="h-10 w-10 object-contain rounded-full" />
-                      <button 
-                        onClick={() => setSiteSettings({ ...siteSettings, iconUrl: '' })}
-                        className="p-1 text-gray-400 hover:text-red-500"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-xxs font-black text-gray-700 mb-1">ميزة الدفع وآمن (افتراضي: دفع آمن بالكامل...)</label>
+                    <input 
+                      type="text" 
+                      value={siteSettings.headerPaymentText || ''}
+                      onChange={(e) => setSiteSettings({ ...siteSettings, headerPaymentText: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-xs bg-white"
+                      placeholder="دفع آمن بالكامل ومحمي ١٠٠٪"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs font-black text-gray-700 mb-1">العروض الكبرى والعملة اليمنية</label>
+                    <input 
+                      type="text" 
+                      value={siteSettings.headerOffersText || ''}
+                      onChange={(e) => setSiteSettings({ ...siteSettings, headerOffersText: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-xs bg-white"
+                      placeholder="عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -2287,11 +2356,15 @@ export function Dashboard({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ADS MANAGEMENT TAB */}
-      {activeTab === 'ads' && siteSettings && setSiteSettings && (
-        <motion.div
+      {activeTab === 'ads' && (() => {
+        const siteSettings = localSettings;
+        const setSiteSettings = handleUpdateLocalSettings;
+        return (
+          <motion.div
            initial={{ opacity: 0, scale: 0.98 }}
            animate={{ opacity: 1, scale: 1 }}
            className="space-y-6 text-right font-sans"
@@ -2413,7 +2486,9 @@ export function Dashboard({
                 <span className="text-[10px] font-bold">نظام حماية من غلق الحسابات مفعل</span>
               </div>
               <button 
-                onClick={() => alert('تم حفظ إعدادات الإعلانات وجدولة عرضها بنجاح!')}
+                onClick={() => {
+                  alert('تم حفظ إعدادات الإعلانات محلياً! يرجى النقر على زر "حفظ التعديلات الآن" بالأسفل لرفعها وتطبيقها نهائياً.');
+                }}
                 className="bg-navy text-gold px-10 py-3 rounded-2xl text-xs font-black shadow-xl hover:bg-navy-light transition-all cursor-pointer"
               >
                 تحديث التغييرات
@@ -2421,11 +2496,15 @@ export function Dashboard({
             </div>
           </div>
         </motion.div>
-      )}
+        );
+      })()}
 
       {/* MARKETING & SEO TAB */}
-      {activeTab === 'marketing' && siteSettings && setSiteSettings && (
-        <motion.div
+      {activeTab === 'marketing' && (() => {
+        const siteSettings = localSettings;
+        const setSiteSettings = handleUpdateLocalSettings;
+        return (
+          <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6 text-right font-sans mx-auto max-w-4xl"
@@ -2589,7 +2668,17 @@ export function Dashboard({
                             const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, title: e.target.value } : b);
                             setSiteSettings({ ...siteSettings, promoBanners: newBanners });
                           }}
-                          className="block w-full bg-transparent font-black text-xs text-navy focus:outline-hidden mb-1"
+                          className="block w-full bg-transparent font-black text-xs text-navy focus:outline-hidden mb-1 border-b border-gray-100 hover:border-gray-200"
+                          placeholder="العنوان الرئيسي..."
+                        />
+                        <input 
+                          value={banner.subtitle}
+                          onChange={(e) => {
+                            const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, subtitle: e.target.value } : b);
+                            setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                          }}
+                          className="block w-full bg-transparent text-[10px] text-gray-500 focus:outline-hidden mb-1 border-b border-dashed border-gray-100 hover:border-gray-200"
+                          placeholder="الوصف الفرعي المعروض..."
                         />
                         <div className="flex items-center gap-2">
                           <input 
@@ -2612,7 +2701,7 @@ export function Dashboard({
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     try {
-                                      const compressedBase64 = await compressImage(file, 500);
+                                      const compressedBase64 = await compressImage(file, 1000);
                                       const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: compressedBase64 } : b);
                                       setSiteSettings({ ...siteSettings, promoBanners: newBanners });
                                     } catch (err) {
@@ -2650,7 +2739,7 @@ export function Dashboard({
                            </button>
                         </div>
 
-                        {/* Custom Height / Width control slots */}
+                        {/* Custom Height / Width / Text styling control slots */}
                         <div className="mt-4 pt-3 border-t border-gray-200/50 space-y-3">
                           <div className="flex items-center justify-between text-xxs font-black text-navy">
                             <span>طول البانر الإعلاني (الارتفاع):</span>
@@ -2691,6 +2780,101 @@ export function Dashboard({
                               </button>
                             ))}
                           </div>
+
+                          {/* Dynamic Color & Transparency Stylings (Requested by User) */}
+                          <div className="bg-amber-500/5 rounded-xl p-2.5 border border-amber-500/10 space-y-2 text-[10px]">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="font-bold text-navy block select-none">لون العنوان:</label>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <input 
+                                    type="color"
+                                    value={banner.titleColor || '#d4af37'}
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, titleColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-5 h-5 rounded-md border border-gray-200 cursor-pointer p-0 bg-transparent shrink-0"
+                                  />
+                                  <input 
+                                    type="text"
+                                    value={banner.titleColor || '#d4af37'}
+                                    placeholder="#d4af37"
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, titleColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-full text-[8px] px-1 py-0.5 bg-white border border-gray-150 rounded-md"
+                                    dir="ltr"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="font-bold text-navy block select-none">شفافية العنوان:</label>
+                                <div className="flex items-center gap-1 mt-1">
+                                  <input 
+                                    type="range"
+                                    min="10"
+                                    max="100"
+                                    step="5"
+                                    value={banner.titleOpacity !== undefined ? banner.titleOpacity : 100}
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, titleOpacity: Number(e.target.value) } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-full accent-gold h-1 cursor-pointer bg-gray-200 rounded-lg appearance-none"
+                                  />
+                                  <span className="text-[8px] font-mono text-gray-400 shrink-0">{banner.titleOpacity !== undefined ? banner.titleOpacity : 100}%</span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="font-bold text-navy block select-none">لون الوصف:</label>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <input 
+                                    type="color"
+                                    value={banner.subtitleColor || '#e2e8f0'}
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, subtitleColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-5 h-5 rounded-md border border-gray-200 cursor-pointer p-0 bg-transparent shrink-0"
+                                  />
+                                  <input 
+                                    type="text"
+                                    value={banner.subtitleColor || '#e2e8f0'}
+                                    placeholder="#e2e8f0"
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, subtitleColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-full text-[8px] px-1 py-0.5 bg-white border border-gray-150 rounded-md"
+                                    dir="ltr"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="font-bold text-navy block select-none">شفافية الوصف:</label>
+                                <div className="flex items-center gap-1 mt-1">
+                                  <input 
+                                    type="range"
+                                    min="10"
+                                    max="100"
+                                    step="5"
+                                    value={banner.subtitleOpacity !== undefined ? banner.subtitleOpacity : 90}
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, subtitleOpacity: Number(e.target.value) } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-full accent-gold h-1 cursor-pointer bg-gray-200 rounded-lg appearance-none"
+                                  />
+                                  <span className="text-[8px] font-mono text-gray-400 shrink-0">{banner.subtitleOpacity !== undefined ? banner.subtitleOpacity : 90}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2730,7 +2914,9 @@ export function Dashboard({
                 </div>
               </div>
               <button
-                onClick={() => alert('تم تحديث إعدادات النمو والظهور بنجاح!')}
+                onClick={() => {
+                  alert('تم خزن الإعدادات وسلسلة الولاء محلياً! يرجى النقر على زر "حفظ التعديلات الآن" بالأسفل لبثها وحفظها نهائياً.');
+                }}
                 className="px-8 py-3 bg-navy text-gold font-black text-xs rounded-2xl hover:bg-navy-light transition-all shadow-xl shadow-navy/20 active:scale-95"
               >
                 تحديث وحفظ الكل
@@ -2738,7 +2924,8 @@ export function Dashboard({
             </div>
           </div>
         </motion.div>
-      )}
+        );
+      })()}
 
       {/* OWNER PRIVATE SETTINGS TAB */}
       {activeTab === 'settings' && (
@@ -3532,6 +3719,71 @@ export function Dashboard({
              </motion.div>
            </motion.div>
          )}
+      </AnimatePresence>
+
+      {/* Floating Save All Changes bar for layout, ads, marketing settings */}
+      <AnimatePresence>
+        {isSettingsDirty && ['layout', 'ads', 'marketing'].includes(activeTab) && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 left-6 right-6 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-full md:max-w-xl z-50 p-4 bg-navy text-white rounded-2xl shadow-2xl border border-gold/20 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans text-right"
+          >
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+              </span>
+              <div>
+                <h4 className="text-xs font-black text-white">لديك تغييرات غير محفوظة في الإعدادات!</h4>
+                <p className="text-[10px] text-gray-400 font-sans">تُنقذ التعديلات في الحساب الخارجي لحمايتها عند التعديل.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={async () => {
+                  try {
+                    setSiteSettings(localSettings);
+                    setIsSettingsDirty(false);
+                    setShowSaveAllSuccess(true);
+                    setTimeout(() => setShowSaveAllSuccess(false), 4000);
+                  } catch (e) {
+                    alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                  }
+                }}
+                className="flex-1 sm:flex-none px-5 py-2.5 bg-gold text-navy hover:bg-gold-light text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-gold/15"
+              >
+                <span>حفظ التعديلات الآن 💾</span>
+              </button>
+              <button
+                onClick={() => {
+                  setLocalSettings(siteSettings);
+                  setIsSettingsDirty(false);
+                }}
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-bold text-gray-200 rounded-xl cursor-pointer transition-all"
+              >
+                تراجع وإلغاء
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Save success prompt */}
+      <AnimatePresence>
+        {showSaveAllSuccess && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-emerald-600 text-white border border-emerald-500 rounded-2xl shadow-2xl flex items-center gap-2 text-xs font-black font-sans text-right"
+          >
+            <CheckCircle className="h-5 w-5 text-gold animate-bounce" />
+            <span>تم حفظ ونشر جميع التغييرات والإعدادات بنجاح إلى التخزين الخارجي! 🌐🚀</span>
+          </motion.div>
+        )}
       </AnimatePresence>
 
     </div>

@@ -80,7 +80,10 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
     }
   ],
   pointsRatio: 5, // Default: 5 points per 1 SAR
-  pointsRedeemRatio: 100 // Default: 100 points = 1 SAR discount
+  pointsRedeemRatio: 100, // Default: 100 points = 1 SAR discount
+  headerShippingText: 'شحن مجاني لكافة البلدان للطلبات فوق ٤٠٠ ر.س',
+  headerPaymentText: 'دفع آمن بالكامل ومحمي ١٠٠٪',
+  headerOffersText: 'عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط'
 };
 
 // Start with absolutely fresh data for the client

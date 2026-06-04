@@ -43,18 +43,21 @@ export function StoreFront({
 
   const [priceRange, setPriceRange] = useState<number>(2000);
   const [hasSetInitialPrice, setHasSetInitialPrice] = useState(false);
+  const [lastMaxPrice, setLastMaxPrice] = useState<number>(0);
 
   React.useEffect(() => {
     if (products.length > 0) {
-      setPriceRange(prev => {
-        if (!hasSetInitialPrice || prev < maxProductPrice) {
-          setHasSetInitialPrice(true);
-          return maxProductPrice;
-        }
-        return prev;
-      });
+      if (!hasSetInitialPrice) {
+        setPriceRange(maxProductPrice);
+        setLastMaxPrice(maxProductPrice);
+        setHasSetInitialPrice(true);
+      } else if (maxProductPrice > lastMaxPrice) {
+        // A new, more expensive product was added! Let's expand the range so it's visible.
+        setPriceRange(maxProductPrice);
+        setLastMaxPrice(maxProductPrice);
+      }
     }
-  }, [products, maxProductPrice, hasSetInitialPrice]);
+  }, [products, maxProductPrice, hasSetInitialPrice, lastMaxPrice]);
 
   const [notification, setNotification] = useState<{ name: string; size?: string } | null>(null);
 
@@ -270,10 +273,22 @@ export function StoreFront({
                   >
                     <Sparkles className="h-3 w-3" /> عرض بلاتيني حصري
                   </motion.span>
-                  <h1 className="text-4xl md:text-7xl font-black font-display tracking-tight mb-6 leading-[1.1] text-gradient-gold">
+                  <h1 
+                    className={`text-4xl md:text-7xl font-black font-display tracking-tight mb-6 leading-[1.1] ${!banner.titleColor ? 'text-gradient-gold' : ''}`}
+                    style={{
+                      color: banner.titleColor || undefined,
+                      opacity: banner.titleOpacity !== undefined ? banner.titleOpacity / 100 : undefined
+                    }}
+                  >
                     {banner.title}
                   </h1>
-                  <p className="text-gray-200 text-sm md:text-lg font-sans mb-10 leading-relaxed max-w-xl opacity-90 font-medium">
+                  <p 
+                    className={`text-sm md:text-lg font-sans mb-10 leading-relaxed max-w-xl font-medium ${!banner.subtitleColor ? 'text-gray-200 opacity-90' : ''}`}
+                    style={{
+                      color: banner.subtitleColor || undefined,
+                      opacity: banner.subtitleOpacity !== undefined ? banner.subtitleOpacity / 100 : undefined
+                    }}
+                  >
                     {banner.subtitle}
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
@@ -348,13 +363,27 @@ export function StoreFront({
                   <input
                     type="range"
                     min="50"
-                    max={maxProductPrice}
+                    max={Math.max(priceRange, maxProductPrice)}
                     step="50"
                     value={priceRange}
                     onChange={(e) => setPriceRange(Number(e.target.value))}
                     className="w-24 sm:w-32 accent-amber-600 cursor-pointer h-1.5 bg-gray-200 rounded-lg appearance-none"
                   />
-                  <span className="text-xs font-bold text-amber-800 font-mono">{formatPrice(priceRange)}</span>
+                  <div className="flex items-center gap-1.5 font-sans">
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-20 px-2 py-0.5 bg-white border border-gray-200 focus:border-amber-500 rounded-lg text-xs font-bold text-amber-900 text-center focus:outline-hidden font-mono"
+                      value={priceRange}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (val >= 0) {
+                          setPriceRange(val);
+                        }
+                      }}
+                    />
+                    <span className="text-[10px] font-bold text-amber-800">{selectedCurrency.symbol}</span>
+                  </div>
                 </div>
               </div>
             </div>

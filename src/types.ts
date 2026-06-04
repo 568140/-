@@ -111,6 +111,9 @@ export interface SiteSettings {
   redemptionOptions: PointRedemptionOption[];
   pointsRatio: number; // Points earned per 1 unit of currency (e.g. 1 SAR = 5 Points)
   pointsRedeemRatio: number; // Points needed to get 1 unit of currency discount (e.g. 100 points = 1 SAR)
+  headerShippingText?: string;
+  headerPaymentText?: string;
+  headerOffersText?: string;
 }
 
 export interface PointRedemptionOption {
@@ -140,6 +143,10 @@ export interface PromoBanner {
   isActive: boolean;
   customHeight?: number;
   customWidth?: 'container' | 'full-width' | '80%' | '70%' | '60%';
+  titleColor?: string;
+  titleOpacity?: number;
+  subtitleColor?: string;
+  subtitleOpacity?: number;
 }
 
 export interface CurrencyConfig {
