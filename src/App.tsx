@@ -414,26 +414,77 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'site_settings'), (snapshot) => {
-      if (snapshot.empty) {
+    const unsub = onSnapshot(doc(db, 'site_settings', 'general'), (docSnap) => {
+      if (!docSnap.exists()) {
         setDoc(doc(db, 'site_settings', 'general'), INITIAL_SITE_SETTINGS).catch(e => 
           handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
         );
       } else {
-        const docData = snapshot.docs[0].data() as import('./types').SiteSettings;
+        const docData = docSnap.data() as import('./types').SiteSettings;
         setSiteSettings({
           ...INITIAL_SITE_SETTINGS,
           ...docData,
-          promoBanners: docData.promoBanners || INITIAL_SITE_SETTINGS.promoBanners,
-          adScripts: docData.adScripts || INITIAL_SITE_SETTINGS.adScripts,
-          redemptionOptions: docData.redemptionOptions || INITIAL_SITE_SETTINGS.redemptionOptions,
+          promoBanners: docData.promoBanners !== undefined ? docData.promoBanners : INITIAL_SITE_SETTINGS.promoBanners,
+          adScripts: docData.adScripts !== undefined ? docData.adScripts : INITIAL_SITE_SETTINGS.adScripts,
+          redemptionOptions: docData.redemptionOptions !== undefined ? docData.redemptionOptions : INITIAL_SITE_SETTINGS.redemptionOptions,
         });
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'site_settings');
+      handleFirestoreError(error, OperationType.GET, 'site_settings/general');
     });
     return () => unsub();
   }, []);
+
+  // Dynamic SEO & Metadata injector to support search engine discovery and brand identity (requested by user)
+  useEffect(() => {
+    if (!siteSettings) return;
+
+    // 1. Title Meta
+    document.title = siteSettings.storeName 
+      ? `${siteSettings.storeName} | ${siteSettings.heroSubtitle || 'الشرق البلاتيني والذهب الفاخر'}` 
+      : 'دكان الشرق البلاتيني - متجر الفخامة اليمني';
+
+    // 2. Description Meta
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute('content', siteSettings.aboutUs || siteSettings.heroSubtitle || 'متجر الشرق البلاتيني الفاخر للمنتجات والخدمات المميزة في اليمن وخارجها.');
+
+    // 3. Keywords Meta
+    let metaKeywords = document.querySelector('meta[name="keywords"]');
+    if (!metaKeywords) {
+      metaKeywords = document.createElement('meta');
+      metaKeywords.setAttribute('name', 'keywords');
+      document.head.appendChild(metaKeywords);
+    }
+    const defaultKeywords = 'دكان, الشرق, البلاتيني, تصفح, منتجات, ذهب, مجوهرات, اليمن, شحن, عدن, صنعاء';
+    metaKeywords.setAttribute('content', siteSettings.seoKeywords || defaultKeywords);
+
+    // 4. Favicon Icon Link
+    let linkFavicon: HTMLLinkElement | null = document.querySelector('link[rel="icon"]');
+    if (!linkFavicon) {
+      linkFavicon = document.createElement('link');
+      linkFavicon.setAttribute('rel', 'icon');
+      document.head.appendChild(linkFavicon);
+    }
+    if (siteSettings.iconUrl) {
+      linkFavicon.setAttribute('href', siteSettings.iconUrl);
+    }
+
+    // 5. Apple Touch Icon Link for mobile homescreens
+    let linkApple: HTMLLinkElement | null = document.querySelector('link[rel="apple-touch-icon"]');
+    if (!linkApple) {
+      linkApple = document.createElement('link');
+      linkApple.setAttribute('rel', 'apple-touch-icon');
+      document.head.appendChild(linkApple);
+    }
+    if (siteSettings.logoUrl) {
+      linkApple.setAttribute('href', siteSettings.logoUrl);
+    }
+  }, [siteSettings]);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'coupons'), (snapshot) => {

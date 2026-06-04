@@ -323,10 +323,12 @@ export function Dashboard({
 
   // Product sorting / filtering
   const filteredProducts = useMemo(() => {
-    return products.filter(p => 
-      p.name.toLowerCase().includes(searchProductQuery.toLowerCase()) || 
-      p.category.toLowerCase().includes(searchProductQuery.toLowerCase())
-    );
+    return products.filter(p => {
+      const name = p.name || '';
+      const category = p.category || '';
+      return name.toLowerCase().includes(searchProductQuery.toLowerCase()) || 
+             category.toLowerCase().includes(searchProductQuery.toLowerCase());
+    });
   }, [products, searchProductQuery]);
 
   // Order sorting / filtering by User/Owner search (Phone, customerName, or unique order code)
@@ -2610,7 +2612,7 @@ export function Dashboard({
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     try {
-                                      const compressedBase64 = await compressImage(file, 1200);
+                                      const compressedBase64 = await compressImage(file, 500);
                                       const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: compressedBase64 } : b);
                                       setSiteSettings({ ...siteSettings, promoBanners: newBanners });
                                     } catch (err) {

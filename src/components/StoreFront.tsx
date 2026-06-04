@@ -33,7 +33,29 @@ export function StoreFront({
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSizeForModal, setSelectedSizeForModal] = useState<string>('');
   const [sortBy, setSortBy] = useState<'recommended' | 'price-asc' | 'price-desc' | 'rating'>('recommended');
+  
+  // Calculate dynamic maximum price to avoid hiding premium or newly added products
+  const maxProductPrice = useMemo(() => {
+    if (products.length === 0) return 2000;
+    const maxPrice = Math.max(...products.map(p => p.price || 0));
+    return Math.max(2000, Math.ceil(maxPrice / 100) * 100);
+  }, [products]);
+
   const [priceRange, setPriceRange] = useState<number>(2000);
+  const [hasSetInitialPrice, setHasSetInitialPrice] = useState(false);
+
+  React.useEffect(() => {
+    if (products.length > 0) {
+      setPriceRange(prev => {
+        if (!hasSetInitialPrice || prev < maxProductPrice) {
+          setHasSetInitialPrice(true);
+          return maxProductPrice;
+        }
+        return prev;
+      });
+    }
+  }, [products, maxProductPrice, hasSetInitialPrice]);
+
   const [notification, setNotification] = useState<{ name: string; size?: string } | null>(null);
 
   // New review form states
@@ -44,7 +66,7 @@ export function StoreFront({
 
   // Convert prices dynamically helper
   const formatPrice = (sarPrice: number) => {
-    const converted = sarPrice * selectedCurrency.rate;
+    const converted = (sarPrice || 0) * selectedCurrency.rate;
     // Show 2 decimals for non-SAR currencies, or round if needed
     const decimals = selectedCurrency.code === 'SAR' ? 0 : 2;
     return `${converted.toFixed(decimals)} ${selectedCurrency.symbol}`;
@@ -59,18 +81,30 @@ export function StoreFront({
   const filteredProducts = useMemo(() => {
     return products
       .filter((product) => {
-        const matchesCategory = selectedCategory === 'الكل' || product.category === selectedCategory;
-        const matchesSubCategory = selectedSubCategory === 'الكل' || !product.subCategory || product.subCategory === selectedSubCategory;
-        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                              product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              (product.code && product.code.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchesPrice = product.price <= priceRange;
+        const pName = product.name || '';
+        const pDesc = product.description || '';
+        const pCode = product.code || '';
+        const pCategory = product.category || '';
+        const pSubCategory = product.subCategory || '';
+        const pPrice = product.price || 0;
+
+        const matchesCategory = selectedCategory === 'الكل' || pCategory.trim() === selectedCategory.trim();
+        const matchesSubCategory = selectedSubCategory === 'الكل' || !pSubCategory || pSubCategory.trim() === selectedSubCategory.trim();
+        const matchesSearch = pName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              pDesc.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              pCode.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesPrice = pPrice <= priceRange;
         return matchesCategory && matchesSubCategory && matchesSearch && matchesPrice;
       })
       .sort((a, b) => {
-        if (sortBy === 'price-asc') return a.price - b.price;
-        if (sortBy === 'price-desc') return b.price - a.price;
-        if (sortBy === 'rating') return b.rating - a.rating;
+        const aPrice = a.price || 0;
+        const bPrice = b.price || 0;
+        const aRating = a.rating || 0;
+        const bRating = b.rating || 0;
+
+        if (sortBy === 'price-asc') return aPrice - bPrice;
+        if (sortBy === 'price-desc') return bPrice - aPrice;
+        if (sortBy === 'rating') return bRating - aRating;
         // Default to isFeatured first, then ID
         if (a.isFeatured && !b.isFeatured) return -1;
         if (!a.isFeatured && b.isFeatured) return 1;
@@ -314,7 +348,7 @@ export function StoreFront({
                   <input
                     type="range"
                     min="50"
-                    max="2000"
+                    max={maxProductPrice}
                     step="50"
                     value={priceRange}
                     onChange={(e) => setPriceRange(Number(e.target.value))}
