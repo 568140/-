@@ -33,10 +33,6 @@ interface CartProps {
   customerAccounts?: import('../types').CustomerAccount[];
 }
 
-const GLOBAL_DESTINATIONS = [
-  { id: 'yem', cityAr: 'اليمن (توصيل آمن وباب البيت في كافة المحافظات اليمنية)', region: 'international', costSar: 2500, estDays: '١-٣ أيام شحن سريع' },
-];
-
 export function Cart({
   cartItems,
   onUpdateQuantity,
@@ -129,6 +125,16 @@ export function Cart({
     }
   }, [yemeniGov, geodataMap]);
 
+  const activeShippingDestinations = React.useMemo(() => {
+    if (siteSettings.shippingDestinations && siteSettings.shippingDestinations.length > 0) {
+      return siteSettings.shippingDestinations.filter(d => d.isActive);
+    }
+    return [
+      { id: 'dest-yem', cityAr: 'اليمن (شحن سريع وآمن)', costSar: 2500, estDays: '١-٣ أيام', isActive: true },
+      { id: 'dest-ksa', cityAr: 'المملكة العربية السعودية', costSar: 35, estDays: '٢-٥ أيام', isActive: true },
+    ];
+  }, [siteSettings.shippingDestinations]);
+
   // Autofill verified user data from profile system
   React.useEffect(() => {
     if (currentUser) {
@@ -139,7 +145,14 @@ export function Cart({
 
   // Advanced order customization states
   const [giftWrap, setGiftWrap] = useState(false);
-  const [selectedDestId, setSelectedDestId] = useState(GLOBAL_DESTINATIONS[0].id);
+  const [selectedDestId, setSelectedDestId] = useState(() => activeShippingDestinations[0]?.id || 'dest-yem');
+
+  // Sync selectedDestId if list changes
+  React.useEffect(() => {
+    if (activeShippingDestinations.length > 0 && !activeShippingDestinations.find(d => d.id === selectedDestId)) {
+      setSelectedDestId(activeShippingDestinations[0].id);
+    }
+  }, [activeShippingDestinations, selectedDestId]);
 
   // Form states
   const [customerName, setCustomerName] = useState('');
@@ -212,9 +225,9 @@ export function Cart({
   const remainingAfterDiscount = Math.max(subtotal - actualDiscount, 0);
   
   // Shipping charge calc based on destination
-  const destObj = GLOBAL_DESTINATIONS.find(d => d.id === selectedDestId) || GLOBAL_DESTINATIONS[0];
+  const destObj = activeShippingDestinations.find(d => d.id === selectedDestId) || activeShippingDestinations[0];
   // If subtotal is more than 400, shipping is free!
-  const shippingCost = subtotal > 400 ? 0 : destObj.costSar;
+  const shippingCost = subtotal > 400 ? 0 : (destObj?.costSar || 0);
   const giftWrapCost = giftWrap ? 15 : 0; // 15 SAR for custom wrapping with elegant ribbon card
   
   const vatAmount = 0; // VAT removed
@@ -252,7 +265,7 @@ export function Cart({
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isYemen = selectedDestId === 'yem';
+    const isYemen = selectedDestId === 'dest-yem' || destObj?.cityAr?.includes('اليمن');
     const finalAddress = isYemen
       ? `محافظة ${geodataMap[yemeniGov]?.name || yemeniGov} - مديرية ${yemeniDist} - شارع/حي ${yemeniStreet.includes('أخرى') ? customYemeniStreet : yemeniStreet}`
       : customerAddress;
@@ -598,6 +611,11 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
           </div>
 
           {/* Checkout shipping info form */}
+          {activeShippingDestinations.length === 0 && (
+            <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 text-amber-800 text-xs font-bold mb-6 text-center">
+              عذراً، لا توجد مناطق شحن مفعلة حالياً. يرجى التواصل مع إدارة المتجر.
+            </div>
+          )}
           {currentUser ? (
           <form id="shipping-form" onSubmit={handleSubmitOrder} className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-6">
             <h2 className="text-sm font-black text-charcoal border-b border-gray-50 pb-4 flex items-center gap-2">
@@ -655,13 +673,13 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
 
               {/* Destination region and calculations */}
               <div className="relative">
-                <label className="block text-[10px] text-gray-400 font-mono mb-1.5 font-bold uppercase">مدينة التسليم المعتمدة بالدول *</label>
+                <label className="block text-[10px] text-gray-400 font-mono mb-1.5 font-bold uppercase">مدينة التسليمة المعتمدة بالدول والمناطق *</label>
                 <select
                   value={selectedDestId}
                   onChange={(e) => setSelectedDestId(e.target.value)}
                   className="w-full pr-4 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 cursor-pointer"
                 >
-                  {GLOBAL_DESTINATIONS.map((dest) => (
+                  {activeShippingDestinations.map((dest) => (
                     <option key={dest.id} value={dest.id}>
                       {dest.cityAr} ({dest.estDays} - {dest.costSar === 0 || subtotal > 400 ? 'شحن مجاني' : `${dest.costSar} ر.س`})
                     </option>

@@ -3,6 +3,7 @@ export interface GovernorateData {
   name: string;
   districts: string[];
   streets: string[];
+  iconUrl?: string; // رابط أيقونة المحافظة (علم، شعار، صورة معبرة)
 }
 
 export const DEFAULT_YEMENI_GEODATA: GovernorateData[] = [

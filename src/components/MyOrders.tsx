@@ -48,8 +48,9 @@ export function MyOrders({ orders, currentUser }: MyOrdersProps) {
 
   // Total user orders placed regardless of search (local backup)
   const automaticOrders = useMemo(() => {
-    return orders.slice(-3).reverse(); // show last 3 orders automatically to make it easy to see!
-  }, [orders]);
+    // Only show if we have a search query or a logged in user matched by phone
+    return []; 
+  }, []);
 
   const renderStatusProgress = (status: Order['status']) => {
     const steps: { name: string; statusName: string; icon: any }[] = [
@@ -237,7 +238,7 @@ export function MyOrders({ orders, currentUser }: MyOrdersProps) {
 
             {automaticOrders.length === 0 ? (
               <div className="bg-gray-50 rounded-2xl p-8 border border-dashed border-gray-200 text-center">
-                <p className="text-xs text-gray-400 font-sans font-medium">سجل مشترياتك خالٍ بالأجهزة المخزنة. تسوّق وأجرِ طلبك الأول!</p>
+                <p className="text-xs text-gray-400 font-sans font-medium">أدخل رقم الهاتف أو رقم الطلب أعلاه لعرض تفاصيل شحنتك بدقة.</p>
               </div>
             ) : (
               <div className="space-y-4">

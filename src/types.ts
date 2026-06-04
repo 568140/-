@@ -78,6 +78,7 @@ export interface LocalWallet {
   id: string;
   name: string;
   accountNumber: string;
+  iconUrl?: string; // ألوان الأيقونة أو رابط الصورة للمحفظة
   isActive: boolean;
 }
 
@@ -132,6 +133,15 @@ export interface SiteSettings {
   enableCod?: boolean;
   enableLocalWallets?: boolean;
   enableExternalCards?: boolean;
+  shippingDestinations?: ShippingDestination[]; // قائمة وجهات الشحن المخصصة
+}
+
+export interface ShippingDestination {
+  id: string;
+  cityAr: string;
+  costSar: number;
+  estDays: string;
+  isActive: boolean;
 }
 
 export interface PointRedemptionOption {
@@ -165,6 +175,13 @@ export interface PromoBanner {
   titleOpacity?: number;
   subtitleColor?: string;
   subtitleOpacity?: number;
+  bgColor?: string; // خلفية البنر المخصصة
+  textColor?: string; // لون النص العام المخصص
+}
+
+export interface VisitorStat {
+  date: string; // YYYY-MM-DD
+  count: number;
 }
 
 export interface CurrencyConfig {

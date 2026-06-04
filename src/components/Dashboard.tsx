@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   TrendingUp, ShoppingBag, Users, DollarSign, Package, BadgePercent, 
-  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem
+  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem, Coins, CreditCard
 } from 'lucide-react';
 import { Product, Order, Coupon, LocalWallet, Transaction, CustomerAccount } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
@@ -144,8 +144,33 @@ export function Dashboard({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping'>('metrics');
   
+  // Real-time visitor stats
+  const [visitorStats, setVisitorStats] = useState<import('../types').VisitorStat[]>([]);
+
+  React.useEffect(() => {
+    // Correctly using dynamic imports with the existing exported db
+    const loadVisitorStats = async () => {
+      const { collection, onSnapshot, query, orderBy, limit } = await import('firebase/firestore');
+      const { db } = await import('../firebase');
+      const q = query(collection(db, 'visitor_stats'), orderBy('date', 'desc'), limit(30));
+      return onSnapshot(q, (snapshot) => {
+        const stats = snapshot.docs.map(doc => doc.data() as import('../types').VisitorStat);
+        setVisitorStats(stats);
+      });
+    };
+    
+    let unsubscribe: () => void;
+    loadVisitorStats().then(unsub => {
+      unsubscribe = unsub;
+    });
+    
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   // Admin Authentication / Credentials Configuration
   const [adminUsername, setAdminUsername] = useState(() => {
     return localStorage.getItem('dukkan_admin_user') || 'admin';
@@ -223,6 +248,7 @@ export function Dashboard({
   const [editingGovName, setEditingGovName] = useState('');
   const [editingGovDistricts, setEditingGovDistricts] = useState('');
   const [editingGovStreets, setEditingGovStreets] = useState('');
+  const [editingGovIcon, setEditingGovIcon] = useState('');
 
   // Order detail viewer modal
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -814,6 +840,16 @@ export function Dashboard({
             🚀 التسويق والـ SEO
           </button>
           <button
+            onClick={() => setActiveTab('shipping')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'shipping'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            🚚 مناطق الشحن ({siteSettings.shippingDestinations?.length || 0})
+          </button>
+          <button
             onClick={() => {
               setNewAdminUser(adminUsername);
               setNewAdminPass(adminPassword);
@@ -950,7 +986,22 @@ export function Dashboard({
               </div>
             </div>
 
-            {/* KPI 4: Active Coupons */}
+            {/* KPI 4: Real Visitors */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
+              <div>
+                <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">الزوار الحقيقيون اليوم</span>
+                <span className="text-2xl font-black text-rose-600 font-mono">
+                  {visitorStats.find(s => s.date === new Date().toISOString().split('T')[0])?.count || 0}
+                </span>
+                <span className="text-xs font-bold text-gray-450 font-sans pr-1">زائر</span>
+                <p className="text-[9px] text-rose-700 font-sans font-semibold mt-1">تتبع مباشر وحقيقي للمتجر</p>
+              </div>
+              <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl border border-rose-100 group-hover:scale-110 transition-transform">
+                <Users className="h-6 w-6" />
+              </div>
+            </div>
+
+            {/* KPI 5: Active Coupons */}
             <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs flex items-center justify-between hover:shadow-md transition-all group">
               <div>
                 <span className="block text-xxs font-extrabold text-gray-400 font-sans uppercase mb-1 tracking-wider">الكوبونات الملكية الفعالة</span>
@@ -1711,6 +1762,24 @@ export function Dashboard({
                 
                 <div className="space-y-4 pr-3">
                   <div>
+                    <label className="block text-xxs font-bold text-gray-500 mb-1">أيقونة المحفظة (رابط الصورة)</label>
+                    <div className="flex gap-2">
+                       <input 
+                        type="text" 
+                        value={wallet.iconUrl || ''}
+                        onChange={(e) => {
+                          if (setLocalWallets) {
+                            setLocalWallets(prev => prev.map(w => w.id === wallet.id ? { ...w, iconUrl: e.target.value } : w));
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 focus:border-amber-400 rounded-lg text-xs font-mono"
+                        placeholder="https://..."
+                        dir="ltr"
+                      />
+                      {wallet.iconUrl && <img src={wallet.iconUrl} className="h-9 w-9 object-contain bg-white rounded-lg border p-1" alt="" />}
+                    </div>
+                  </div>
+                  <div>
                     <label className="block text-xxs font-bold text-gray-500 mb-1">اسم المحفظة / الخدمة</label>
                     <input 
                       type="text" 
@@ -1896,6 +1965,29 @@ export function Dashboard({
                             className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs"
                           />
                         </div>
+                        <div className="space-y-1">
+                          <label className="block text-[10px] text-gray-400 font-bold">أيقونة المحافظة (رابط أو رفع)</label>
+                          <div className="flex gap-2">
+                            <input 
+                              type="text"
+                              value={editingGovIcon}
+                              onChange={(e) => setEditingGovIcon(e.target.value)}
+                              className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[10px] font-mono"
+                              placeholder="https://..."
+                              dir="ltr"
+                            />
+                            <label className="flex items-center justify-center p-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer border border-gray-200">
+                               <Upload className="h-3.5 w-3.5 text-gray-400" />
+                               <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                                 const file = e.target.files?.[0];
+                                 if (file) {
+                                   const base64 = await compressImage(file, 256);
+                                   setEditingGovIcon(base64);
+                                 }
+                               }} />
+                            </label>
+                          </div>
+                        </div>
 
                         <div className="md:col-span-3 flex justify-end gap-2 pt-2">
                           <button
@@ -1912,10 +2004,12 @@ export function Dashboard({
                                 ...item,
                                 name: editingGovName.trim(),
                                 districts: dists.length ? dists : item.districts,
-                                streets: strs.length ? strs : item.streets
+                                streets: strs.length ? strs : item.streets,
+                                iconUrl: editingGovIcon || item.iconUrl
                               } : item));
 
                               setEditingGovId(null);
+                              setEditingGovIcon('');
                             }}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xxs font-bold px-3 py-1.5 rounded-lg cursor-pointer"
                           >
@@ -1932,14 +2026,22 @@ export function Dashboard({
                       </div>
                     ) : (
                       <>
-                        <div className="space-y-1.5 flex-1">
-                          <h3 className="text-xs font-black text-gray-900 flex items-center gap-1.5">
-                            <span className="text-amber-600">🇾🇪</span>
-                            <span>{gov.name}</span>
-                          </h3>
-                          <div className="text-xxs text-gray-500 leading-relaxed space-y-1 font-sans">
-                            <p><strong>المديريات المشمولة:</strong> {gov.districts.join(' ، ')}</p>
-                            <p><strong>الشوارع أو الأحياء الرئيسية:</strong> {gov.streets.join(' ، ')}</p>
+                        <div className="flex items-center gap-3 space-y-1.5 flex-1">
+                          <div className="h-10 w-10 bg-amber-50 rounded-xl border border-amber-100 flex items-center justify-center overflow-hidden shrink-0">
+                            {gov.iconUrl ? (
+                              <img src={gov.iconUrl} alt={gov.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <MapPin className="h-5 w-5 text-amber-600" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                              <span>{gov.name}</span>
+                            </h3>
+                            <div className="text-xxs text-gray-500 leading-relaxed space-y-1 font-sans">
+                              <p><strong>المديريات المشمولة:</strong> {gov.districts.join(' ، ')}</p>
+                              <p><strong>الشوارع أو الأحياء الرئيسية:</strong> {gov.streets.join(' ، ')}</p>
+                            </div>
                           </div>
                         </div>
 
@@ -2795,6 +2897,59 @@ export function Dashboard({
                           <div className="bg-amber-500/5 rounded-xl p-2.5 border border-amber-500/10 space-y-2 text-[10px]">
                             <div className="grid grid-cols-2 gap-2">
                               <div>
+                                <label className="font-bold text-navy block select-none">لون الخلفية (للبنرات الفارغة):</label>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <input 
+                                    type="color"
+                                    value={banner.bgColor || '#1a1f2e'}
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, bgColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-5 h-5 rounded-md border border-gray-200 cursor-pointer p-0 bg-transparent shrink-0"
+                                  />
+                                  <input 
+                                    type="text"
+                                    value={banner.bgColor || '#1a1f2e'}
+                                    placeholder="#1a1f2e"
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, bgColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-full text-[8px] px-1 py-0.5 bg-white border border-gray-150 rounded-md font-mono"
+                                    dir="ltr"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="font-bold text-navy block select-none">لون النص العام:</label>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <input 
+                                    type="color"
+                                    value={banner.textColor || '#ffffff'}
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, textColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-5 h-5 rounded-md border border-gray-200 cursor-pointer p-0 bg-transparent shrink-0"
+                                  />
+                                  <input 
+                                    type="text"
+                                    value={banner.textColor || '#ffffff'}
+                                    placeholder="#ffffff"
+                                    onChange={(e) => {
+                                      const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, textColor: e.target.value } : b);
+                                      setSiteSettings({ ...siteSettings, promoBanners: newBanners });
+                                    }}
+                                    className="w-full text-[8px] px-1 py-0.5 bg-white border border-gray-150 rounded-md font-mono"
+                                    dir="ltr"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
                                 <label className="font-bold text-navy block select-none">لون العنوان:</label>
                                 <div className="flex items-center gap-1 mt-0.5">
                                   <input 
@@ -2936,6 +3091,117 @@ export function Dashboard({
         </motion.div>
         );
       })()}
+
+      {/* SHIPPING DESTINATIONS TAB (Requested by User) */}
+      {activeTab === 'shipping' && (
+        <div className="space-y-6 text-right font-sans mx-auto max-w-4xl">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 py-3 flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-blue-600" />
+                <span>إدارة مناطق وتكاليف الشحن</span>
+              </h2>
+              <p className="text-xxs text-gray-400 font-sans mt-2">حدد مناطق الشحن المتاحة وتكلفة كل منها ووقت التوصيل المتوقع.</p>
+            </div>
+            <button
+              onClick={() => {
+                const newDest = {
+                  id: 'dest_' + Date.now(),
+                  cityAr: 'منطقة جديدة',
+                  costSar: 25,
+                  estDays: '٢-٤ أيام',
+                  isActive: true
+                };
+                handleUpdateLocalSettings(prev => ({
+                  ...prev,
+                  shippingDestinations: [...(prev.shippingDestinations || []), newDest]
+                }));
+              }}
+              className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-xs font-bold shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              <span>إضافة منطقة شحن</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {(localSettings.shippingDestinations || []).map((dest) => (
+              <div key={dest.id} className="bg-white rounded-2xl p-4 border border-gray-150 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 mb-1">اسم المنطقة/المدينة</label>
+                    <input 
+                      type="text" 
+                      value={dest.cityAr}
+                      onChange={(e) => {
+                        const updated = (localSettings.shippingDestinations || []).map(d => d.id === dest.id ? { ...d, cityAr: e.target.value } : d);
+                        handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });
+                      }}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 mb-1">تكلفة الشحن (ر.س)</label>
+                    <input 
+                      type="number" 
+                      value={dest.costSar}
+                      onChange={(e) => {
+                        const updated = (localSettings.shippingDestinations || []).map(d => d.id === dest.id ? { ...d, costSar: Number(e.target.value) } : d);
+                        handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });
+                      }}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 mb-1">وقت التوصيل المقدر</label>
+                    <input 
+                      type="text" 
+                      value={dest.estDays}
+                      onChange={(e) => {
+                        const updated = (localSettings.shippingDestinations || []).map(d => d.id === dest.id ? { ...d, estDays: e.target.value } : d);
+                        handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });
+                      }}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold"
+                      placeholder="مثال: ١-٣ أيام"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 pr-4 border-r border-gray-100">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={dest.isActive}
+                      onChange={(e) => {
+                        const updated = (localSettings.shippingDestinations || []).map(d => d.id === dest.id ? { ...d, isActive: e.target.checked } : d);
+                        handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });
+                      }}
+                      className="rounded border-gray-300 text-blue-600 w-4 h-4"
+                    />
+                    <span className="text-[10px] font-bold text-gray-600">فعال</span>
+                  </label>
+                  <button 
+                    onClick={() => {
+                      const updated = (localSettings.shippingDestinations || []).filter(d => d.id !== dest.id);
+                      handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });
+                    }}
+                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {(localSettings.shippingDestinations || []).length === 0 && (
+              <div className="py-12 text-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
+                <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                <p className="text-xs font-bold">لا يوجد مناطق شحن محددة حالياً.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* OWNER PRIVATE SETTINGS TAB */}
       {activeTab === 'settings' && (
@@ -3600,55 +3866,171 @@ export function Dashboard({
                 <X className="h-5 w-5" />
               </button>
 
-              <h3 className="text-base font-bold text-gray-900 font-sans border-b border-gray-50 pb-3 mb-4 flex items-center space-x-2 space-x-reverse">
-                <span>تفاصيل الفاتورة والطلب:</span>
-                <span className="font-mono text-amber-700">{viewingOrder.id}</span>
+              <h3 className="text-lg font-black text-navy font-sans border-b border-gray-100 pb-4 mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="h-6 w-6 text-amber-600" />
+                  <span>تفاصيل الفاتورة والطلب:</span>
+                  <span className="font-mono text-amber-900 bg-amber-50 px-2 py-0.5 rounded cursor-copy" title="نسخ رقم الطلب">{viewingOrder.id}</span>
+                </div>
+                <div className={`text-[10px] px-3 py-1 rounded-full font-black border ${
+                  viewingOrder.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                  viewingOrder.status === 'processing' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                  viewingOrder.status === 'shipped' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                  viewingOrder.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  'bg-rose-50 text-rose-700 border-rose-200'
+                }`}>
+                  {viewingOrder.status === 'pending' ? 'بانتظار الموافقة' :
+                   viewingOrder.status === 'processing' ? 'قيد التجهيز' :
+                   viewingOrder.status === 'shipped' ? 'تم الشحن' :
+                   viewingOrder.status === 'delivered' ? 'مكتمل' : 'ملغي'}
+                </div>
               </h3>
 
-              <div className="space-y-4 text-xs">
-                {/* Customer specifics */}
-                <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
-                  <p className="flex justify-between">
-                    <span className="text-gray-400">العميل:</span>
-                    <span className="font-bold text-gray-800">{viewingOrder.customerName}</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-gray-400">البريد الإلكتروني:</span>
-                    <span className="font-mono text-gray-800">{viewingOrder.customerEmail}</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-gray-400">الجوال:</span>
-                    <span className="font-mono text-gray-800">{viewingOrder.customerPhone}</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-gray-400">العنوان:</span>
-                    <span className="font-sans text-gray-800 font-bold">{viewingOrder.customerAddress}</span>
-                  </p>
+              <div className="space-y-6 text-xs overflow-y-auto max-h-[70vh] pr-1 custom-scrollbar">
+                {/* Status Update Quick Action */}
+                <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
+                   <label className="block text-[10px] font-black text-amber-900 mb-2 uppercase tracking-wider">تحديث حالة الطلب فورياً</label>
+                   <div className="grid grid-cols-5 gap-1.5">
+                     {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((st) => (
+                       <button
+                         key={st}
+                         onClick={() => onUpdateOrderStatus(viewingOrder.id, st as any)}
+                         className={`py-2 rounded-xl text-[10px] font-black transition-all border ${
+                           viewingOrder.status === st 
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-md scale-105' 
+                            : 'bg-white text-gray-500 border-gray-200 hover:border-amber-400'
+                         }`}
+                       >
+                         {st === 'pending' ? 'معلق' : st === 'processing' ? 'تجهيز' : st === 'shipped' ? 'شحن' : st === 'delivered' ? 'تم' : 'إلغاء'}
+                       </button>
+                     ))}
+                   </div>
                 </div>
 
-                {/* Items list */}
-                <div>
-                  <p className="font-bold text-gray-700 mb-2">المنتجات المطلوبة:</p>
-                  <div className="divide-y divide-gray-100 max-h-40 overflow-y-auto pr-1">
-                    {viewingOrder.items.map((item) => (
-                      <div key={item.product.id} className="py-2.5 flex justify-between items-center">
-                        <div className="flex items-center space-x-2 space-x-reverse">
-                          {item.product.image && <img src={item.product.image} className="h-8 w-8 object-cover rounded-md" />}
-                          <div>
-                            <p className="font-semibold text-gray-900 font-sans">{item.product.name}</p>
-                            <p className="text-xxs text-gray-400 font-mono">الكمية: {item.quantity}</p>
-                          </div>
+                {/* Customer specifics */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-xxs">
+                    <h4 className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-1.5 uppercase">
+                      <Users className="h-3.5 w-3.5" /> معلومات العميل
+                    </h4>
+                    <div className="space-y-2.5">
+                      <p className="flex justify-between items-center bg-white/50 p-2 rounded-lg">
+                        <span className="text-gray-400">الاسم الكامل:</span>
+                        <span className="font-black text-gray-900">{viewingOrder.customerName}</span>
+                      </p>
+                      <p className="flex justify-between items-center bg-white/50 p-2 rounded-lg overflow-hidden">
+                        <span className="text-gray-400">البريد الإلكتروني:</span>
+                        <span className="font-mono text-gray-700 truncate max-w-[150px]" dir="ltr">{viewingOrder.customerEmail}</span>
+                      </p>
+                      <p className="flex justify-between items-center bg-white/50 p-2 rounded-lg">
+                        <span className="text-gray-400 font-sans">رقم الجوال:</span>
+                        <span className="font-mono text-amber-900 font-black" dir="ltr">{viewingOrder.customerPhone}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-xxs">
+                     <h4 className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-1.5 uppercase">
+                        <MapPin className="h-3.5 w-3.5" /> تفاصيل العنوان والشحن
+                     </h4>
+                     <div className="space-y-2 text-navy">
+                        <div className="bg-white/50 p-3 rounded-xl border border-gray-100">
+                          <p className="text-gray-400 font-bold mb-1">عنوان التوصيل المسجل:</p>
+                          <p className="font-sans text-xs font-black leading-relaxed">{viewingOrder.customerAddress}</p>
                         </div>
-                        <span className="font-mono text-amber-700 font-bold">{item.product.price * item.quantity} ر.س</span>
-                      </div>
-                    ))}
+                        <div className="flex justify-between items-center bg-white/50 p-2 rounded-lg mt-2">
+                           <span className="text-gray-400">تاريخ الطلب:</span>
+                           <span className="font-mono text-gray-600">{viewingOrder.createdAt}</span>
+                        </div>
+                     </div>
                   </div>
                 </div>
 
-                {/* Total computation */}
-                <div className="border-t border-gray-150 pt-3 flex justify-between items-center text-sm font-bold">
-                  <span>إجمالي المبلغ</span>
-                  <span className="font-mono text-base text-amber-900">{viewingOrder.totalPrice.toFixed(2)} ر.س</span>
+                {/* Items list */}
+                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 shadow-xxs">
+                  <h4 className="text-[10px] font-black text-gray-400 mb-3 flex items-center gap-1.5 uppercase">
+                    <Package className="h-3.5 w-3.5" /> محتويات الطلبية ({viewingOrder.items.length})
+                  </h4>
+                  <div className="divide-y divide-gray-200/50 space-y-3">
+                    {viewingOrder.items.map((item, idx) => {
+                      const itemPrice = item.customPrice || item.product.price;
+                      return (
+                        <div key={idx} className="py-3 first:pt-0 flex justify-between items-start gap-4">
+                          <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                            <div className="h-14 w-14 bg-white rounded-xl border border-gray-200 flex items-center justify-center overflow-hidden shrink-0 shadow-xxs">
+                               {item.product.image ? (
+                                 <img src={item.product.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                               ) : (
+                                 <Package className="h-6 w-6 text-gray-300" />
+                               )}
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                              <p className="font-black text-navy text-xs truncate">{item.product.name}</p>
+                              <div className="flex flex-wrap gap-1.5 mt-1">
+                                {item.product.code && <span className="text-[9px] font-mono bg-navy/5 text-navy px-1.5 rounded border border-navy/10">كود: {item.product.code}</span>}
+                                {item.selectedColor && (
+                                  <span className="text-[9px] font-bold bg-amber-50 text-amber-700 px-1.5 rounded border border-amber-200/30">اللون: {item.selectedColor}</span>
+                                )}
+                                {item.selectedSize && (
+                                  <span className="text-[9px] font-bold bg-blue-50 text-blue-700 px-1.5 rounded border border-blue-200/30">المقاس: {item.selectedSize}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-left shrink-0">
+                            <p className="font-mono text-gray-400 text-[10px] mb-0.5">{item.quantity} × {itemPrice} ر.س</p>
+                            <p className="font-mono text-amber-900 font-black text-sm">{(itemPrice * item.quantity).toFixed(2)} ر.س</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Financial Summary */}
+                <div className="bg-navy rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
+                  
+                  <div className="space-y-3 relative z-10 font-sans">
+                    <div className="flex justify-between items-center text-xs opacity-70">
+                       <span>المجموع الفرعي:</span>
+                       <span className="font-mono">{viewingOrder.totalPrice + viewingOrder.discountApplied - viewingOrder.shippingCost} ر.س</span>
+                    </div>
+                    {viewingOrder.shippingCost > 0 && (
+                      <div className="flex justify-between items-center text-xs opacity-70">
+                         <span>تكلفة الشحن والتجهيز:</span>
+                         <span className="font-mono">{viewingOrder.shippingCost} ر.س</span>
+                      </div>
+                    )}
+                    {viewingOrder.discountApplied > 0 && (
+                      <div className="flex justify-between items-center text-xs text-rose-300">
+                         <span>خصم الكوبونات والنقاط:</span>
+                         <span className="font-mono">-{viewingOrder.discountApplied} ر.س</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-3 border-t border-white/10 text-lg font-black">
+                       <span className="font-sans">إجمالي الفاتورة النهائية:</span>
+                       <span className="font-mono text-gold">{viewingOrder.totalPrice.toFixed(2)} ر.س</span>
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+                       <div className="flex items-center gap-2">
+                         <div className="p-1 px-2.5 bg-white/10 rounded-lg border border-white/10 text-xxs font-black flex items-center gap-1.5">
+                            {viewingOrder.paymentMethod === 'cod' ? (
+                              <><Coins className="h-3 w-3" /> الدفع عند الاستلام</>
+                            ) : viewingOrder.paymentMethod === 'local_wallet' ? (
+                              <><Wallet className="h-3 w-3" /> عبر محفظة {viewingOrder.localWalletName}</>
+                            ) : (
+                              <><CreditCard className="h-3 w-3" /> {viewingOrder.paymentMethod.toUpperCase()}</>
+                            )}
+                         </div>
+                       </div>
+                       {viewingOrder.pointsUsed && viewingOrder.pointsUsed > 0 && (
+                         <div className="text-[10px] font-bold text-amber-400">🪙 تم استخدام {viewingOrder.pointsUsed} نقطة</div>
+                       )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>

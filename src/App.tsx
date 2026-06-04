@@ -56,7 +56,9 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
       subtitle: 'اكتشف الفخامة في كل رشة',
       mediaType: 'image',
       mediaUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=1600&auto=format&fit=crop',
-      isActive: true
+      isActive: true,
+      bgColor: '#1a1f2e',
+      textColor: '#ffffff'
     }
   ],
   redemptionOptions: [
@@ -86,7 +88,12 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   headerOffersText: 'عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط',
   enableCod: true,
   enableLocalWallets: true,
-  enableExternalCards: false
+  enableExternalCards: false,
+  shippingDestinations: [
+    { id: 'dest-yem', cityAr: 'اليمن (شحن سريع وآمن)', costSar: 2500, estDays: '١-٣ أيام', isActive: true },
+    { id: 'dest-ksa', cityAr: 'المملكة العربية السعودية', costSar: 35, estDays: '٢-٥ أيام', isActive: true },
+    { id: 'dest-gcc', cityAr: 'دول الخليج العربي', costSar: 75, estDays: '٣-٧ أيام', isActive: true }
+  ]
 };
 
 // Start with absolutely fresh data for the client
@@ -154,6 +161,17 @@ export default function App() {
 
   // State for site settings
   const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(INITIAL_SITE_SETTINGS);
+
+  // Real-time visitor tracking
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const statRef = doc(db, 'visitor_stats', today);
+    
+    // We import dynamically to keep startup light
+    import('firebase/firestore').then(({ increment }) => {
+      setDoc(statRef, { date: today, count: increment(1) }, { merge: true }).catch(() => {});
+    });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(yemeniGeodata));
@@ -433,6 +451,7 @@ export default function App() {
           promoBanners: docData.promoBanners !== undefined ? docData.promoBanners : INITIAL_SITE_SETTINGS.promoBanners,
           adScripts: docData.adScripts !== undefined ? docData.adScripts : INITIAL_SITE_SETTINGS.adScripts,
           redemptionOptions: docData.redemptionOptions !== undefined ? docData.redemptionOptions : INITIAL_SITE_SETTINGS.redemptionOptions,
+          shippingDestinations: docData.shippingDestinations !== undefined ? docData.shippingDestinations : INITIAL_SITE_SETTINGS.shippingDestinations,
         });
       }
     }, (error) => {
@@ -544,9 +563,11 @@ export default function App() {
       if (snapshot.empty) {
         const defaultCategories = [
           { name: 'إلكترونيات', subcategories: ['سماعات', 'ساعات ذكية', 'شواحن وإكسسوارات'] },
-          { name: 'عطور وبخور', subcategories: ['دهن العود', 'بخور مروكي', 'عطور فرنسية'] },
-          { name: 'قهوة ومستلزمات', subcategories: ['مكائن إسبريسو', 'بن مختص', 'أكواب فاخرة'] },
-          { name: 'ملابس وأزياء', subcategories: ['فساتين سهرة', 'جاكيتات معاطف', 'قمصان وأحذية'] }
+          { name: 'عطور وبخور', subcategories: ['أدهان العود', 'بخور مروكي فاخر', 'عطورات فرنسية نادرة'] },
+          { name: 'قهوة ومستلزمات', subcategories: ['مكائن إسبريسو', 'بن مختص درجة أولى', 'أدوات باريستا'] },
+          { name: 'ملابس وأزياء', subcategories: ['فساتين سهرة ملكية', 'معاطف شتوية فاخرة', 'أطقم رجالية'] },
+          { name: 'ساعات وهدايا', subcategories: ['ساعات سويسرية', 'أطقم فخمة صواني', 'قلم سبحة ملكي'] },
+          { name: 'جمال وعناية', subcategories: ['مكياج ماركات كبرى', 'زيوت طبيعية', 'أدوات تجميل'] }
         ];
         defaultCategories.forEach((cat, idx) => {
           const catId = `cat_${idx}`;
