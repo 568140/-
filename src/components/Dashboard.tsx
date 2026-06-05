@@ -160,7 +160,7 @@ export function Dashboard({
     if (!isLoggedInSession) return;
 
     const loadAdminData = async () => {
-      const { collection, onSnapshot, query, orderBy, limit } = await import('firebase/firestore');
+      const { collection, onSnapshot, query, orderBy, limit, doc } = await import('firebase/firestore');
       const { db } = await import('../firebase');
       
       // 1. Visitor Stats
