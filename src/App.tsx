@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { StoreFront } from './components/StoreFront';
 import { Cart } from './components/Cart';
@@ -425,6 +425,17 @@ export default function App() {
 
   // Dynamic Main Categories and Subcategories State
   const [categoriesState, setCategoriesState] = useState<{ name: string; subcategories: string[]; }[]>([]);
+
+  // Refs to maintain up-to-the-millisecond fresh state values and resolve any React closure capture synchronization bugs
+  const siteSettingsRef = useRef(siteSettings);
+  const categoriesStateRef = useRef(categoriesState);
+  const localWalletsRef = useRef(localWallets);
+  const customerAccountsRef = useRef(customerAccounts);
+
+  useEffect(() => { siteSettingsRef.current = siteSettings; }, [siteSettings]);
+  useEffect(() => { categoriesStateRef.current = categoriesState; }, [categoriesState]);
+  useEffect(() => { localWalletsRef.current = localWallets; }, [localWallets]);
+  useEffect(() => { customerAccountsRef.current = customerAccounts; }, [customerAccounts]);
 
   // Real-time Firestore Sync hooks requested by user
   useEffect(() => {
@@ -1032,7 +1043,7 @@ export default function App() {
   };
 
   const handleSetSiteSettings = (val: import('./types').SiteSettings | ((prev: import('./types').SiteSettings) => import('./types').SiteSettings)) => {
-    const nextSettings = typeof val === 'function' ? val(siteSettings) : val;
+    const nextSettings = typeof val === 'function' ? val(siteSettingsRef.current) : val;
     const cleanSettings = JSON.parse(JSON.stringify(nextSettings));
     setSiteSettings(cleanSettings);
     setDoc(doc(db, 'site_settings', 'general'), cleanSettings).catch(e =>
@@ -1041,7 +1052,7 @@ export default function App() {
   };
 
   const handleSetCategories = (val: any[] | ((prev: any[]) => any[])) => {
-    const nextCategories = typeof val === 'function' ? val(categoriesState) : val;
+    const nextCategories = typeof val === 'function' ? val(categoriesStateRef.current) : val;
     const cleanCats = JSON.parse(JSON.stringify(nextCategories));
     setDoc(doc(db, 'settings', 'categories'), { list: cleanCats }).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, 'settings/categories')
@@ -1049,7 +1060,7 @@ export default function App() {
   };
 
   const handleSetLocalWallets = (val: any[] | ((prev: any[]) => any[])) => {
-    const nextWallets = typeof val === 'function' ? val(localWallets) : val;
+    const nextWallets = typeof val === 'function' ? val(localWalletsRef.current) : val;
     nextWallets.forEach(w => {
       const cleanWallet = JSON.parse(JSON.stringify(w));
       setDoc(doc(db, 'local_wallets', w.id), cleanWallet).catch(e =>
@@ -1059,7 +1070,7 @@ export default function App() {
     
     // Delete missing wallets
     const nextIds = nextWallets.map(w => w.id);
-    localWallets.forEach(w => {
+    localWalletsRef.current.forEach(w => {
       if (!nextIds.includes(w.id)) {
         deleteDoc(doc(db, 'local_wallets', w.id)).catch(e =>
           handleFirestoreError(e, OperationType.DELETE, `local_wallets/${w.id}`)
@@ -1069,7 +1080,7 @@ export default function App() {
   };
 
   const handleSetCustomerAccounts = (val: import('./types').CustomerAccount[] | ((prev: import('./types').CustomerAccount[]) => import('./types').CustomerAccount[])) => {
-    const nextAccs = typeof val === 'function' ? val(customerAccounts) : val;
+    const nextAccs = typeof val === 'function' ? val(customerAccountsRef.current) : val;
     nextAccs.forEach(acc => {
       const cleanAcc = JSON.parse(JSON.stringify(acc));
       setDoc(doc(db, 'customer_accounts', acc.phone), cleanAcc).catch(e =>
@@ -1079,7 +1090,7 @@ export default function App() {
 
     // Delete missing accounts
     const nextPhones = nextAccs.map(a => a.phone);
-    customerAccounts.forEach(a => {
+    customerAccountsRef.current.forEach(a => {
       if (!nextPhones.includes(a.phone)) {
         deleteDoc(doc(db, 'customer_accounts', a.phone)).catch(e =>
           handleFirestoreError(e, OperationType.DELETE, `customer_accounts/${a.phone}`)

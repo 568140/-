@@ -103,7 +103,7 @@ export function Dashboard({
     if (!isSettingsDirty) {
       setLocalSettings(siteSettings);
     }
-  }, [siteSettings, isSettingsDirty]);
+  }, [siteSettings]);
 
   const handleUpdateLocalSettings = (val: import('../types').SiteSettings | ((prev: import('../types').SiteSettings) => import('../types').SiteSettings)) => {
     setLocalSettings(prev => {
