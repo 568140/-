@@ -69,6 +69,10 @@ service cloud.firestore {
         && isValStr(s.storeName, 256);
     }
 
+    function isValidGenericSettings(s) {
+       return true; // Flexible for varied settings docs
+    }
+
     function isValidVisitorStat(v) {
       return v.keys().hasAll(['date', 'count'])
         && isValStr(v.date, 64)
@@ -128,6 +132,12 @@ service cloud.firestore {
     match /site_settings/{settingsId} {
       allow read: if true;
       allow create, update: if isValidId(settingsId) && isValidSiteSettings(request.resource.data);
+      allow delete: if isValidId(settingsId);
+    }
+
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow create, update: if isValidId(settingsId) && isValidGenericSettings(request.resource.data);
       allow delete: if isValidId(settingsId);
     }
 

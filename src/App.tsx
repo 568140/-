@@ -13,6 +13,7 @@ import { Product, CartItem, Order, Coupon, CurrencyConfig } from './types';
 import { INITIAL_PRODUCTS, INITIAL_COUPONS, CATEGORIES, CURRENCIES } from './data';
 import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles } from 'lucide-react';
 import { DEFAULT_YEMENI_GEODATA, GovernorateData } from './utils/yemeniData';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   collection, doc, onSnapshot, setDoc, deleteDoc, addDoc, getDocs 
 } from 'firebase/firestore';
@@ -33,8 +34,8 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   copyrightText: 'جميع الحقوق محفوظة © دكّان الشَّرق البلاتيني 2024 - 2025',
   inventoryTagline: 'إدارة مخزون ذكية وعالمية',
   inventorySubtitle: 'نظام إدارة لوجستي فائق الذكاء ومؤمن بالكامل',
-  logoUrl: '/src/assets/images/luxury_gold_oriental_logo_1780193574767.png',
-  iconUrl: '/src/assets/images/luxury_gold_oriental_logo_1780193574767.png',
+  logoUrl: '/logo.png',
+  iconUrl: '/logo.png',
   seoKeywords: 'عطر، ساعات، فخامة، دكان الشرق، بلاتيني، تسوق، اليمن، السعودية',
   enableLiveChat: true,
   enableSocialProof: true,
@@ -159,12 +160,37 @@ export default function App() {
     }
   });
 
+  const handleSetYemeniGeodata = (val: GovernorateData[] | ((prev: GovernorateData[]) => GovernorateData[])) => {
+    const nextData = typeof val === 'function' ? val(yemeniGeodata) : val;
+    const cleanData = JSON.parse(JSON.stringify(nextData));
+    setDoc(doc(db, 'settings', 'yemeni_geodata'), { data: cleanData }).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, 'settings/yemeni_geodata')
+    );
+  };
+
   // State for site settings
   const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(INITIAL_SITE_SETTINGS);
+  const [appReady, setAppReady] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(yemeniGeodata));
-  }, [yemeniGeodata]);
+    const unsub = onSnapshot(doc(db, 'settings', 'yemeni_geodata'), (docSnap) => {
+      if (docSnap.exists()) {
+        const remoteData = docSnap.data().data as GovernorateData[];
+        if (remoteData && Array.isArray(remoteData)) {
+          setYemeniGeodata(remoteData);
+          localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(remoteData));
+        }
+      } else {
+        // Seed with default if not present
+        setDoc(doc(db, 'settings', 'yemeni_geodata'), { data: DEFAULT_YEMENI_GEODATA }).catch(() => {});
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/yemeni_geodata');
+    });
+    return () => unsub();
+  }, []);
 
   // Dynamic favicon and title update
   useEffect(() => {
@@ -358,7 +384,14 @@ export default function App() {
   };
 
   // State for products
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('dukkan_products_cache');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
   // State for cart (dynamically loaded and saved per-user)
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -419,7 +452,9 @@ export default function App() {
           list.push(prodData);
         });
         setProducts(list);
+        localStorage.setItem('dukkan_products_cache', JSON.stringify(list));
       }
+      setProductsLoaded(true);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
     });
@@ -434,15 +469,18 @@ export default function App() {
         );
       } else {
         const docData = docSnap.data() as import('./types').SiteSettings;
-        setSiteSettings({
+        const mergedSettings = {
           ...INITIAL_SITE_SETTINGS,
           ...docData,
           promoBanners: docData.promoBanners !== undefined ? docData.promoBanners : INITIAL_SITE_SETTINGS.promoBanners,
           adScripts: docData.adScripts !== undefined ? docData.adScripts : INITIAL_SITE_SETTINGS.adScripts,
           redemptionOptions: docData.redemptionOptions !== undefined ? docData.redemptionOptions : INITIAL_SITE_SETTINGS.redemptionOptions,
           shippingDestinations: docData.shippingDestinations !== undefined ? docData.shippingDestinations : INITIAL_SITE_SETTINGS.shippingDestinations,
-        });
+        };
+        setSiteSettings(mergedSettings as any);
+        localStorage.setItem('dukkan_site_settings', JSON.stringify(mergedSettings));
       }
+      setSettingsLoaded(true);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'site_settings/general');
     });
@@ -548,8 +586,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'category_states'), (snapshot) => {
-      if (snapshot.empty) {
+    const unsub = onSnapshot(doc(db, 'settings', 'categories'), (docSnap) => {
+      if (docSnap.exists()) {
+        const remoteCats = docSnap.data().list;
+        if (remoteCats && Array.isArray(remoteCats)) {
+          setCategoriesState(remoteCats);
+        }
+      } else {
         const defaultCategories = [
           { name: 'إلكترونيات', subcategories: ['سماعات', 'ساعات ذكية', 'شواحن وإكسسوارات'] },
           { name: 'عطور وبخور', subcategories: ['أدهان العود', 'بخور مروكي فاخر', 'عطورات فرنسية نادرة'] },
@@ -558,21 +601,10 @@ export default function App() {
           { name: 'ساعات وهدايا', subcategories: ['ساعات سويسرية', 'أطقم فخمة صواني', 'قلم سبحة ملكي'] },
           { name: 'جمال وعناية', subcategories: ['مكياج ماركات كبرى', 'زيوت طبيعية', 'أدوات تجميل'] }
         ];
-        defaultCategories.forEach((cat, idx) => {
-          const catId = `cat_${idx}`;
-          setDoc(doc(db, 'category_states', catId), cat).catch(e =>
-            handleFirestoreError(e, OperationType.WRITE, `category_states/${catId}`)
-          );
-        });
-      } else {
-        const list: any[] = [];
-        snapshot.forEach(docSnap => {
-          list.push(docSnap.data());
-        });
-        setCategoriesState(list);
+        setDoc(doc(db, 'settings', 'categories'), { list: defaultCategories }).catch(() => {});
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'category_states');
+      handleFirestoreError(error, OperationType.LIST, 'settings/categories');
     });
     return () => unsub();
   }, []);
@@ -996,20 +1028,10 @@ export default function App() {
 
   const handleSetCategories = (val: any[] | ((prev: any[]) => any[])) => {
     const nextCategories = typeof val === 'function' ? val(categoriesState) : val;
-    nextCategories.forEach((cat, idx) => {
-      const catId = `cat_${idx}`;
-      const cleanCat = JSON.parse(JSON.stringify(cat));
-      setDoc(doc(db, 'category_states', catId), cleanCat).catch(e =>
-        handleFirestoreError(e, OperationType.WRITE, `category_states/${catId}`)
-      );
-    });
-    
-    // Cleanup any removed indices
-    for (let i = nextCategories.length; i < categoriesState.length; i++) {
-      deleteDoc(doc(db, 'category_states', `cat_${i}`)).catch(e =>
-        handleFirestoreError(e, OperationType.DELETE, `category_states/cat_${i}`)
-      );
-    }
+    const cleanCats = JSON.parse(JSON.stringify(nextCategories));
+    setDoc(doc(db, 'settings', 'categories'), { list: cleanCats }).catch(e =>
+      handleFirestoreError(e, OperationType.WRITE, 'settings/categories')
+    );
   };
 
   const handleSetLocalWallets = (val: any[] | ((prev: any[]) => any[])) => {
@@ -1052,12 +1074,140 @@ export default function App() {
     });
   };
 
+  useEffect(() => {
+    if (productsLoaded && settingsLoaded) {
+      // Small intentional delay to ensure everything is painted and feels smooth
+      const timer = setTimeout(() => {
+        setAppReady(true);
+      }, 850);
+      return () => clearTimeout(timer);
+    }
+  }, [productsLoaded, settingsLoaded]);
+
   const cartCount = cartItems.reduce((acc, curr) => acc + curr.quantity, 0);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-between selection:bg-amber-100 selection:text-amber-900">
+    <div className="min-h-screen bg-white flex flex-col justify-between selection:bg-amber-100 selection:text-amber-900 overflow-x-hidden">
       
-      {/* Navigation section */}
+      {/* Elite Splash Screen - Luxury Welcome Experience */}
+      <AnimatePresence>
+        {!appReady && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.8, ease: [0.43, 0.13, 0.23, 0.96] }}
+            className="fixed inset-0 z-[10000] bg-[#07090e] flex flex-col items-center justify-center overflow-hidden"
+          >
+            {/* Animated Background Atmosphere */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <motion.div 
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  opacity: [0.1, 0.15, 0.1] 
+                }}
+                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                className="absolute -top-1/2 -left-1/2 w-full h-full bg-amber-500/20 blur-[120px] rounded-full"
+              />
+              <motion.div 
+                animate={{ 
+                  scale: [1.2, 1, 1.2],
+                  opacity: [0.05, 0.1, 0.05] 
+                }}
+                transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-blue-500/10 blur-[100px] rounded-full"
+              />
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="relative group">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="w-40 h-40 md:w-48 md:h-48 bg-gradient-to-b from-white/10 to-transparent rounded-full border border-white/20 flex items-center justify-center p-8 backdrop-blur-sm relative"
+                >
+                  <img 
+                    src={siteSettings.logoUrl || '/logo.png'} 
+                    alt={siteSettings.storeName} 
+                    className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] brightness-0 invert" 
+                  />
+                </motion.div>
+                
+                {/* Orbital Luxury Rings */}
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 -m-6 border border-amber-500/10 rounded-full"
+                ></motion.div>
+                <motion.div 
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 -m-10 border border-white/5 rounded-full"
+                ></motion.div>
+              </div>
+
+              <motion.div
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.6, duration: 1 }}
+                className="mt-12 text-center px-6"
+              >
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.8, duration: 1 }}
+                  className="text-amber-500/70 font-sans text-xs font-bold uppercase tracking-[0.3em] mb-3"
+                >
+                  نعتني بأدق التفاصيل لرضاكم
+                </motion.p>
+                
+                <h1 className="text-white font-sans text-2xl md:text-3xl font-black mb-2 flex items-center gap-3 justify-center">
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-amber-200 to-white">
+                    {siteSettings.storeName || "دكان الشرق البلاتيني"}
+                  </span>
+                </h1>
+                
+                <div className="h-px w-24 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent mx-auto mt-4 mb-6"></div>
+                
+                <motion.h2 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.2, duration: 1 }}
+                  className="text-white/60 font-sans text-sm md:text-base font-light tracking-wide"
+                >
+                  أهلاً بك في عالم الفخامة والتميز.. جارٍ التحضير
+                </motion.h2>
+
+                <div className="mt-8 flex items-center justify-center gap-2">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div 
+                      key={i}
+                      animate={{ 
+                        scale: [1, 1.5, 1],
+                        opacity: [0.3, 1, 0.3],
+                        backgroundColor: i === 1 ? ["#d97706", "#f59e0b", "#d97706"] : ["#4b5563", "#9ca3af", "#4b5563"]
+                      }}
+                      transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
+                      className="w-1.5 h-1.5 rounded-full"
+                    ></motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Bottom Branding */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.4 }}
+              transition={{ delay: 1.5 }}
+              className="absolute bottom-10 text-[10px] text-white/50 font-mono tracking-[0.5em] uppercase"
+            >
+              Excellence & Quality
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Navbar 
         currentView={currentView} 
         setCurrentView={setCurrentView} 
@@ -1126,7 +1276,7 @@ export default function App() {
             onAddCoupon={handleAddCoupon} 
             onDeleteCoupon={handleDeleteCoupon} 
             yemeniGeodata={yemeniGeodata}
-            setYemeniGeodata={setYemeniGeodata}
+            setYemeniGeodata={handleSetYemeniGeodata}
             customerAccounts={customerAccounts}
             setCustomerAccounts={handleSetCustomerAccounts}
             onAdminLoginChange={(val) => setIsAdminLoggedIn(val)}

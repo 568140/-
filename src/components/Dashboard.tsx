@@ -195,11 +195,27 @@ export function Dashboard({
         }
       });
 
+      // 4. Admin Credentials Sync
+      const unsubAdmin = onSnapshot(doc(db, 'settings', 'admin'), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.username) {
+            setAdminUsername(data.username);
+            localStorage.setItem('dukkan_admin_user', data.username);
+          }
+          if (data.password) {
+            setAdminPassword(data.password);
+            localStorage.setItem('dukkan_admin_pass', data.password);
+          }
+        }
+      });
+
       setIsDataLoaded(true);
       return () => {
         unsubStats();
         unsubOrders();
         unsubAccounts();
+        unsubAdmin();
       };
     };
     
@@ -226,10 +242,32 @@ export function Dashboard({
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Settings Credentials Input States
-  const [newAdminUser, setNewAdminUser] = useState(adminUsername);
-  const [newAdminPass, setNewAdminPass] = useState(adminPassword);
-  const [showCredSuccess, setShowCredSuccess] = useState(false);
+  // Settings Credentials Logic
+  const handleUpdateAdminCreds = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const confirmChange = window.confirm('هل أنت متأكد من تغيير بيانات دخول الإدارة؟ سيتم تطبيق هذا التغيير عالمياً.');
+    if (!confirmChange) return;
+
+    const { doc, setDoc } = await import('firebase/firestore');
+    const { db } = await import('../firebase');
+
+    try {
+      await setDoc(doc(db, 'settings', 'admin'), {
+        username: newAdminUser.trim(),
+        password: newAdminPass.trim()
+      });
+      
+      setAdminUsername(newAdminUser.trim());
+      setAdminPassword(newAdminPass.trim());
+      localStorage.setItem('dukkan_admin_user', newAdminUser.trim());
+      localStorage.setItem('dukkan_admin_pass', newAdminPass.trim());
+      
+      setShowCredSuccess(true);
+      setTimeout(() => setShowCredSuccess(false), 3000);
+    } catch (err) {
+      alert('فشل في حفظ بيانات المسؤول الجديدة في التخزين الخارجي.');
+    }
+  };
 
   // Modals / Form states
   const [searchProductQuery, setSearchProductQuery] = useState('');
@@ -3260,19 +3298,7 @@ export function Dashboard({
           </div>
 
           <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!newAdminUser.trim() || !newAdminPass.trim()) {
-                alert('الرجاء التأكد من إدخال اسم مستخدم وكلمة مرور صالحة!');
-                return;
-              }
-              setAdminUsername(newAdminUser);
-              setAdminPassword(newAdminPass);
-              localStorage.setItem('dukkan_admin_user', newAdminUser.trim());
-              localStorage.setItem('dukkan_admin_pass', newAdminPass.trim());
-              setShowCredSuccess(true);
-              setTimeout(() => setShowCredSuccess(false), 3000);
-            }} 
+            onSubmit={handleUpdateAdminCreds}
             className="space-y-4"
           >
             {showCredSuccess && (
@@ -4391,7 +4417,7 @@ export function Dashboard({
 
       {/* Floating Save All Changes bar for layout, ads, marketing settings */}
       <AnimatePresence>
-        {isSettingsDirty && ['layout', 'ads', 'marketing'].includes(activeTab) && (
+        {isSettingsDirty && (activeTab === 'layout' || activeTab === 'ads' || activeTab === 'marketing' || activeTab === 'shipping' || activeTab === 'settings') && (
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
