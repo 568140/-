@@ -108,9 +108,10 @@ export function Dashboard({
   const handleUpdateLocalSettings = (val: import('../types').SiteSettings | ((prev: import('../types').SiteSettings) => import('../types').SiteSettings)) => {
     setLocalSettings(prev => {
       const next = typeof val === 'function' ? val(prev) : val;
+      setSiteSettings(next);
       return next;
     });
-    setIsSettingsDirty(true);
+    setIsSettingsDirty(false);
   };
 
   // File Upload Handling
