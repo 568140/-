@@ -610,6 +610,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'customer_accounts'), (snapshot) => {
+      const list: import('./types').CustomerAccount[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as import('./types').CustomerAccount);
+      });
+      setCustomerAccounts(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'customer_accounts');
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem('dukkan_currency', JSON.stringify(selectedCurrency));
   }, [selectedCurrency]);
 
@@ -1021,6 +1034,7 @@ export default function App() {
   const handleSetSiteSettings = (val: import('./types').SiteSettings | ((prev: import('./types').SiteSettings) => import('./types').SiteSettings)) => {
     const nextSettings = typeof val === 'function' ? val(siteSettings) : val;
     const cleanSettings = JSON.parse(JSON.stringify(nextSettings));
+    setSiteSettings(cleanSettings);
     setDoc(doc(db, 'site_settings', 'general'), cleanSettings).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
     );
@@ -1129,7 +1143,11 @@ export default function App() {
                   <img 
                     src={siteSettings.logoUrl || '/logo.png'} 
                     alt={siteSettings.storeName} 
-                    className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] brightness-0 invert" 
+                    className={`w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.35)] ${
+                      (!siteSettings.logoUrl || siteSettings.logoUrl === '/logo.png' || siteSettings.logoUrl.endsWith('/logo.png')) 
+                        ? 'brightness-0 invert' 
+                        : ''
+                    }`} 
                   />
                 </motion.div>
                 
@@ -1137,7 +1155,7 @@ export default function App() {
                 <motion.div 
                   animate={{ rotate: 360 }}
                   transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                  className="absolute inset-0 -m-6 border border-amber-500/10 rounded-full"
+                  className="absolute inset-0 -m-6 border border-amber-500/20 rounded-full"
                 ></motion.div>
                 <motion.div 
                   animate={{ rotate: -360 }}
@@ -1145,20 +1163,20 @@ export default function App() {
                   className="absolute inset-0 -m-10 border border-white/5 rounded-full"
                 ></motion.div>
               </div>
-
+ 
               <motion.div
                 initial={{ y: 30, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.6, duration: 1 }}
-                className="mt-12 text-center px-6"
+                className="mt-12 text-center px-6 max-w-lg"
               >
                 <motion.p 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8, duration: 1 }}
-                  className="text-amber-500/70 font-sans text-xs font-bold uppercase tracking-[0.3em] mb-3"
+                  className="text-amber-500/80 font-sans text-xs font-bold uppercase tracking-[0.3em] mb-3"
                 >
-                  نعتني بأدق التفاصيل لرضاكم
+                  {siteSettings.heroBadge || "نعتني بأدق التفاصيل لرضاكم ✨"}
                 </motion.p>
                 
                 <h1 className="text-white font-sans text-2xl md:text-3xl font-black mb-2 flex items-center gap-3 justify-center">
@@ -1173,11 +1191,11 @@ export default function App() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 1.2, duration: 1 }}
-                  className="text-white/60 font-sans text-sm md:text-base font-light tracking-wide"
+                  className="text-white/80 font-sans text-sm md:text-base font-medium leading-relaxed"
                 >
-                  أهلاً بك في عالم الفخامة والتميز.. جارٍ التحضير
+                  {siteSettings.heroSubtitle || "أهلاً بك في عالم الفخامة والتميز.. جارٍ التحضير"}
                 </motion.h2>
-
+ 
                 <div className="mt-8 flex items-center justify-center gap-2">
                   {[0, 1, 2].map((i) => (
                     <motion.div 

@@ -108,10 +108,9 @@ export function Dashboard({
   const handleUpdateLocalSettings = (val: import('../types').SiteSettings | ((prev: import('../types').SiteSettings) => import('../types').SiteSettings)) => {
     setLocalSettings(prev => {
       const next = typeof val === 'function' ? val(prev) : val;
-      setSiteSettings(next);
       return next;
     });
-    setIsSettingsDirty(false);
+    setIsSettingsDirty(true);
   };
 
   // File Upload Handling
@@ -234,6 +233,9 @@ export function Dashboard({
   const [adminPassword, setAdminPassword] = useState(() => {
     return localStorage.getItem('dukkan_admin_pass') || '123456';
   });
+  const [newAdminUser, setNewAdminUser] = useState('');
+  const [newAdminPass, setNewAdminPass] = useState('');
+  const [showCredSuccess, setShowCredSuccess] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return sessionStorage.getItem('dukkan_admin_logged') === 'true';
   });
