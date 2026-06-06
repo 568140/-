@@ -1722,7 +1722,7 @@ export function Dashboard({
                         </button>
 
                         <select
-                          value={o.status}
+                          value={o.status || 'pending'}
                           onChange={(e) => onUpdateOrderStatus(o.id, e.target.value as Order['status'])}
                           className="bg-gray-55 text-xxs border border-gray-150 rounded-lg px-2 py-1 font-bold text-gray-600 focus:outline-hidden"
                         >
@@ -1757,7 +1757,7 @@ export function Dashboard({
                   type="text"
                   required
                   placeholder="مثال: SAVE30"
-                  value={copCode}
+                  value={copCode || ''}
                   onChange={(e) => setCopCode(e.target.value)}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-mono text-gray-800 uppercase focus:outline-hidden focus:border-amber-500"
                 />
@@ -1782,7 +1782,7 @@ export function Dashboard({
                     type="number"
                     required
                     min="1"
-                    value={copValue}
+                    value={copValue ?? 0}
                     onChange={(e) => setCopValue(Number(e.target.value))}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-850 font-mono focus:outline-hidden"
                   />
@@ -1795,7 +1795,7 @@ export function Dashboard({
                   type="number"
                   min="0"
                   placeholder="اتركه فارغاً أو صفر"
-                  value={copMinSpend}
+                  value={copMinSpend ?? 0}
                   onChange={(e) => setCopMinSpend(Number(e.target.value))}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-mono text-gray-800 focus:outline-hidden"
                 />
@@ -2690,7 +2690,7 @@ export function Dashboard({
                     <div>
                       <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">جهة الإعلان</label>
                       <select 
-                        value={ad.provider}
+                        value={ad.provider || 'Custom'}
                         onChange={(e) => {
                           const updated = siteSettings.adScripts.map(a => a.id === ad.id ? { ...a, provider: e.target.value as any } : a);
                           setSiteSettings({ ...siteSettings, adScripts: updated });
@@ -2707,7 +2707,7 @@ export function Dashboard({
                     <div>
                       <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">مكان العرض</label>
                       <select 
-                        value={ad.location}
+                        value={ad.location || 'sidebar'}
                         onChange={(e) => {
                           const updated = siteSettings.adScripts.map(a => a.id === ad.id ? { ...a, location: e.target.value as any } : a);
                           setSiteSettings({ ...siteSettings, adScripts: updated });
@@ -3061,7 +3061,7 @@ export function Dashboard({
                               min="300"
                               max="800"
                               step="50"
-                              value={banner.customHeight || 550}
+                              value={banner.customHeight ?? 550}
                               onChange={(e) => {
                                 const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, customHeight: Number(e.target.value) } : b);
                                 setSiteSettings({ ...siteSettings, promoBanners: newBanners });
@@ -3362,7 +3362,7 @@ export function Dashboard({
                     <label className="block text-[10px] font-bold text-gray-400 mb-1">اسم المنطقة/المدينة</label>
                     <input 
                       type="text" 
-                      value={dest.cityAr}
+                      value={dest.cityAr || ''}
                       onChange={(e) => {
                         const updated = (localSettings.shippingDestinations || []).map(d => d.id === dest.id ? { ...d, cityAr: e.target.value } : d);
                         handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });
@@ -3374,7 +3374,7 @@ export function Dashboard({
                     <label className="block text-[10px] font-bold text-gray-400 mb-1">تكلفة الشحن (ر.س)</label>
                     <input 
                       type="number" 
-                      value={dest.costSar}
+                      value={dest.costSar ?? 0}
                       onChange={(e) => {
                         const updated = (localSettings.shippingDestinations || []).map(d => d.id === dest.id ? { ...d, costSar: Number(e.target.value) } : d);
                         handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });
@@ -3386,7 +3386,7 @@ export function Dashboard({
                     <label className="block text-[10px] font-bold text-gray-400 mb-1">وقت التوصيل المقدر</label>
                     <input 
                       type="text" 
-                      value={dest.estDays}
+                      value={dest.estDays || ''}
                       onChange={(e) => {
                         const updated = (localSettings.shippingDestinations || []).map(d => d.id === dest.id ? { ...d, estDays: e.target.value } : d);
                         handleUpdateLocalSettings({ ...localSettings, shippingDestinations: updated });

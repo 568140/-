@@ -699,7 +699,7 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
                   <div>
                     <label className="block text-[9px] text-gray-400 font-bold mb-1">المحافظة اليمنية *</label>
                     <select
-                      value={yemeniGov}
+                      value={yemeniGov || ''}
                       onChange={(e) => setYemeniGov(e.target.value)}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-850 focus:outline-hidden focus:border-amber-500 cursor-pointer"
                     >
@@ -712,7 +712,7 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
                   <div>
                     <label className="block text-[9px] text-gray-400 font-bold mb-1">المديرية / المنطقة *</label>
                     <select
-                      value={yemeniDist}
+                      value={yemeniDist || ''}
                       onChange={(e) => setYemeniDist(e.target.value)}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-850 focus:outline-hidden focus:border-amber-500 cursor-pointer"
                     >
@@ -725,7 +725,7 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
                   <div>
                     <label className="block text-[9px] text-gray-400 font-bold mb-1">الشارع أو الحي الرئيسي *</label>
                     <select
-                      value={yemeniStreet}
+                      value={yemeniStreet || ''}
                       onChange={(e) => setYemeniStreet(e.target.value)}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-850 focus:outline-hidden focus:border-amber-500 cursor-pointer"
                     >
