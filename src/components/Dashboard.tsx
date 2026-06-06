@@ -9,6 +9,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { CATEGORIES } from '../data';
 import { GovernorateData } from '../utils/yemeniData';
 import { CustomerMessages } from './CustomerMessages';
+import { safeConfirm } from '../utils/safeConfirm';
 
 const compressImage = (file: File, maxSize: number = 600): Promise<string> => {
   return new Promise((resolve) => {
@@ -248,7 +249,7 @@ export function Dashboard({
   // Settings Credentials Logic
   const handleUpdateAdminCreds = async (e: React.FormEvent) => {
     e.preventDefault();
-    const confirmChange = window.confirm('هل أنت متأكد من تغيير بيانات دخول الإدارة؟ سيتم تطبيق هذا التغيير عالمياً.');
+    const confirmChange = safeConfirm('هل أنت متأكد من تغيير بيانات دخول الإدارة؟ سيتم تطبيق هذا التغيير عالمياً.');
     if (!confirmChange) return;
 
     const { doc, setDoc } = await import('firebase/firestore');
@@ -1458,7 +1459,7 @@ export function Dashboard({
                     </span>
                     <button
                       onClick={() => {
-                        if (window.confirm(`هل أنت متأكد من حذف القسم الرئيسي "${cat.name}" وجميع أقسامه الفرعية؟`)) {
+                        if (safeConfirm(`هل أنت متأكد من حذف القسم الرئيسي "${cat.name}" وجميع أقسامه الفرعية؟`)) {
                           setCategories(prev => prev.filter(c => c.name !== cat.name));
                         }
                       }}
@@ -1477,7 +1478,7 @@ export function Dashboard({
                           <span>{sub}</span>
                           <button
                             onClick={() => {
-                              if (window.confirm(`هل أنت متأكد من حذف القسم الفرعي "${sub}"؟`)) {
+                              if (safeConfirm(`هل أنت متأكد من حذف القسم الفرعي "${sub}"؟`)) {
                                 setCategories(prev => prev.map(c => {
                                   if (c.name === cat.name) {
                                     return {
@@ -1608,7 +1609,7 @@ export function Dashboard({
                         </button>
                         <button
                           onClick={() => {
-                            if (window.confirm('هل أنت متأكد من رغبتك في حذف هذا المنتج نهائياً من المتجر؟')) {
+                            if (safeConfirm('هل أنت متأكد من رغبتك في حذف هذا المنتج نهائياً من المتجر؟')) {
                               onDeleteProduct(p.id);
                             }
                           }}
@@ -2147,7 +2148,7 @@ export function Dashboard({
                                 alert('لا يمكنك حذف جميع المحافظات، يرجى إبقاء محافظة واحدة على الأقل!');
                                 return;
                               }
-                              if (window.confirm(`هل أنت متأكد من رغبتك في حذف محافظة (${gov.name}) نهائياً من المتجر؟`)) {
+                              if (safeConfirm(`هل أنت متأكد من رغبتك في حذف محافظة (${gov.name}) نهائياً من المتجر؟`)) {
                                 setYemeniGeodata(prev => prev.filter(item => item.id !== gov.id));
                               }
                             }}
@@ -2545,6 +2546,48 @@ export function Dashboard({
                 />
               </div>
 
+              {isSettingsDirty && (
+                <div className="mt-8 p-6 bg-amber-50/70 rounded-2xl border border-amber-205/60 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans text-right">
+                  <div className="flex items-center gap-3">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-black text-navy">لديك تغييرات غير محفوظة في واجهة المتجر!</h4>
+                      <p className="text-[10px] text-gray-500">يرجى حفظ التغييرات ليتم بثها وتحديثها فوراً لجميع العملاء.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await import('../firebase');
+                          setSiteSettings(localSettings);
+                          setIsSettingsDirty(false);
+                          setShowSaveAllSuccess(true);
+                          setTimeout(() => setShowSaveAllSuccess(false), 4500);
+                        } catch (e) {
+                          alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                        }
+                      }}
+                      className="flex-1 sm:flex-none px-6 py-3 bg-navy text-gold hover:bg-navy/90 text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg"
+                    >
+                      <span>حفظ ونشر التعديلات فوراً 💾</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLocalSettings(val => siteSettings);
+                        setIsSettingsDirty(false);
+                      }}
+                      className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                    >
+                      تراجع وإلغاء
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -2672,19 +2715,39 @@ export function Dashboard({
               )}
             </div>
 
-            <div className="mt-8 pt-8 border-t border-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-gold">
-                <ShieldCheck className="h-4 w-4" />
-                <span className="text-[10px] font-bold">نظام حماية من غلق الحسابات مفعل</span>
+            <div className="mt-8 pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <ShieldCheck className="h-5 w-5" />
+                <span className="text-xxs font-black">حماية فورية وتزامن عالمي مباشر مفعل</span>
               </div>
-              <button 
-                onClick={() => {
-                  alert('تم حفظ إعدادات الإعلانات محلياً! يرجى النقر على زر "حفظ التعديلات الآن" بالأسفل لرفعها وتطبيقها نهائياً.');
-                }}
-                className="bg-navy text-gold px-10 py-3 rounded-2xl text-xs font-black shadow-xl hover:bg-navy-light transition-all cursor-pointer"
-              >
-                تحديث التغييرات
-              </button>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={async () => {
+                    try {
+                      setSiteSettings(localSettings);
+                      setIsSettingsDirty(false);
+                      setShowSaveAllSuccess(true);
+                      setTimeout(() => setShowSaveAllSuccess(false), 4500);
+                    } catch (e) {
+                      alert('خطأ أثناء حفظ التعديلات. يرجى تجربة ملفات/صور أصغر حجماً!');
+                    }
+                  }}
+                  className="flex-1 sm:flex-none bg-navy text-gold hover:bg-navy/90 px-8 py-3 rounded-xl text-xs font-black shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>حفظ وتطبيق إعدادات الإعلانات 💾</span>
+                </button>
+                {isSettingsDirty && (
+                  <button
+                    onClick={() => {
+                      setLocalSettings(siteSettings);
+                      setIsSettingsDirty(false);
+                    }}
+                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                  >
+                    تراجع
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>
@@ -3148,24 +3211,44 @@ export function Dashboard({
               </div>
             </div>
 
-            <div className="mt-10 pt-8 border-t border-gray-50 flex items-center justify-between max-sm:flex-col gap-4">
+            <div className="mt-10 pt-8 border-t border-gray-150 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 bg-gold/10 rounded-2xl flex items-center justify-center">
                   <Sparkles className="h-5 w-5 text-gold" />
                 </div>
                 <div>
-                  <p className="text-xs font-black text-navy">لوحة التسويق البلاتينية</p>
-                  <p className="text-[10px] text-gray-400">جميع التغييرات تطبق فوراً للعملاء</p>
+                  <p className="text-xs font-black text-navy border-none">بث وتسويق فوري مفعل</p>
+                  <p className="text-[10px] text-gray-500">سيتم حفظ البيانات ونشرها فورياً لجميع المتصفحين والعملاء.</p>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  alert('تم خزن الإعدادات وسلسلة الولاء محلياً! يرجى النقر على زر "حفظ التعديلات الآن" بالأسفل لبثها وحفظها نهائياً.');
-                }}
-                className="px-8 py-3 bg-navy text-gold font-black text-xs rounded-2xl hover:bg-navy-light transition-all shadow-xl shadow-navy/20 active:scale-95"
-              >
-                تحديث وحفظ الكل
-              </button>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  onClick={async () => {
+                    try {
+                      setSiteSettings(localSettings);
+                      setIsSettingsDirty(false);
+                      setShowSaveAllSuccess(true);
+                      setTimeout(() => setShowSaveAllSuccess(false), 4500);
+                    } catch (e) {
+                      alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                    }
+                  }}
+                  className="flex-1 sm:flex-none px-8 py-3 bg-navy text-gold hover:bg-navy/90 font-black text-xs rounded-xl transition-all shadow-lg cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>حفظ ونشر التعديلات فوراً 💾</span>
+                </button>
+                {isSettingsDirty && (
+                  <button
+                    onClick={() => {
+                      setLocalSettings(siteSettings);
+                      setIsSettingsDirty(false);
+                    }}
+                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                  >
+                    تراجع
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>
@@ -3277,6 +3360,47 @@ export function Dashboard({
               <div className="py-12 text-center text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
                 <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
                 <p className="text-xs font-bold">لا يوجد مناطق شحن محددة حالياً.</p>
+              </div>
+            )}
+
+            {isSettingsDirty && (
+              <div className="mt-8 p-6 bg-amber-50/70 rounded-2xl border border-amber-205/60 flex flex-col sm:flex-row items-center justify-between gap-4 font-sans text-right">
+                <div className="flex items-center gap-3">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                  </span>
+                  <div>
+                    <h4 className="text-xs font-black text-navy border-none">لديك تغييرات غير محفوظة في تكاليف الشحن!</h4>
+                    <p className="text-[10px] text-gray-500">يرجى حفظ التغييرات ليتم بثها وتفعيل تكاليف الشحن الجديدة فوراً لجميع العملاء.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={async () => {
+                      try {
+                        setSiteSettings(localSettings);
+                        setIsSettingsDirty(false);
+                        setShowSaveAllSuccess(true);
+                        setTimeout(() => setShowSaveAllSuccess(false), 4500);
+                      } catch (e) {
+                        alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                      }
+                    }}
+                    className="flex-1 sm:flex-none px-6 py-3 bg-navy text-gold hover:bg-navy/90 text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg"
+                  >
+                    <span>حفظ ونشر التعديلات فوراً 💾</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLocalSettings(siteSettings);
+                      setIsSettingsDirty(false);
+                    }}
+                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                  >
+                    تراجع وإلغاء
+                  </button>
+                </div>
               </div>
             )}
           </div>

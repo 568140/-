@@ -3,6 +3,7 @@ import { MessageSquare, Send, X, Phone, Lock, Image as ImageIcon, Video, Papercl
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, onSnapshot, setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
+import { safeConfirm } from '../utils/safeConfirm';
 
 interface PrivateMessage {
   id: string;
@@ -216,7 +217,7 @@ export const CustomerMessages: React.FC<{
   };
   
   const handleDeleteMessage = (msgId: string) => {
-    const isSure = window.confirm('هل أنت متأكد من حذف هذه الرسالة؟');
+    const isSure = safeConfirm('هل أنت متأكد من حذف هذه الرسالة؟');
     if (isSure) {
         deleteDoc(doc(db, 'private_messages', msgId)).catch(e => {
             console.error('Delete error', e);

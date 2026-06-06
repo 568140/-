@@ -163,6 +163,7 @@ export default function App() {
   const handleSetYemeniGeodata = (val: GovernorateData[] | ((prev: GovernorateData[]) => GovernorateData[])) => {
     const nextData = typeof val === 'function' ? val(yemeniGeodata) : val;
     const cleanData = JSON.parse(JSON.stringify(nextData));
+    setYemeniGeodata(cleanData);
     setDoc(doc(db, 'settings', 'yemeni_geodata'), { data: cleanData }).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, 'settings/yemeni_geodata')
     );
@@ -1031,12 +1032,14 @@ export default function App() {
 
   const handleAddCoupon = (newCoupon: Coupon) => {
     const cleanCoupon = JSON.parse(JSON.stringify(newCoupon));
+    setCoupons(prev => [...prev.filter(c => c.code !== newCoupon.code), cleanCoupon]);
     setDoc(doc(db, 'coupons', newCoupon.code), cleanCoupon).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, `coupons/${newCoupon.code}`)
     );
   };
 
   const handleDeleteCoupon = (couponCode: string) => {
+    setCoupons(prev => prev.filter(c => c.code !== couponCode));
     deleteDoc(doc(db, 'coupons', couponCode)).catch(e =>
       handleFirestoreError(e, OperationType.DELETE, `coupons/${couponCode}`)
     );
@@ -1054,6 +1057,7 @@ export default function App() {
   const handleSetCategories = (val: any[] | ((prev: any[]) => any[])) => {
     const nextCategories = typeof val === 'function' ? val(categoriesStateRef.current) : val;
     const cleanCats = JSON.parse(JSON.stringify(nextCategories));
+    setCategoriesState(cleanCats);
     setDoc(doc(db, 'settings', 'categories'), { list: cleanCats }).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, 'settings/categories')
     );
@@ -1061,6 +1065,7 @@ export default function App() {
 
   const handleSetLocalWallets = (val: any[] | ((prev: any[]) => any[])) => {
     const nextWallets = typeof val === 'function' ? val(localWalletsRef.current) : val;
+    setLocalWallets(nextWallets);
     nextWallets.forEach(w => {
       const cleanWallet = JSON.parse(JSON.stringify(w));
       setDoc(doc(db, 'local_wallets', w.id), cleanWallet).catch(e =>
@@ -1081,6 +1086,7 @@ export default function App() {
 
   const handleSetCustomerAccounts = (val: import('./types').CustomerAccount[] | ((prev: import('./types').CustomerAccount[]) => import('./types').CustomerAccount[])) => {
     const nextAccs = typeof val === 'function' ? val(customerAccountsRef.current) : val;
+    setCustomerAccounts(nextAccs);
     nextAccs.forEach(acc => {
       const cleanAcc = JSON.parse(JSON.stringify(acc));
       setDoc(doc(db, 'customer_accounts', acc.phone), cleanAcc).catch(e =>
