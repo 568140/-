@@ -64,6 +64,7 @@ interface DashboardProps {
   onDeleteCoupon: (code: string) => void;
   siteSettings: import('../types').SiteSettings;
   setSiteSettings: (val: import('../types').SiteSettings) => void;
+  siteSettingsSyncState?: 'idle' | 'syncing' | 'saved' | 'error';
   yemeniGeodata: GovernorateData[];
   setYemeniGeodata: React.Dispatch<React.SetStateAction<GovernorateData[]>>;
   customerAccounts?: import('../types').CustomerAccount[];
@@ -89,6 +90,7 @@ export function Dashboard({
   onDeleteCoupon,
   siteSettings,
   setSiteSettings,
+  siteSettingsSyncState = 'saved',
   yemeniGeodata,
   setYemeniGeodata,
   customerAccounts,
@@ -101,17 +103,13 @@ export function Dashboard({
   const [showSaveAllSuccess, setShowSaveAllSuccess] = useState(false);
 
   React.useEffect(() => {
-    if (!isSettingsDirty) {
-      setLocalSettings(siteSettings);
-    }
+    setLocalSettings(siteSettings);
   }, [siteSettings]);
 
   const handleUpdateLocalSettings = (val: import('../types').SiteSettings | ((prev: import('../types').SiteSettings) => import('../types').SiteSettings)) => {
-    setLocalSettings(prev => {
-      const next = typeof val === 'function' ? val(prev) : val;
-      return next;
-    });
-    setIsSettingsDirty(true);
+    const next = typeof val === 'function' ? val(localSettings) : val;
+    setLocalSettings(next);
+    setSiteSettings(next);
   };
 
   // File Upload Handling
@@ -185,18 +183,7 @@ export function Dashboard({
         setOrders(list);
       });
 
-      // 3. Customer Accounts
-      const unsubAccounts = onSnapshot(collection(db, 'customer_accounts'), (snapshot) => {
-        if (setCustomerAccounts) {
-          const list: import('../types').CustomerAccount[] = [];
-          snapshot.forEach(docSnap => {
-            list.push(docSnap.data() as import('../types').CustomerAccount);
-          });
-          setCustomerAccounts(list);
-        }
-      });
-
-      // 4. Admin Credentials Sync
+      // 3. Admin Credentials Sync
       const unsubAdmin = onSnapshot(doc(db, 'settings', 'admin'), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -208,6 +195,14 @@ export function Dashboard({
             setAdminPassword(data.password);
             localStorage.setItem('dukkan_admin_pass', data.password);
           }
+        } else {
+          // Send master seed values to remote Firestore immediately, preventing "local only" fallbacks
+          import('firebase/firestore').then(({ doc, setDoc }) => {
+            setDoc(doc(db, 'settings', 'admin'), {
+              username: 'tr25',
+              password: '774919194'
+            }).catch(() => {});
+          });
         }
       });
 
@@ -215,7 +210,6 @@ export function Dashboard({
       return () => {
         unsubStats();
         unsubOrders();
-        unsubAccounts();
         unsubAdmin();
       };
     };
@@ -225,7 +219,7 @@ export function Dashboard({
     return () => {
       unsubPromise.then(unsub => unsub && unsub());
     };
-  }, [setOrders, setCustomerAccounts]);
+  }, [setOrders]);
 
   // Admin Authentication / Credentials Configuration
   const [adminUsername, setAdminUsername] = useState(() => {
@@ -794,8 +788,33 @@ export function Dashboard({
       {/* Header Banner */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 font-sans tracking-tight">لوحة تحكم دُكّان الشرق</h1>
-          <p className="text-xs text-gray-500 font-sans">إدارة المنتجات، تتبع طلبيات العملاء بشكل فوري، وتحليل أداء المبيعات والكوبونات.</p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-black text-gray-900 font-sans tracking-tight">لوحة تحكم دُكّان الشرق</h1>
+            
+            {/* Firestore Cloud Sync Status Tags */}
+            {siteSettingsSyncState === 'syncing' && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-black rounded-lg border border-amber-200">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-450 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span>جاري الحفظ التلقائي ومزامنة Firestore... ☁️</span>
+              </div>
+            )}
+            {siteSettingsSyncState === 'saved' && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-850 text-[10px] font-black rounded-lg border border-emerald-250">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                <span>متصل وبحالة مزامنة كاملة بـ Firestore ونسخها الاحتياطي ☁️✅</span>
+              </div>
+            )}
+            {siteSettingsSyncState === 'error' && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 text-[10px] font-black rounded-lg border border-rose-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                <span>فشل المزامنة بـ Firestore سحابياً ⚠️</span>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 font-sans mt-0.5">إدارة المنتجات، تتبع طلبيات العملاء بشكل فوري، وتحليل أداء المبيعات والكوبونات.</p>
         </div>
 
         {/* Tab Selection */}

@@ -433,6 +433,10 @@ export default function App() {
   const localWalletsRef = useRef(localWallets);
   const customerAccountsRef = useRef(customerAccounts);
 
+  // Custom Sync States & Debouncing Refs to persist modifications instantly and transparently to Firestore
+  const siteSettingsTimeoutRef = useRef<any>(null);
+  const [siteSettingsSyncState, setSiteSettingsSyncState] = useState<'idle' | 'syncing' | 'saved' | 'error'>('saved');
+
   useEffect(() => { siteSettingsRef.current = siteSettings; }, [siteSettings]);
   useEffect(() => { categoriesStateRef.current = categoriesState; }, [categoriesState]);
   useEffect(() => { localWalletsRef.current = localWallets; }, [localWallets]);
@@ -1049,9 +1053,23 @@ export default function App() {
     const nextSettings = typeof val === 'function' ? val(siteSettingsRef.current) : val;
     const cleanSettings = JSON.parse(JSON.stringify(nextSettings));
     setSiteSettings(cleanSettings);
-    setDoc(doc(db, 'site_settings', 'general'), cleanSettings).catch(e =>
-      handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
-    );
+    
+    setSiteSettingsSyncState('syncing');
+
+    if (siteSettingsTimeoutRef.current) {
+      clearTimeout(siteSettingsTimeoutRef.current);
+    }
+
+    siteSettingsTimeoutRef.current = setTimeout(() => {
+      setDoc(doc(db, 'site_settings', 'general'), cleanSettings)
+        .then(() => {
+          setSiteSettingsSyncState('saved');
+        })
+        .catch(e => {
+          setSiteSettingsSyncState('error');
+          handleFirestoreError(e, OperationType.WRITE, 'site_settings/general');
+        });
+    }, 1200);
   };
 
   const handleSetCategories = (val: any[] | ((prev: any[]) => any[])) => {
@@ -1302,6 +1320,7 @@ export default function App() {
             setLocalWallets={handleSetLocalWallets}
             siteSettings={siteSettings}
             setSiteSettings={handleSetSiteSettings}
+            siteSettingsSyncState={siteSettingsSyncState}
             categories={categoriesState}
             setCategories={handleSetCategories}
             onAddProduct={handleAddProduct} 
