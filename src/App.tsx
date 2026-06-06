@@ -36,6 +36,13 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   inventorySubtitle: 'نظام إدارة لوجستي فائق الذكاء ومؤمن بالكامل',
   logoUrl: '/logo.png',
   iconUrl: '/logo.png',
+  splashTitle: 'دكّان الشَّرق البلاتيني',
+  splashSubtitle: 'فخامة الشرق بين يديك...',
+  splashIconUrl: '/logo.png',
+  splashDuration: 2500,
+  enableSplash: true,
+  splashBgColor: '#0a0c10',
+  splashTextColor: '#d4af37',
   seoKeywords: 'عطر، ساعات، فخامة، دكان الشرق، بلاتيني، تسوق، اليمن، السعودية',
   enableLiveChat: true,
   enableSocialProof: true,
@@ -184,6 +191,7 @@ export default function App() {
 
   // State for site settings
   const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(INITIAL_SITE_SETTINGS);
+  const [showSplash, setShowSplash] = useState(false);
   const [appReady, setAppReady] = useState(false);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -1171,12 +1179,13 @@ export default function App() {
       
       {/* Elite Splash Screen - Luxury Welcome Experience */}
       <AnimatePresence>
-        {!appReady && (
+        {(!appReady || showSplash) && (
           <motion.div 
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 0.8, ease: [0.43, 0.13, 0.23, 0.96] }}
-            className="fixed inset-0 z-[10000] bg-[#07090e] flex flex-col items-center justify-center overflow-hidden"
+            style={{ backgroundColor: siteSettings.splashBgColor || '#07090e' }}
+            className="fixed inset-0 z-[10000] flex flex-col items-center justify-center overflow-hidden"
           >
             {/* Animated Background Atmosphere */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1186,7 +1195,8 @@ export default function App() {
                   opacity: [0.1, 0.15, 0.1] 
                 }}
                 transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-1/2 -left-1/2 w-full h-full bg-amber-500/20 blur-[120px] rounded-full"
+                style={{ backgroundColor: siteSettings.splashTextColor ? `${siteSettings.splashTextColor}44` : 'rgba(245, 158, 11, 0.2)' }}
+                className="absolute -top-1/2 -left-1/2 w-full h-full blur-[120px] rounded-full"
               />
               <motion.div 
                 animate={{ 
@@ -1194,7 +1204,8 @@ export default function App() {
                   opacity: [0.05, 0.1, 0.05] 
                 }}
                 transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-blue-500/10 blur-[100px] rounded-full"
+                style={{ backgroundColor: siteSettings.splashTextColor ? `${siteSettings.splashTextColor}22` : 'rgba(59, 130, 246, 0.1)' }}
+                className="absolute -bottom-1/2 -right-1/2 w-full h-full blur-[100px] rounded-full"
               />
             </div>
 
@@ -1207,10 +1218,10 @@ export default function App() {
                   className="w-40 h-40 md:w-48 md:h-48 bg-gradient-to-b from-white/10 to-transparent rounded-full border border-white/20 flex items-center justify-center p-8 backdrop-blur-sm relative"
                 >
                   <img 
-                    src={siteSettings.logoUrl || '/logo.png'} 
+                    src={siteSettings.splashIconUrl || siteSettings.logoUrl || '/logo.png'} 
                     alt={siteSettings.storeName} 
                     className={`w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.35)] ${
-                      (!siteSettings.logoUrl || siteSettings.logoUrl === '/logo.png' || siteSettings.logoUrl.endsWith('/logo.png')) 
+                      (!siteSettings.splashIconUrl && (!siteSettings.logoUrl || siteSettings.logoUrl === '/logo.png' || siteSettings.logoUrl.endsWith('/logo.png'))) 
                         ? 'brightness-0 invert' 
                         : ''
                     }`} 
@@ -1221,7 +1232,8 @@ export default function App() {
                 <motion.div 
                   animate={{ rotate: 360 }}
                   transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                  className="absolute inset-0 -m-6 border border-amber-500/20 rounded-full"
+                  style={{ borderColor: siteSettings.splashTextColor ? `${siteSettings.splashTextColor}33` : 'rgba(245, 158, 11, 0.2)' }}
+                  className="absolute inset-0 -m-6 border rounded-full"
                 ></motion.div>
                 <motion.div 
                   animate={{ rotate: -360 }}
@@ -1240,26 +1252,28 @@ export default function App() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8, duration: 1 }}
-                  className="text-amber-500/80 font-sans text-xs font-bold uppercase tracking-[0.3em] mb-3"
+                  style={{ color: siteSettings.splashTextColor || '#f59e0b', opacity: 0.8 }}
+                  className="font-sans text-xs font-bold uppercase tracking-[0.3em] mb-3"
                 >
-                  {siteSettings.heroBadge || "نعتني بأدق التفاصيل لرضاكم ✨"}
+                  {siteSettings.splashTitle || "نعتني بأدق التفاصيل لرضاكم ✨"}
                 </motion.p>
                 
-                <h1 className="text-white font-sans text-2xl md:text-3xl font-black mb-2 flex items-center gap-3 justify-center">
-                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-amber-200 to-white">
+                <h1 style={{ color: siteSettings.splashTextColor || '#ffffff' }} className="font-sans text-2xl md:text-3xl font-black mb-2 flex items-center gap-3 justify-center">
+                  <span>
                     {siteSettings.storeName || "دكان الشرق البلاتيني"}
                   </span>
                 </h1>
                 
-                <div className="h-px w-24 bg-gradient-to-r from-transparent via-amber-500/50 to-transparent mx-auto mt-4 mb-6"></div>
+                <div style={{ backgroundColor: siteSettings.splashTextColor || '#f59e0b', opacity: 0.5 }} className="h-px w-24 mx-auto mt-4 mb-6"></div>
                 
                 <motion.h2 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 1.2, duration: 1 }}
-                  className="text-white/80 font-sans text-sm md:text-base font-medium leading-relaxed"
+                  style={{ color: siteSettings.splashTextColor || '#ffffff', opacity: 0.8 }}
+                  className="font-sans text-sm md:text-base font-medium leading-relaxed"
                 >
-                  {siteSettings.heroSubtitle || "أهلاً بك في عالم الفخامة والتميز.. جارٍ التحضير"}
+                  {siteSettings.splashSubtitle || "أهلاً بك في عالم الفخامة والتميز.. جارٍ التحضير"}
                 </motion.h2>
  
                 <div className="mt-8 flex items-center justify-center gap-2">
@@ -1269,11 +1283,11 @@ export default function App() {
                       animate={{ 
                         scale: [1, 1.5, 1],
                         opacity: [0.3, 1, 0.3],
-                        backgroundColor: i === 1 ? ["#d97706", "#f59e0b", "#d97706"] : ["#4b5563", "#9ca3af", "#4b5563"]
                       }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
+                      style={{ backgroundColor: i === 1 ? (siteSettings.splashTextColor || '#f59e0b') : (siteSettings.splashTextColor ? `${siteSettings.splashTextColor}66` : '#4b5563') }}
                       className="w-1.5 h-1.5 rounded-full"
-                    ></motion.div>
+                    />
                   ))}
                 </div>
               </motion.div>

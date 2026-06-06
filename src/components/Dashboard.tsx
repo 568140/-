@@ -148,6 +148,22 @@ export function Dashboard({
     }
   };
 
+  const handleSplashIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 20 * 1024 * 1024) {
+        alert('حجم الملف كبير جداً. يرجى اختيار صورة أقل من 20 ميجابايت');
+        return;
+      }
+      try {
+        const compressedBase64 = await compressImage(file, 512); 
+        handleUpdateLocalSettings((prev) => ({ ...prev, splashIconUrl: compressedBase64 }));
+      } catch (err) {
+        console.error('Failed to compress splash icon:', err);
+      }
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping'>('metrics');
   
   // Real-time visitor stats
@@ -2470,6 +2486,125 @@ export function Dashboard({
               </div>
 
               <hr className="my-6 border-gray-100" />
+
+              <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 shadow-xl overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-3xl -mr-16 -mt-16 rounded-full"></div>
+                <h3 className="text-lg font-black text-gold mb-4 flex items-center gap-2 relative z-10">
+                  <Sparkles className="h-5 w-5 text-gold" />
+                  <span>تخصيص شاشة الترحيب (Splash Screen)</span>
+                </h3>
+                
+                <div className="flex items-center gap-2 mb-6 bg-white/5 p-3 rounded-xl border border-white/10 relative z-10">
+                  <button 
+                    onClick={() => setSiteSettings({ ...siteSettings, enableSplash: !siteSettings.enableSplash })}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${siteSettings.enableSplash ? 'bg-amber-500' : 'bg-gray-700'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${siteSettings.enableSplash ? '-translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                  <span className="text-xs font-bold text-gray-300">تفعيل شاشة الترحيب الفاخرة عند دخول العميل</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xxs font-black text-gray-400 uppercase mb-1">عنوان الترحيب الرئيسي</label>
+                      <input 
+                        type="text" 
+                        value={siteSettings.splashTitle || ''}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, splashTitle: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl focus:border-gold focus:outline-hidden text-sm text-white"
+                        placeholder="دكّان الشَّرق البلاتيني"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xxs font-black text-gray-400 uppercase mb-1">الوصف الفرعي للترحيب</label>
+                      <input 
+                        type="text" 
+                        value={siteSettings.splashSubtitle || ''}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, splashSubtitle: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl focus:border-gold focus:outline-hidden text-sm text-white"
+                        placeholder="فخامة الشرق بين يديك..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xxs font-black text-gray-400 uppercase mb-1">مدة العرض (ميلي ثانية)</label>
+                        <input 
+                          type="number" 
+                          value={siteSettings.splashDuration ?? 2500}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, splashDuration: Number(e.target.value) })}
+                          className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl focus:border-gold focus:outline-hidden text-sm text-white font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xxs font-black text-gray-400 uppercase mb-1">لون الخلفية</label>
+                        <div className="flex gap-2">
+                          <input 
+                            type="color" 
+                            value={siteSettings.splashBgColor || '#0a0c10'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, splashBgColor: e.target.value })}
+                            className="w-10 h-10 p-0 border-0 bg-transparent rounded-lg cursor-pointer"
+                          />
+                          <input 
+                            type="text" 
+                            value={siteSettings.splashBgColor || '#0a0c10'}
+                            onChange={(e) => setSiteSettings({ ...siteSettings, splashBgColor: e.target.value })}
+                            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl focus:border-gold focus:outline-hidden text-xs text-white font-mono uppercase"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xxs font-black text-gray-400 uppercase mb-1">أيقونة الترحيب (Icon/Logo)</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={siteSettings.splashIconUrl || ''}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, splashIconUrl: e.target.value })}
+                          className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl focus:border-gold focus:outline-hidden text-sm text-white font-mono"
+                          dir="ltr"
+                          placeholder="رابط الصورة أو ارفع ملف..."
+                        />
+                        <label className="flex items-center justify-center p-2 bg-gray-700 hover:bg-gray-600 rounded-xl cursor-pointer transition-colors text-white">
+                          <Upload className="h-4 w-4" />
+                          <input type="file" className="hidden" accept="image/*" onChange={handleSplashIconUpload} />
+                        </label>
+                      </div>
+                      {siteSettings.splashIconUrl && (
+                        <div className="mt-2 p-2 bg-white/5 rounded-lg flex items-center justify-between border border-dashed border-white/10">
+                          <img src={siteSettings.splashIconUrl} alt="Splash Icon" className="h-16 object-contain" />
+                          <button 
+                            onClick={() => setSiteSettings({ ...siteSettings, splashIconUrl: '' })}
+                            className="p-1 text-gray-500 hover:text-red-500"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xxs font-black text-gray-400 uppercase mb-1">لون النص والخطوط</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="color" 
+                          value={siteSettings.splashTextColor || '#d4af37'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, splashTextColor: e.target.value })}
+                          className="w-10 h-10 p-0 border-0 bg-transparent rounded-lg cursor-pointer"
+                        />
+                        <input 
+                          type="text" 
+                          value={siteSettings.splashTextColor || '#d4af37'}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, splashTextColor: e.target.value })}
+                          className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl focus:border-gold focus:outline-hidden text-xs text-white font-mono uppercase"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <h3 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-amber-500" /> معلومات التواصل والدعم

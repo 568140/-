@@ -117,6 +117,13 @@ export interface SiteSettings {
   inventorySubtitle: string;
   logoUrl: string;
   iconUrl: string;
+  splashTitle?: string;
+  splashSubtitle?: string;
+  splashIconUrl?: string;
+  splashDuration?: number;
+  enableSplash?: boolean;
+  splashBgColor?: string;
+  splashTextColor?: string;
   seoKeywords: string;
   enableLiveChat: boolean;
   enableSocialProof: boolean;
