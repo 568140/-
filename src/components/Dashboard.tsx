@@ -56,14 +56,14 @@ interface DashboardProps {
   setLocalWallets?: React.Dispatch<React.SetStateAction<LocalWallet[]>>;
   categories: CategoryConfig[];
   setCategories: React.Dispatch<React.SetStateAction<CategoryConfig[]>>;
-  onAddProduct: (product: Omit<Product, 'id'>) => void;
-  onUpdateProduct: (product: Product) => void;
-  onDeleteProduct: (productId: string) => void;
+  onAddProduct: (product: Omit<Product, 'id'>) => any;
+  onUpdateProduct: (product: Product) => any;
+  onDeleteProduct: (productId: string) => any;
   onUpdateOrderStatus: (orderId: string, status: Order['status']) => void;
   onAddCoupon: (coupon: Coupon) => void;
   onDeleteCoupon: (code: string) => void;
   siteSettings: import('../types').SiteSettings;
-  setSiteSettings: (val: import('../types').SiteSettings) => void;
+  setSiteSettings: (val: import('../types').SiteSettings, isImmediate?: boolean) => any;
   siteSettingsSyncState?: 'idle' | 'syncing' | 'saved' | 'error';
   yemeniGeodata: GovernorateData[];
   setYemeniGeodata: React.Dispatch<React.SetStateAction<GovernorateData[]>>;
@@ -89,7 +89,7 @@ export function Dashboard({
   onAddCoupon,
   onDeleteCoupon,
   siteSettings,
-  setSiteSettings,
+  setSiteSettings: saveSiteSettingsProp,
   siteSettingsSyncState = 'saved',
   yemeniGeodata,
   setYemeniGeodata,
@@ -101,6 +101,8 @@ export function Dashboard({
   const [localSettings, setLocalSettings] = useState<import('../types').SiteSettings>(siteSettings);
   const [isSettingsDirty, setIsSettingsDirty] = useState(false);
   const [showSaveAllSuccess, setShowSaveAllSuccess] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
 
   React.useEffect(() => {
     setLocalSettings(siteSettings);
@@ -109,7 +111,8 @@ export function Dashboard({
   const handleUpdateLocalSettings = (val: import('../types').SiteSettings | ((prev: import('../types').SiteSettings) => import('../types').SiteSettings)) => {
     const next = typeof val === 'function' ? val(localSettings) : val;
     setLocalSettings(next);
-    setSiteSettings(next);
+    saveSiteSettingsProp(next);
+    setIsSettingsDirty(true);
   };
 
   // File Upload Handling
@@ -121,7 +124,7 @@ export function Dashboard({
         return;
       }
       try {
-        const compressedBase64 = await compressImage(file, 1000);
+        const compressedBase64 = await compressImage(file, 400); // Optimized to prevent Firestore 1MB limits
         handleUpdateLocalSettings((prev) => ({ ...prev, logoUrl: compressedBase64 }));
       } catch (err) {
         console.error('Failed to compress logo:', err);
@@ -137,7 +140,7 @@ export function Dashboard({
         return;
       }
       try {
-        const compressedBase64 = await compressImage(file, 512);
+        const compressedBase64 = await compressImage(file, 128); // Compact 128px is perfect for favicon icons
         handleUpdateLocalSettings((prev) => ({ ...prev, iconUrl: compressedBase64 }));
       } catch (err) {
         console.error('Failed to compress icon:', err);
@@ -180,7 +183,9 @@ export function Dashboard({
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return dateB - dateA;
         });
-        setOrders(list);
+        setTimeout(() => {
+          setOrders(list);
+        }, 0);
       });
 
       // 3. Admin Credentials Sync
@@ -568,7 +573,7 @@ export function Dashboard({
     setShowProductModal(true);
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName || !prodDesc || !prodImage || prodPrice <= 0) {
       alert('الرجاء التأكد من ملء جميع الحقول بصور وتفاصيل صالحة.');
@@ -592,47 +597,55 @@ export function Dashboard({
       ? parsedSizes.reduce((sum, sz) => sum + (filteredSizeStock[sz] || 0), 0)
       : Number(prodStock);
 
-    if (editingProduct) {
-      onUpdateProduct({
-        ...editingProduct,
-        name: prodName,
-        description: prodDesc,
-        price: Number(prodPrice),
-        category: prodCategory,
-        subCategory: prodSubCategory || undefined,
-        stock: computedTotalStock,
-        image: prodImage,
-        rating: Number(prodRating),
-        isFeatured: prodIsFeatured,
-        pointsReward: Number(prodPointsReward),
-        videoUrl: prodVideoUrl,
-        sizes: parsedSizes,
-        sizeStock: filteredSizeStock,
-        code: prodCode,
-        images: prodImages,
-        variants: prodVariants
-      });
-    } else {
-      onAddProduct({
-        name: prodName,
-        description: prodDesc,
-        price: Number(prodPrice),
-        category: prodCategory,
-        subCategory: prodSubCategory || undefined,
-        stock: computedTotalStock,
-        image: prodImage,
-        rating: Number(prodRating),
-        isFeatured: prodIsFeatured,
-        pointsReward: Number(prodPointsReward),
-        videoUrl: prodVideoUrl,
-        sizes: parsedSizes,
-        sizeStock: filteredSizeStock,
-        code: prodCode,
-        images: prodImages,
-        variants: prodVariants
-      });
+    setIsSavingProduct(true);
+    try {
+      if (editingProduct) {
+        await onUpdateProduct({
+          ...editingProduct,
+          name: prodName,
+          description: prodDesc,
+          price: Number(prodPrice),
+          category: prodCategory,
+          subCategory: prodSubCategory || undefined,
+          stock: computedTotalStock,
+          image: prodImage,
+          rating: Number(prodRating),
+          isFeatured: prodIsFeatured,
+          pointsReward: Number(prodPointsReward),
+          videoUrl: prodVideoUrl,
+          sizes: parsedSizes,
+          sizeStock: filteredSizeStock,
+          code: prodCode,
+          images: prodImages,
+          variants: prodVariants
+        });
+      } else {
+        await onAddProduct({
+          name: prodName,
+          description: prodDesc,
+          price: Number(prodPrice),
+          category: prodCategory,
+          subCategory: prodSubCategory || undefined,
+          stock: computedTotalStock,
+          image: prodImage,
+          rating: Number(prodRating),
+          isFeatured: prodIsFeatured,
+          pointsReward: Number(prodPointsReward),
+          videoUrl: prodVideoUrl,
+          sizes: parsedSizes,
+          sizeStock: filteredSizeStock,
+          code: prodCode,
+          images: prodImages,
+          variants: prodVariants
+        });
+      }
+      setShowProductModal(false);
+    } catch (err) {
+      console.error(err);
+      alert('خطأ أثناء حفظ بيانات المنتج في قاعدة البيانات. يرجى التحقق من حقول المنتج ومدى اتصالك بالشبكة!');
+    } finally {
+      setIsSavingProduct(false);
     }
-    setShowProductModal(false);
   };
 
   // Dynamic Category Creators
@@ -1883,7 +1896,7 @@ export function Dashboard({
                     <label className="block text-xxs font-bold text-gray-500 mb-1">اسم المحفظة / الخدمة</label>
                     <input 
                       type="text" 
-                      value={wallet.name}
+                      value={wallet.name || ''}
                       onChange={(e) => {
                         if (setLocalWallets) {
                           setLocalWallets(prev => prev.map(w => w.id === wallet.id ? { ...w, name: e.target.value } : w));
@@ -1896,7 +1909,7 @@ export function Dashboard({
                     <label className="block text-xxs font-bold text-gray-500 mb-1">رقم الحساب / الجوال</label>
                     <input 
                       type="text" 
-                      value={wallet.accountNumber}
+                      value={wallet.accountNumber || ''}
                       onChange={(e) => {
                         if (setLocalWallets) {
                           setLocalWallets(prev => prev.map(w => w.id === wallet.id ? { ...w, accountNumber: e.target.value } : w));
@@ -2310,7 +2323,7 @@ export function Dashboard({
                     <div className="flex gap-2">
                       <input 
                         type="text" 
-                        value={siteSettings.logoUrl}
+                        value={siteSettings.logoUrl || ''}
                         onChange={(e) => setSiteSettings({ ...siteSettings, logoUrl: e.target.value })}
                         className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono"
                         dir="ltr"
@@ -2338,7 +2351,7 @@ export function Dashboard({
                     <div className="flex gap-2">
                       <input 
                         type="text" 
-                        value={siteSettings.iconUrl}
+                        value={siteSettings.iconUrl || ''}
                         onChange={(e) => setSiteSettings({ ...siteSettings, iconUrl: e.target.value })}
                         className="flex-1 px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono"
                         dir="ltr"
@@ -2409,7 +2422,7 @@ export function Dashboard({
                 <label className="block text-xs font-bold text-gray-700 mb-1">اسم المتجر العام (الشريط العلوي)</label>
                 <input 
                   type="text" 
-                  value={siteSettings.storeName}
+                  value={siteSettings.storeName || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, storeName: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm"
                 />
@@ -2419,7 +2432,7 @@ export function Dashboard({
                 <label className="block text-xs font-bold text-gray-700 mb-1">الجملة الترويجية الصغيرة (فوق العنوان الرئيسي)</label>
                 <input 
                   type="text" 
-                  value={siteSettings.heroBadge}
+                  value={siteSettings.heroBadge || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, heroBadge: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm"
                   dir="ltr"
@@ -2429,7 +2442,7 @@ export function Dashboard({
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">العنوان الرئيسي البارز</label>
                 <textarea 
-                  value={siteSettings.heroTitle}
+                  value={siteSettings.heroTitle || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, heroTitle: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm resize-none"
                   rows={2}
@@ -2439,7 +2452,7 @@ export function Dashboard({
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">الوصف الفرعي (تحت العنوان الرئيسي)</label>
                 <textarea 
-                  value={siteSettings.heroSubtitle}
+                  value={siteSettings.heroSubtitle || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, heroSubtitle: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm resize-none"
                   rows={3}
@@ -2449,7 +2462,7 @@ export function Dashboard({
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">قصة المتجر (من نحن)</label>
                 <textarea 
-                  value={siteSettings.aboutUs}
+                  value={siteSettings.aboutUs || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, aboutUs: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm resize-none"
                   rows={4}
@@ -2465,7 +2478,7 @@ export function Dashboard({
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">وصف قسم التواصل</label>
                 <textarea 
-                  value={siteSettings.contactDescription}
+                  value={siteSettings.contactDescription || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, contactDescription: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm resize-none"
                   rows={3}
@@ -2477,7 +2490,7 @@ export function Dashboard({
                   <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهاتف (للعرض)</label>
                   <input 
                     type="text" 
-                    value={siteSettings.contactPhone}
+                    value={siteSettings.contactPhone || ''}
                     onChange={(e) => setSiteSettings({ ...siteSettings, contactPhone: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono text-left"
                     dir="ltr"
@@ -2487,7 +2500,7 @@ export function Dashboard({
                   <label className="block text-xs font-bold text-gray-700 mb-1">رقم الواتساب (لفتح المحادثة، بدون مسافات)</label>
                   <input 
                     type="text" 
-                    value={siteSettings.contactWhatsApp}
+                    value={siteSettings.contactWhatsApp || ''}
                     onChange={(e) => setSiteSettings({ ...siteSettings, contactWhatsApp: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono text-left"
                     dir="ltr"
@@ -2506,7 +2519,7 @@ export function Dashboard({
                 <label className="block text-xs font-bold text-gray-700 mb-1">عنوان المقر أو التواجد</label>
                 <input 
                   type="text" 
-                  value={siteSettings.footerAddress}
+                  value={siteSettings.footerAddress || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, footerAddress: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm"
                 />
@@ -2517,7 +2530,7 @@ export function Dashboard({
                   <label className="block text-xs font-bold text-gray-700 mb-1">البريد الإلكتروني للدعم</label>
                   <input 
                     type="email" 
-                    value={siteSettings.footerEmail}
+                    value={siteSettings.footerEmail || ''}
                     onChange={(e) => setSiteSettings({ ...siteSettings, footerEmail: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono"
                     dir="ltr"
@@ -2527,7 +2540,7 @@ export function Dashboard({
                   <label className="block text-xs font-bold text-gray-700 mb-1">ساعات العمل والخدمة</label>
                   <input 
                     type="text" 
-                    value={siteSettings.supportHours}
+                    value={siteSettings.supportHours || ''}
                     onChange={(e) => setSiteSettings({ ...siteSettings, supportHours: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm"
                   />
@@ -2539,7 +2552,7 @@ export function Dashboard({
                   <label className="block text-xs font-bold text-gray-700 mb-1">شعار حماية الجرد (نص صغير)</label>
                   <input 
                     type="text" 
-                    value={siteSettings.inventoryTagline}
+                    value={siteSettings.inventoryTagline || ''}
                     onChange={(e) => setSiteSettings({ ...siteSettings, inventoryTagline: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm"
                   />
@@ -2548,7 +2561,7 @@ export function Dashboard({
                   <label className="block text-xs font-bold text-gray-700 mb-1">وصف نظام التحكم (تحت الشعار)</label>
                   <input 
                     type="text" 
-                    value={siteSettings.inventorySubtitle}
+                    value={siteSettings.inventorySubtitle || ''}
                     onChange={(e) => setSiteSettings({ ...siteSettings, inventorySubtitle: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm"
                   />
@@ -2559,7 +2572,7 @@ export function Dashboard({
                 <label className="block text-xs font-bold text-gray-700 mb-1">حقوق الطبع والنشر</label>
                 <input 
                   type="text" 
-                  value={siteSettings.copyrightText}
+                  value={siteSettings.copyrightText || ''}
                   onChange={(e) => setSiteSettings({ ...siteSettings, copyrightText: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm"
                 />
@@ -2579,27 +2592,38 @@ export function Dashboard({
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <button
+                      disabled={isSavingSettings}
                       onClick={async () => {
+                        setIsSavingSettings(true);
                         try {
-                          await import('../firebase');
-                          setSiteSettings(localSettings);
+                          await saveSiteSettingsProp(localSettings, true);
                           setIsSettingsDirty(false);
                           setShowSaveAllSuccess(true);
                           setTimeout(() => setShowSaveAllSuccess(false), 4500);
                         } catch (e) {
                           alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                        } finally {
+                          setIsSavingSettings(false);
                         }
                       }}
-                      className="flex-1 sm:flex-none px-6 py-3 bg-navy text-gold hover:bg-navy/90 text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg"
+                      className="flex-1 sm:flex-none px-6 py-3 bg-navy text-gold hover:bg-navy/90 text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg disabled:opacity-50"
                     >
-                      <span>حفظ ونشر التعديلات فوراً 💾</span>
+                      {isSavingSettings ? (
+                        <>
+                          <span className="w-3.5 h-3.5 border-2 border-gold/30 border-t-gold rounded-full animate-spin"></span>
+                          <span>جاري الحفظ والرفع...</span>
+                        </>
+                      ) : (
+                        <span>حفظ ونشر التعديلات فوراً 💾</span>
+                      )}
                     </button>
                     <button
+                      disabled={isSavingSettings}
                       onClick={() => {
                         setLocalSettings(val => siteSettings);
                         setIsSettingsDirty(false);
                       }}
-                      className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                      className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all disabled:opacity-50"
                     >
                       تراجع وإلغاء
                     </button>
@@ -2713,7 +2737,7 @@ export function Dashboard({
                     <div className="md:col-span-3">
                       <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">كود الإعلان (Script / HTML Code)</label>
                       <textarea 
-                        value={ad.code}
+                        value={ad.code || ''}
                         dir="ltr"
                         onChange={(e) => {
                           const updated = siteSettings.adScripts.map(a => a.id === ad.id ? { ...a, code: e.target.value } : a);
@@ -2739,29 +2763,41 @@ export function Dashboard({
                 <ShieldCheck className="h-5 w-5" />
                 <span className="text-xxs font-black">حماية فورية وتزامن عالمي مباشر مفعل</span>
               </div>
-              <div className="flex gap-2 w-full sm:w-auto">
+               <div className="flex gap-2 w-full sm:w-auto">
                 <button 
+                  disabled={isSavingSettings}
                   onClick={async () => {
+                    setIsSavingSettings(true);
                     try {
-                      setSiteSettings(localSettings);
+                      await saveSiteSettingsProp(localSettings, true);
                       setIsSettingsDirty(false);
                       setShowSaveAllSuccess(true);
                       setTimeout(() => setShowSaveAllSuccess(false), 4500);
                     } catch (e) {
                       alert('خطأ أثناء حفظ التعديلات. يرجى تجربة ملفات/صور أصغر حجماً!');
+                    } finally {
+                      setIsSavingSettings(false);
                     }
                   }}
-                  className="flex-1 sm:flex-none bg-navy text-gold hover:bg-navy/90 px-8 py-3 rounded-xl text-xs font-black shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex-1 sm:flex-none bg-navy text-gold hover:bg-navy/90 px-8 py-3 rounded-xl text-xs font-black shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <span>حفظ وتطبيق إعدادات الإعلانات 💾</span>
+                  {isSavingSettings ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-gold/30 border-t-gold rounded-full animate-spin"></span>
+                      <span>جاري حفظ الإعلانات...</span>
+                    </>
+                  ) : (
+                    <span>حفظ وتطبيق إعدادات الإعلانات 💾</span>
+                  )}
                 </button>
                 {isSettingsDirty && (
                   <button
+                    disabled={isSavingSettings}
                     onClick={() => {
                       setLocalSettings(siteSettings);
                       setIsSettingsDirty(false);
                     }}
-                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all disabled:opacity-50"
                   >
                     تراجع
                   </button>
@@ -2810,7 +2846,7 @@ export function Dashboard({
                     <div>
                       <label className="block text-xxs font-black text-gray-400 uppercase tracking-widest mb-2">كلمات البحث المفتاحية (Keywords)</label>
                       <textarea
-                        value={siteSettings.seoKeywords}
+                        value={siteSettings.seoKeywords || ''}
                         onChange={(e) => setSiteSettings({ ...siteSettings, seoKeywords: e.target.value })}
                         placeholder="عطر، ساعات، فخامة، دكان الشرق..."
                         className="w-full px-4 py-3 bg-white border border-gray-150 rounded-2xl text-xs font-sans text-right focus:outline-hidden focus:border-gold transition-all resize-none shadow-xs"
@@ -2937,7 +2973,7 @@ export function Dashboard({
                       </div>
                       <div className="flex-1">
                         <input 
-                          value={banner.title}
+                          value={banner.title || ''}
                           onChange={(e) => {
                             const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, title: e.target.value } : b);
                             setSiteSettings({ ...siteSettings, promoBanners: newBanners });
@@ -2946,7 +2982,7 @@ export function Dashboard({
                           placeholder="العنوان الرئيسي..."
                         />
                         <input 
-                          value={banner.subtitle}
+                          value={banner.subtitle || ''}
                           onChange={(e) => {
                             const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, subtitle: e.target.value } : b);
                             setSiteSettings({ ...siteSettings, promoBanners: newBanners });
@@ -2956,7 +2992,7 @@ export function Dashboard({
                         />
                         <div className="flex items-center gap-2">
                           <input 
-                            value={banner.mediaUrl}
+                            value={banner.mediaUrl || ''}
                             onChange={(e) => {
                               const newBanners = siteSettings.promoBanners.map(b => b.id === banner.id ? { ...b, mediaUrl: e.target.value } : b);
                               setSiteSettings({ ...siteSettings, promoBanners: newBanners });
@@ -3242,27 +3278,39 @@ export function Dashboard({
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
                 <button
+                  disabled={isSavingSettings}
                   onClick={async () => {
+                    setIsSavingSettings(true);
                     try {
-                      setSiteSettings(localSettings);
+                      await saveSiteSettingsProp(localSettings, true);
                       setIsSettingsDirty(false);
                       setShowSaveAllSuccess(true);
                       setTimeout(() => setShowSaveAllSuccess(false), 4500);
                     } catch (e) {
                       alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                    } finally {
+                      setIsSavingSettings(false);
                     }
                   }}
-                  className="flex-1 sm:flex-none px-8 py-3 bg-navy text-gold hover:bg-navy/90 font-black text-xs rounded-xl transition-all shadow-lg cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex-1 sm:flex-none px-8 py-3 bg-navy text-gold hover:bg-navy/90 font-black text-xs rounded-xl transition-all shadow-lg cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <span>حفظ ونشر التعديلات فوراً 💾</span>
+                  {isSavingSettings ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-gold/30 border-t-gold rounded-full animate-spin"></span>
+                      <span>جاري حفظ التسويق...</span>
+                    </>
+                  ) : (
+                    <span>حفظ ونشر التعديلات فوراً 💾</span>
+                  )}
                 </button>
                 {isSettingsDirty && (
                   <button
+                    disabled={isSavingSettings}
                     onClick={() => {
                       setLocalSettings(siteSettings);
                       setIsSettingsDirty(false);
                     }}
-                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all disabled:opacity-50"
                   >
                     تراجع
                   </button>
@@ -3396,26 +3444,38 @@ export function Dashboard({
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
+                    disabled={isSavingSettings}
                     onClick={async () => {
+                      setIsSavingSettings(true);
                       try {
-                        setSiteSettings(localSettings);
+                        await saveSiteSettingsProp(localSettings, true);
                         setIsSettingsDirty(false);
                         setShowSaveAllSuccess(true);
                         setTimeout(() => setShowSaveAllSuccess(false), 4500);
-                      } catch (e) {
+                      } catch (c) {
                         alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                      } finally {
+                        setIsSavingSettings(false);
                       }
                     }}
-                    className="flex-1 sm:flex-none px-6 py-3 bg-navy text-gold hover:bg-navy/90 text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg"
+                    className="flex-1 sm:flex-none px-6 py-3 bg-navy text-gold hover:bg-navy/90 text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg disabled:opacity-50"
                   >
-                    <span>حفظ ونشر التعديلات فوراً 💾</span>
+                    {isSavingSettings ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-gold/30 border-t-gold rounded-full animate-spin"></span>
+                        <span>جاري حفظ الشحن...</span>
+                      </>
+                    ) : (
+                      <span>حفظ ونشر التعديلات فوراً 💾</span>
+                    )}
                   </button>
                   <button
+                    disabled={isSavingSettings}
                     onClick={() => {
                       setLocalSettings(siteSettings);
                       setIsSettingsDirty(false);
                     }}
-                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all"
+                    className="px-4 py-3 bg-gray-105 hover:bg-gray-150 text-xs font-bold text-gray-650 rounded-xl cursor-pointer transition-all disabled:opacity-50"
                   >
                     تراجع وإلغاء
                   </button>
@@ -3616,7 +3676,7 @@ export function Dashboard({
                       type="number"
                       min="0"
                       placeholder="مثال: 10"
-                      value={prodPointsReward}
+                      value={prodPointsReward ?? 10}
                       onChange={(e) => setProdPointsReward(Number(e.target.value))}
                       className="w-full px-3 py-2.5 bg-gray-50 border border-gold/20 rounded-xl text-xs font-mono text-navy focus:outline-hidden focus:border-gold"
                     />
@@ -3628,7 +3688,7 @@ export function Dashboard({
                     <input
                       type="text"
                       placeholder="https://..."
-                      value={prodVideoUrl}
+                      value={prodVideoUrl || ''}
                       onChange={(e) => setProdVideoUrl(e.target.value)}
                       className="w-full px-3 py-2.5 bg-gray-50 border border-gold/20 rounded-xl text-xs font-mono text-navy focus:outline-hidden focus:border-gold"
                     />
@@ -3900,7 +3960,7 @@ export function Dashboard({
                               <input
                                 type="text"
                                 required
-                                value={variant.colorName}
+                                value={variant.colorName || ''}
                                 onChange={(e) => {
                                   const name = e.target.value;
                                   setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, colorName: name } : v));
@@ -3916,7 +3976,7 @@ export function Dashboard({
                                 type="number"
                                 required
                                 min="0"
-                                value={variant.price}
+                                value={variant.price ?? ''}
                                 onChange={(e) => {
                                   const pVal = Number(e.target.value);
                                   setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, price: pVal } : v));
@@ -3933,7 +3993,7 @@ export function Dashboard({
                                 type="number"
                                 required
                                 min="0"
-                                value={variant.stock}
+                                value={variant.stock ?? ''}
                                 onChange={(e) => {
                                   const stkVal = Number(e.target.value);
                                   setProdVariants(prev => prev.map((v, i) => i === index ? { ...v, stock: stkVal } : v));
@@ -4036,16 +4096,25 @@ export function Dashboard({
                 <div className="border-t border-gray-150 pt-5 mt-4 flex justify-end space-x-2 space-x-reverse">
                   <button
                     type="button"
+                    disabled={isSavingProduct}
                     onClick={() => setShowProductModal(false)}
-                    className="px-4 py-2.5 border border-gray-150 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors text-xs font-bold"
+                    className="px-4 py-2.5 border border-gray-150 text-gray-500 rounded-xl hover:bg-gray-50 transition-colors text-xs font-bold disabled:opacity-50"
                   >
                     إلغاء
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-gray-950 hover:bg-gray-800 text-white rounded-xl transition-colors text-xs font-bold"
+                    disabled={isSavingProduct}
+                    className="px-5 py-2.5 bg-gray-950 hover:bg-gray-800 text-white rounded-xl transition-colors text-xs font-bold flex items-center justify-center gap-1.5 min-w-[120px] disabled:opacity-50"
                   >
-                    حفظ التغييرات
+                    {isSavingProduct ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        <span>جاري الحفظ...</span>
+                      </>
+                    ) : (
+                      <span>حفظ التغييرات</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -4583,26 +4652,38 @@ export function Dashboard({
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
+                disabled={isSavingSettings}
                 onClick={async () => {
+                  setIsSavingSettings(true);
                   try {
-                    setSiteSettings(localSettings);
+                    await saveSiteSettingsProp(localSettings, true);
                     setIsSettingsDirty(false);
                     setShowSaveAllSuccess(true);
                     setTimeout(() => setShowSaveAllSuccess(false), 4000);
                   } catch (e) {
                     alert('خطأ أثناء حفظ التعديلات الكبيرة. يرجى تجربة ملفات/صور أصغر حجماً!');
+                  } finally {
+                    setIsSavingSettings(false);
                   }
                 }}
-                className="flex-1 sm:flex-none px-5 py-2.5 bg-gold text-navy hover:bg-gold-light text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-gold/15"
+                className="flex-1 sm:flex-none px-5 py-2.5 bg-gold text-navy hover:bg-gold-light text-xs font-black rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-gold/15 disabled:opacity-50"
               >
-                <span>حفظ التعديلات الآن 💾</span>
+                {isSavingSettings ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-navy/30 border-t-navy rounded-full animate-spin"></span>
+                    <span>جاري الحفظ الرفع...</span>
+                  </>
+                ) : (
+                  <span>حفظ التعديلات الآن 💾</span>
+                )}
               </button>
               <button
+                disabled={isSavingSettings}
                 onClick={() => {
                   setLocalSettings(siteSettings);
                   setIsSettingsDirty(false);
                 }}
-                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-bold text-gray-200 rounded-xl cursor-pointer transition-all"
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-bold text-gray-200 rounded-xl cursor-pointer transition-all disabled:opacity-50"
               >
                 تراجع وإلغاء
               </button>

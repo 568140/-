@@ -101,7 +101,20 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
 const MOCK_HISTORICAL_ORDERS: Order[] = [];
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'store' | 'cart' | 'admin' | 'orders-tracking'>('store');
+  const [currentView, setCurrentView] = useState<'store' | 'cart' | 'admin' | 'orders-tracking'>(() => {
+    const saved = sessionStorage.getItem('dukkan_current_view');
+    if (saved === 'admin' && sessionStorage.getItem('dukkan_admin_logged') === 'true') {
+      return 'admin';
+    }
+    if (saved === 'cart' || saved === 'orders-tracking') {
+      return saved as any;
+    }
+    return 'store';
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('dukkan_current_view', currentView);
+  }, [currentView]);
   
   // Customer Session States
   const [currentUser, setCurrentUser] = useState<import('./types').CustomerAccount | null>(() => {
@@ -900,7 +913,7 @@ export default function App() {
   };
 
   // ADMIN OPERATIONS
-  const handleAddProduct = (newProdData: Omit<Product, 'id'>) => {
+  const handleAddProduct = (newProdData: Omit<Product, 'id'>): Promise<void> => {
     const newId = 'prod-' + Date.now(); // avoid duplicate IDs
     const newProduct: Product = {
       ...newProdData,
@@ -911,22 +924,22 @@ export default function App() {
     // Strip undefined values which Firebase rejects
     const cleanProduct = JSON.parse(JSON.stringify(newProduct));
 
-    setDoc(doc(db, 'products', newId), cleanProduct).catch(e =>
-      handleFirestoreError(e, OperationType.WRITE, `products/${newId}`)
-    );
+    return setDoc(doc(db, 'products', newId), cleanProduct).catch(e => {
+      handleFirestoreError(e, OperationType.WRITE, `products/${newId}`);
+    });
   };
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
+  const handleUpdateProduct = (updatedProduct: Product): Promise<void> => {
     const cleanProduct = JSON.parse(JSON.stringify(updatedProduct));
-    setDoc(doc(db, 'products', updatedProduct.id), cleanProduct).catch(e =>
-      handleFirestoreError(e, OperationType.WRITE, `products/${updatedProduct.id}`)
-    );
+    return setDoc(doc(db, 'products', updatedProduct.id), cleanProduct).catch(e => {
+      handleFirestoreError(e, OperationType.WRITE, `products/${updatedProduct.id}`);
+    });
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    deleteDoc(doc(db, 'products', productId)).catch(e =>
-      handleFirestoreError(e, OperationType.DELETE, `products/${productId}`)
-    );
+  const handleDeleteProduct = (productId: string): Promise<void> => {
+    return deleteDoc(doc(db, 'products', productId)).catch(e => {
+      handleFirestoreError(e, OperationType.DELETE, `products/${productId}`);
+    });
   };
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
@@ -1049,7 +1062,10 @@ export default function App() {
     );
   };
 
-  const handleSetSiteSettings = (val: import('./types').SiteSettings | ((prev: import('./types').SiteSettings) => import('./types').SiteSettings)) => {
+  const handleSetSiteSettings = (
+    val: import('./types').SiteSettings | ((prev: import('./types').SiteSettings) => import('./types').SiteSettings),
+    isImmediate = false
+  ): Promise<void> => {
     const nextSettings = typeof val === 'function' ? val(siteSettingsRef.current) : val;
     const cleanSettings = JSON.parse(JSON.stringify(nextSettings));
     setSiteSettings(cleanSettings);
@@ -1060,8 +1076,8 @@ export default function App() {
       clearTimeout(siteSettingsTimeoutRef.current);
     }
 
-    siteSettingsTimeoutRef.current = setTimeout(() => {
-      setDoc(doc(db, 'site_settings', 'general'), cleanSettings)
+    if (isImmediate) {
+      return setDoc(doc(db, 'site_settings', 'general'), cleanSettings)
         .then(() => {
           setSiteSettingsSyncState('saved');
         })
@@ -1069,7 +1085,22 @@ export default function App() {
           setSiteSettingsSyncState('error');
           handleFirestoreError(e, OperationType.WRITE, 'site_settings/general');
         });
-    }, 1200);
+    } else {
+      return new Promise<void>((resolve) => {
+        siteSettingsTimeoutRef.current = setTimeout(() => {
+          setDoc(doc(db, 'site_settings', 'general'), cleanSettings)
+            .then(() => {
+              setSiteSettingsSyncState('saved');
+              resolve();
+            })
+            .catch(e => {
+              setSiteSettingsSyncState('error');
+              handleFirestoreError(e, OperationType.WRITE, 'site_settings/general');
+              resolve();
+            });
+        }, 1200);
+      });
+    }
   };
 
   const handleSetCategories = (val: any[] | ((prev: any[]) => any[])) => {
