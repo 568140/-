@@ -191,6 +191,17 @@ export interface VisitorStat {
   count: number;
 }
 
+export interface VisitorLog {
+  id: string;
+  timestamp: string;
+  ip?: string;
+  city?: string;
+  country?: string;
+  device?: string;
+  browser?: string;
+  os?: string;
+}
+
 export interface CurrencyConfig {
   code: string;
   symbol: string;

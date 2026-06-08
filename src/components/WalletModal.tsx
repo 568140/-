@@ -15,7 +15,7 @@ const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose, currentUser,
 
   const handleRequestDeposit = () => {
     const targetPhone = "967774919194";
-    const msg = `السلام عليكم ورحمة الله وبركاته يا مدير 🌸،
+    const msg = `السلام عليكم ورحمة الله وبركاته يا فندم 🌸،
 أنا العميل: ${currentUser.name} 👋
 رقم الجوال: ${currentUser.phone}
 

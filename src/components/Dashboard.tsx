@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   TrendingUp, ShoppingBag, Users, DollarSign, Package, BadgePercent, 
-  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem, Coins, CreditCard
+  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem, Coins, CreditCard, Smartphone, Monitor
 } from 'lucide-react';
 import { Product, Order, Coupon, LocalWallet, Transaction, CustomerAccount } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
@@ -164,10 +164,11 @@ export function Dashboard({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping' | 'visitor-logs'>('metrics');
   
   // Real-time visitor stats
   const [visitorStats, setVisitorStats] = useState<import('../types').VisitorStat[]>([]);
+  const [visitorLogs, setVisitorLogs] = useState<import('../types').VisitorLog[]>([]);
 
   // Admin listeners state
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -186,6 +187,13 @@ export function Dashboard({
       const unsubStats = onSnapshot(statQuery, (snapshot) => {
         const stats = snapshot.docs.map(doc => doc.data() as import('../types').VisitorStat);
         setVisitorStats(stats);
+      });
+
+      // 1b. Detailed Visitor Logs
+      const logsQuery = query(collection(db, 'visitor_logs'), orderBy('timestamp', 'desc'), limit(100));
+      const unsubLogs = onSnapshot(logsQuery, (snapshot) => {
+        const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as import('../types').VisitorLog);
+        setVisitorLogs(logs);
       });
 
       // 2. Orders
@@ -230,6 +238,7 @@ export function Dashboard({
       setIsDataLoaded(true);
       return () => {
         unsubStats();
+        unsubLogs();
         unsubOrders();
         unsubAdmin();
       };
@@ -907,6 +916,16 @@ export function Dashboard({
             }`}
           >
             💬 رسائل العملاء الخاصة
+          </button>
+          <button
+            onClick={() => setActiveTab('visitor-logs')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'visitor-logs'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            🕵️ تفاصيل الزوار ({visitorLogs.length})
           </button>
           <button
             onClick={() => setActiveTab('coupons')}
@@ -3622,6 +3641,72 @@ export function Dashboard({
       )}
 
       {/* OWNER PRIVATE SETTINGS TAB */}
+      {activeTab === 'visitor-logs' && (
+        <div className="space-y-6 text-right font-sans mx-auto max-w-5xl">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 py-3 flex items-center gap-2">
+                <Users className="h-5 w-5 text-rose-600" />
+                <span>سجل تفاصيل الزوار الحقيقيين</span>
+              </h2>
+              <p className="text-xxs text-gray-400 font-sans mt-2">تتبع فوري لمواقع وأجهزة الزوار الذين يتصفحون المتجر حالياً.</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-right border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">الوقت والتاريخ</th>
+                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">الموقع الحغرافي</th>
+                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">عنوان IP</th>
+                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">الجهاز</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {visitorLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-rose-50/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="text-xs font-bold text-gray-800">
+                          {new Date(log.timestamp).toLocaleString('ar-YE')}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">{log.timestamp}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3 w-3 text-rose-500" />
+                          <span className="text-xs font-bold text-gray-700">
+                            {log.city || 'غير معروف'}، {log.country || 'غير معروف'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                        {log.ip || '0.0.0.0'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          {log.device === 'Mobile' ? <Smartphone className="h-3.5 w-3.5 text-gray-400" /> : <Monitor className="h-3.5 w-3.5 text-gray-400" />}
+                          <span className="text-xs font-bold text-gray-500">{log.device || 'Desktop'}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {visitorLogs.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                        <Users className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                        <p className="text-xs font-bold">لا توجد سجلات زوار مفصلة حالياً. جاري التتبع...</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'settings' && (
         <motion.div 
           initial={{ opacity: 0, y: 15 }}

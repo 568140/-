@@ -909,7 +909,7 @@ export function StoreFront({
             </div>
             
             <a 
-              href={`https://api.whatsapp.com/send?phone=${siteSettings.contactWhatsApp.replace(/[\s\+\-\(\)]/g, '')}&text=${encodeURIComponent('السلام عليكم يا فندم، أنا مهتم بالحصول على معروضات وخدمات دكان الشرق الفاخرة.')}`}
+              href={`https://api.whatsapp.com/send?phone=${siteSettings.contactWhatsApp.replace(/[\s\+\-\(\)]/g, '')}&text=${encodeURIComponent('السلام عليكم يا مدير، أنا مهتم بالحصول على معروضات وخدمات دكان الشرق الفاخرة.')}`}
               target="_blank"
               rel="noreferrer"
               className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl transition-all duration-300 flex items-center gap-1.5 shadow-sm scale-102 hover:scale-105"

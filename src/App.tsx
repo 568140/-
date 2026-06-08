@@ -15,7 +15,7 @@ import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles
 import { DEFAULT_YEMENI_GEODATA, GovernorateData } from './utils/yemeniData';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  collection, doc, onSnapshot, setDoc, deleteDoc, addDoc, getDocs 
+  collection, doc, onSnapshot, setDoc, deleteDoc, addDoc, getDocs, increment 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 
@@ -195,6 +195,53 @@ export default function App() {
   const [appReady, setAppReady] = useState(false);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  useEffect(() => {
+    // Visitor Tracking Logic
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sessionKey = `dukkan_visited_${todayStr}`;
+    
+    if (!sessionStorage.getItem(sessionKey)) {
+      const trackVisit = async () => {
+        try {
+          // 1. Increment daily counter
+          await setDoc(doc(db, 'visitor_stats', todayStr), { 
+            count: increment(1), 
+            date: todayStr 
+          }, { merge: true });
+
+          // 2. Log detailed session info
+          let geoData = {};
+          try {
+            const res = await fetch('https://ipapi.co/json/');
+            if (res.ok) {
+              const data = await res.json();
+              geoData = {
+                ip: data.ip,
+                city: data.city,
+                country: data.country_name,
+              };
+            }
+          } catch (e) {
+            console.warn('Geolocation failed', e);
+          }
+
+          const userAgent = navigator.userAgent;
+          await addDoc(collection(db, 'visitor_logs'), {
+            timestamp: new Date().toISOString(),
+            ...geoData,
+            userAgent: userAgent,
+            device: /Mobile|Android|iPhone/i.test(userAgent) ? 'Mobile' : 'Desktop',
+          });
+
+          sessionStorage.setItem(sessionKey, 'true');
+        } catch (err) {
+          console.error('Visitor tracking failed:', err);
+        }
+      };
+      trackVisit();
+    }
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'yemeni_geodata'), (docSnap) => {
@@ -1164,10 +1211,10 @@ export default function App() {
 
   useEffect(() => {
     if (productsLoaded && settingsLoaded) {
-      // Small intentional delay to ensure everything is painted and feels smooth
+      // Reduced delay for faster initial load experience
       const timer = setTimeout(() => {
         setAppReady(true);
-      }, 850);
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [productsLoaded, settingsLoaded]);
