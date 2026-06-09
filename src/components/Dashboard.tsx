@@ -169,9 +169,25 @@ export function Dashboard({
   // Real-time visitor stats
   const [visitorStats, setVisitorStats] = useState<import('../types').VisitorStat[]>([]);
   const [visitorLogs, setVisitorLogs] = useState<import('../types').VisitorLog[]>([]);
+  const [prevOrderCount, setPrevOrderCount] = useState<number>(0);
+  const [prevVisitorCount, setPrevVisitorCount] = useState<number>(0);
 
   // Admin listeners state
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Sound Player Utility
+  const playSound = (type: 'order' | 'visitor') => {
+    try {
+      const url = type === 'order' 
+        ? 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
+        : 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3';
+      const audio = new Audio(url);
+      audio.volume = 0.5;
+      audio.play().catch(e => console.warn('Audio play blocked:', e));
+    } catch (e) {
+      console.warn('Sound error:', e);
+    }
+  };
 
   React.useEffect(() => {
     // Only load full data (orders/accounts/stats) if admin is logged in
@@ -194,6 +210,14 @@ export function Dashboard({
       const unsubLogs = onSnapshot(logsQuery, (snapshot) => {
         const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as import('../types').VisitorLog);
         setVisitorLogs(logs);
+        
+        // Play notification sound if enabled and count increased
+        setPrevVisitorCount(prev => {
+          if (prev > 0 && logs.length > prev && siteSettings.enableVisitorSound) {
+            playSound('visitor');
+          }
+          return logs.length;
+        });
       });
 
       // 2. Orders
@@ -207,6 +231,15 @@ export function Dashboard({
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return dateB - dateA;
         });
+        
+        // Play notification sound if enabled and count increased
+        setPrevOrderCount(prev => {
+          if (prev > 0 && list.length > prev && siteSettings.enableOrderSound) {
+            playSound('order');
+          }
+          return list.length;
+        });
+
         setTimeout(() => {
           setOrders(list);
         }, 0);
@@ -2342,14 +2375,114 @@ export function Dashboard({
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-amber-600" />
-                <span>تخصيص واجهة المتجر والنصوص</span>
+                <span>تخصيص واجهة المتجر والنصوص 🎨</span>
               </h2>
-              <p className="text-xxs text-gray-400 font-sans mt-2">
-                تعديل المسميات والعناوين التي تظهر للعملاء في الصفحة الرئيسية.
-                <span className="block mt-1.5 text-amber-600 font-bold bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed text-right">
+              <p className="text-xxs text-gray-400 font-sans mt-2">تحكم بجمالية المتجر، ألوان الخلفية، وأسلوب عرض مربعات المنتجات، والإشعارات.</p>
+
+              {/* NEW: VISUAL STYLE CONTROLS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
+                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4 text-gold" />
+                    أسلوب عرض المنتجات (المربعات)
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xxs font-bold text-gray-400 mb-1">نمط البطاقة</label>
+                      <select 
+                        value={siteSettings.productCardStyle || 'modern'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, productCardStyle: e.target.value as any })}
+                        className="w-full px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold"
+                      >
+                        <option value="modern">عصري (Modern)</option>
+                        <option value="minimal">بسيط (Minimal)</option>
+                        <option value="classic">كلاسيكي (Classic)</option>
+                        <option value="glass">زجاجي (Glass)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xxs font-bold text-gray-400 mb-1">الأعمدة (الجوال)</label>
+                      <select 
+                        value={siteSettings.productGridCols || 2}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, productGridCols: Number(e.target.value) })}
+                        className="w-full px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold"
+                      >
+                        <option value={1}>1 (كبير جداً)</option>
+                        <option value={2}>2 (افتراضي)</option>
+                        <option value={3}>3 (صغير)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
+                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-rose-500" />
+                    خلفية المتجر العامة
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <select 
+                        value={siteSettings.storefrontBgType || 'gradient'}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, storefrontBgType: e.target.value as any })}
+                        className="flex-1 px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold"
+                      >
+                        <option value="color">لون سادة</option>
+                        <option value="gradient">تدرج لوني</option>
+                        <option value="image">صورة مخصصة</option>
+                      </select>
+                      <input 
+                        type="text" 
+                        value={siteSettings.storefrontBgValue || ''}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, storefrontBgValue: e.target.value })}
+                        className="flex-1 px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-mono"
+                        placeholder={siteSettings.storefrontBgType === 'image' ? 'رابط الصورة' : '#ffffff / linear-gradient...'}
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* NEW: NOTIFICATION SETTINGS */}
+              <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 mt-4">
+                <h3 className="text-sm font-black text-amber-900 mb-4 flex items-center gap-2">
+                  <CircleAlert className="h-4 w-4 text-amber-600" />
+                  تنبيهات النظام والإشعارات الصوتية 🔔
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-200">
+                    <div>
+                      <h4 className="text-xs font-extrabold text-gray-800">صوت عند طلب جديد</h4>
+                      <p className="text-[10px] text-gray-400 font-sans">تشغيل صوت فور وصول أي طلب جديد.</p>
+                    </div>
+                    <button 
+                      onClick={() => setSiteSettings({ ...siteSettings, enableOrderSound: !siteSettings.enableOrderSound })}
+                      className={`w-10 h-5 rounded-full transition-all relative ${siteSettings.enableOrderSound ? 'bg-amber-600' : 'bg-gray-300'}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${siteSettings.enableOrderSound ? 'right-5.5' : 'right-0.5'}`}></div>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-200">
+                    <div>
+                      <h4 className="text-xs font-extrabold text-gray-800">صوت لدخول زوار</h4>
+                      <p className="text-[10px] text-gray-400 font-sans">تنبيهك بصوت عند دخول زائر (للمالك).</p>
+                    </div>
+                    <button 
+                      onClick={() => setSiteSettings({ ...siteSettings, enableVisitorSound: !siteSettings.enableVisitorSound })}
+                      className={`w-10 h-5 rounded-full transition-all relative ${siteSettings.enableVisitorSound ? 'bg-amber-600' : 'bg-gray-300'}`}
+                    >
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${siteSettings.enableVisitorSound ? 'right-5.5' : 'right-0.5'}`}></div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-100 text-xxs leading-relaxed text-gray-600">
+                <span className="block mt-1.5 text-amber-600 font-bold bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
                   🚀 يدعم المتجر الآن رفع صور فائقة الدقة والوضوح (للشعار أو الأيقونة) بحجم ملف يصل حتى <strong>20 ميجابايت</strong> مع ضغط فائق الجودة ذكي وتلقائي لتجاوز حدود قاعدة البيانات، كما يمكنك إدخال رابط مباشر خارجي (External Image URL) واستخدامه لتخزين صورتك خارجياً بالكامل!
                 </span>
-              </p>
+              </div>
               
               <div className="mt-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2625,6 +2758,77 @@ export function Dashboard({
                 </div>
               </div>
 
+              <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 mt-6 md:mt-8">
+                <h3 className="text-lg font-black text-amber-900 mb-4 flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-amber-600" />
+                  <span>دليل "كيف تشتري؟" (الخطوات)</span>
+                </h3>
+                <div className="space-y-4">
+                  {(siteSettings.buyingSteps || []).map((step, idx) => (
+                    <div key={step.id} className="bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 space-y-3">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            value={step.title}
+                            onChange={(e) => {
+                              const updated = [...(siteSettings.buyingSteps || [])];
+                              updated[idx].title = e.target.value;
+                              setSiteSettings({ ...siteSettings, buyingSteps: updated });
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-100 rounded-lg text-sm font-bold"
+                            placeholder="عنوان الخطوة"
+                          />
+                          <input 
+                            type="text" 
+                            value={step.icon}
+                            onChange={(e) => {
+                              const updated = [...(siteSettings.buyingSteps || [])];
+                              updated[idx].icon = e.target.value;
+                              setSiteSettings({ ...siteSettings, buyingSteps: updated });
+                            }}
+                            className="w-32 px-3 py-2 border border-gray-100 rounded-lg text-xs font-mono"
+                            placeholder="أيقونة (Lucide)"
+                          />
+                        </div>
+                        <textarea 
+                          value={step.description}
+                          onChange={(e) => {
+                            const updated = [...(siteSettings.buyingSteps || [])];
+                            updated[idx].description = e.target.value;
+                            setSiteSettings({ ...siteSettings, buyingSteps: updated });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-100 rounded-lg text-xs resize-none"
+                          rows={2}
+                          placeholder="وصف الخطوة بالتفصيل"
+                        />
+                      </div>
+                      <div className="flex md:flex-col justify-end gap-2">
+                        <button 
+                          onClick={() => {
+                            const updated = (siteSettings.buyingSteps || []).filter((_, i) => i !== idx);
+                            setSiteSettings({ ...siteSettings, buyingSteps: updated });
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button 
+                    onClick={() => {
+                      const newStep = { id: Date.now().toString(), title: '', description: '', icon: 'CheckCircle' };
+                      setSiteSettings({ ...siteSettings, buyingSteps: [...(siteSettings.buyingSteps || []), newStep] });
+                    }}
+                    className="w-full py-3 border-2 border-dashed border-amber-200 rounded-xl text-amber-600 font-bold hover:bg-amber-100/50 transition-all text-sm flex items-center justify-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    اضافة خطوة شراء جديدة
+                  </button>
+                </div>
+              </div>
+
               <h3 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-amber-500" /> معلومات التواصل والدعم
               </h3>
@@ -2659,6 +2863,42 @@ export function Dashboard({
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono text-left"
                     dir="ltr"
                     placeholder="ex: 967774919194"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+                <div>
+                  <label className="block text-xxs font-black text-blue-600 uppercase mb-1">رابط فيسبوك</label>
+                  <input 
+                    type="text" 
+                    value={siteSettings.facebookUrl || ''}
+                    onChange={(e) => setSiteSettings({ ...siteSettings, facebookUrl: e.target.value })}
+                    className="w-full px-4 py-2 bg-blue-50 border border-blue-100 rounded-xl focus:border-blue-400 focus:outline-hidden text-xs font-mono"
+                    placeholder="https://facebook.com/..."
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xxs font-black text-rose-600 uppercase mb-1">رابط إنستغرام</label>
+                  <input 
+                    type="text" 
+                    value={siteSettings.instagramUrl || ''}
+                    onChange={(e) => setSiteSettings({ ...siteSettings, instagramUrl: e.target.value })}
+                    className="w-full px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl focus:border-rose-400 focus:outline-hidden text-xs font-mono"
+                    placeholder="https://instagram.com/..."
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xxs font-black text-sky-600 uppercase mb-1">رابط تليجرام</label>
+                  <input 
+                    type="text" 
+                    value={siteSettings.telegramUrl || ''}
+                    onChange={(e) => setSiteSettings({ ...siteSettings, telegramUrl: e.target.value })}
+                    className="w-full px-4 py-2 bg-sky-50 border border-sky-100 rounded-xl focus:border-sky-400 focus:outline-hidden text-xs font-mono"
+                    placeholder="https://t.me/..."
+                    dir="ltr"
                   />
                 </div>
               </div>
@@ -3852,6 +4092,13 @@ export function Dashboard({
                         setProdCategory(newCat);
                         const subCats = categories.find(c => c.name === newCat)?.subcategories || [];
                         setProdSubCategory(subCats[0] || '');
+                        
+                        // Auto-template for sizes if it's currently empty or generic
+                        if (!prodSizesInput || prodSizesInput === 'S, M, L, XL') {
+                          if (newCat.includes('أحذية')) setProdSizesInput('38, 39, 40, 41, 42, 43');
+                          else if (newCat.includes('ملابس')) setProdSizesInput('S, M, L, XL');
+                          else if (newCat.includes('عطر') || newCat.includes('بخور')) setProdSizesInput('حبة, طقم');
+                        }
                       }}
                       className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-800 focus:outline-hidden font-sans"
                     >
@@ -3915,15 +4162,41 @@ export function Dashboard({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">المقاسات المتاحة (مفصولة بفواصل)</label>
+                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5 flex justify-between items-center">
+                      <span>المقاسات أو الخيارات (مفصولة بفواصل)</span>
+                      <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">قالب سريع</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {[
+                        { label: '👕 ملابس', val: 'S, M, L, XL' },
+                        { label: '👟 أحذية', val: '38, 39, 40, 41, 42, 43' },
+                        { label: '👶 أطفال', val: '2Y, 4Y, 6Y, 8Y' },
+                        { label: '👜 حقائب', val: 'One Size' },
+                        { label: '📦 وحدات', val: 'درزن, نصف درزن, حبة, طقم' }
+                      ].map(tpl => (
+                        <button
+                          key={tpl.val}
+                          type="button"
+                          onClick={() => {
+                             setProdSizesInput(tpl.val);
+                             const newStock: Record<string, number> = {};
+                             tpl.val.split(/[,,،]/).map(s => s.trim()).filter(Boolean).forEach(s => newStock[s] = 10);
+                             setProdSizeStock(newStock);
+                          }}
+                          className="px-2.5 py-1.5 bg-gray-50 hover:bg-amber-100 border border-gray-100 rounded-xl text-[10px] font-black text-gray-600 transition-all cursor-pointer active:scale-95"
+                        >
+                          {tpl.label}
+                        </button>
+                      ))}
+                    </div>
                     <input
                       type="text"
                       placeholder="مثال: S, M, L, XL أو 38, 40, 42"
                       value={prodSizesInput || ''}
                       onChange={(e) => setProdSizesInput(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 font-sans"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 font-sans shadow-sm"
                     />
                   </div>
                 </div>

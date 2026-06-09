@@ -124,6 +124,16 @@ export interface SiteSettings {
   enableSplash?: boolean;
   splashBgColor?: string;
   splashTextColor?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  telegramUrl?: string;
+  buyingSteps?: { id: string; title: string; description: string; icon: string }[];
+  productCardStyle?: 'modern' | 'classic' | 'minimal' | 'glass';
+  productGridCols?: number;
+  storefrontBgType?: 'color' | 'image' | 'gradient';
+  storefrontBgValue?: string;
+  enableOrderSound?: boolean;
+  enableVisitorSound?: boolean;
   seoKeywords: string;
   enableLiveChat: boolean;
   enableSocialProof: boolean;

@@ -11,7 +11,7 @@ import { CustomerMessages } from './components/CustomerMessages';
 import WalletModal from './components/WalletModal';
 import { Product, CartItem, Order, Coupon, CurrencyConfig } from './types';
 import { CATEGORIES, CURRENCIES } from './data';
-import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles } from 'lucide-react';
+import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles, Facebook, Instagram } from 'lucide-react';
 import { DEFAULT_YEMENI_GEODATA, GovernorateData } from './utils/yemeniData';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -39,10 +39,25 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   splashTitle: 'دكّان الشَّرق البلاتيني',
   splashSubtitle: 'فخامة الشرق بين يديك...',
   splashIconUrl: '/logo.png',
-  splashDuration: 2500,
+  splashDuration: 1200,
   enableSplash: true,
   splashBgColor: '#0a0c10',
   splashTextColor: '#d4af37',
+  facebookUrl: '',
+  instagramUrl: '',
+  telegramUrl: '',
+  buyingSteps: [
+    { id: '1', title: 'اختر منتجك', description: 'تصفح تشكيلة العطور والساعات الفاخرة واختر ما يناسب ذوقك.', icon: 'ShoppingBag' },
+    { id: '2', title: 'أضف للسلة', description: 'أضف المنتجات للسلة وادخل كود الخصم إن وجد.', icon: 'ShoppingCart' },
+    { id: '3', title: 'إتمام الطلب', description: 'أدخل معلومات الشحن وحدد وسيلة الدفع المناسبة لك.', icon: 'CheckCircle' },
+    { id: '4', title: 'تأكيد الرسالة', description: 'أرسل الطلب عبر الواتساب ليقوم فريقنا بتجهيزه فوراً.', icon: 'MessageSquare' }
+  ],
+  productCardStyle: 'modern',
+  productGridCols: 2,
+  storefrontBgType: 'gradient',
+  storefrontBgValue: 'linear-gradient(to bottom, #f8fafc, #ffffff)',
+  enableOrderSound: true,
+  enableVisitorSound: true,
   seoKeywords: 'عطر، ساعات، فخامة، دكان الشرق، بلاتيني، تسوق، اليمن، السعودية',
   enableLiveChat: true,
   enableSocialProof: true,
@@ -801,7 +816,16 @@ export default function App() {
     }
 
     const cleanOrder = JSON.parse(JSON.stringify(newOrder));
-    setDoc(doc(db, 'orders', newOrder.id), cleanOrder).catch(e =>
+    setDoc(doc(db, 'orders', newOrder.id), cleanOrder).then(() => {
+      // Play sound for customer
+      if (siteSettings.enableOrderSound) {
+        try {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+          audio.volume = 0.5;
+          audio.play().catch(() => {});
+        } catch (e) {}
+      }
+    }).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, `orders/${newOrder.id}`)
     );
   };
@@ -1119,13 +1143,14 @@ export default function App() {
 
   useEffect(() => {
     if (productsLoaded && settingsLoaded) {
-      // Reduced delay for faster initial load experience
+      // Respect the custom duration if the user has splash enabled
+      const duration = siteSettings.enableSplash ? (siteSettings.splashDuration || 1200) : 200;
       const timer = setTimeout(() => {
         setAppReady(true);
-      }, 200);
+      }, duration);
       return () => clearTimeout(timer);
     }
-  }, [productsLoaded, settingsLoaded]);
+  }, [productsLoaded, settingsLoaded, siteSettings.enableSplash, siteSettings.splashDuration]);
 
   const cartCount = cartItems.reduce((acc, curr) => acc + curr.quantity, 0);
 
@@ -1371,9 +1396,37 @@ export default function App() {
           <div className="text-xs text-gray-400 space-y-2">
             <h4 className="text-slate-200 font-bold mb-3">اتصل بنا أو تصفح</h4>
             <p>📍 {siteSettings.footerAddress}</p>
-            <p>📞 رقم المالك لليمن: <span className="font-mono text-amber-400 font-bold">{siteSettings.contactPhone}</span></p>
-            <p>📧 الدعم الفني: {siteSettings.footerEmail}</p>
-            <p>🕒 {siteSettings.supportHours}</p>
+            <p className="flex items-center gap-2 justify-center md:justify-start">
+              <span className="text-gray-400">📞 رقم المالك:</span>
+              <a href={`tel:${siteSettings.contactPhone}`} className="font-mono text-amber-400 font-bold hover:underline">
+                {siteSettings.contactPhone}
+              </a>
+            </p>
+            <p className="flex items-center gap-2 justify-center md:justify-start">
+              <span className="text-gray-400">📧 الدعم الفني:</span>
+              <a href={`mailto:${siteSettings.footerEmail}`} className="text-amber-100 hover:underline">
+                {siteSettings.footerEmail}
+              </a>
+            </p>
+            <p className="text-gray-400 mt-1">🕒 {siteSettings.supportHours}</p>
+            
+            <div className="flex items-center justify-center md:justify-start gap-4 mt-6">
+              {siteSettings.facebookUrl && (
+                <a href={siteSettings.facebookUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center hover:scale-110 transition-transform group">
+                  <Facebook className="h-4 w-4 text-white" />
+                </a>
+              )}
+              {siteSettings.instagramUrl && (
+                <a href={siteSettings.instagramUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center hover:scale-110 transition-transform group">
+                  <Instagram className="h-4 w-4 text-white" />
+                </a>
+              )}
+              {siteSettings.telegramUrl && (
+                <a href={siteSettings.telegramUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center hover:scale-110 transition-transform group">
+                  <Send className="h-4 w-4 text-white" />
+                </a>
+              )}
+            </div>
           </div>
 
         </div>

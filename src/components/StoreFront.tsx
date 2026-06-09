@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck, PlayCircle, Trophy, Video, ChevronDown, ChevronLeft, ChevronRight, Folder, FolderOpen, Layers } from 'lucide-react';
+import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck, PlayCircle, Trophy, Video, ChevronDown, ChevronLeft, ChevronRight, Folder, FolderOpen, Layers, CheckCircle, ShoppingCart, Smartphone, Monitor } from 'lucide-react';
 import { Product, CurrencyConfig, PromoBanner } from '../types';
 
 interface StoreFrontProps {
@@ -31,7 +31,7 @@ export function StoreFront({
   const [selectedCategory, setSelectedCategory] = useState('الكل');
   const [selectedSubCategory, setSelectedSubCategory] = useState('الكل');
   const [expandedCategoryNames, setExpandedCategoryNames] = useState<Record<string, boolean>>({});
-  const [isTreeMenuOpen, setIsTreeMenuOpen] = useState(true);
+  const [isTreeMenuOpen, setIsTreeMenuOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedColorState, setSelectedColorState] = useState<any | null>(null);
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
@@ -216,8 +216,44 @@ export function StoreFront({
 
   const activeBanners = (siteSettings?.promoBanners || []).filter(b => b.isActive);
 
+  const gridColsClass = useMemo(() => {
+    const cols = siteSettings?.productGridCols || 2;
+    if (cols === 1) return "grid grid-cols-1 gap-8";
+    if (cols === 3) return "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"; // Dense on desktop
+    return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"; // Default
+  }, [siteSettings?.productGridCols]);
+
+  const cardStyleClass = useMemo(() => {
+    const style = siteSettings?.productCardStyle || 'modern';
+    switch (style) {
+      case 'minimal':
+        return "group bg-white/50 hover:bg-white rounded-xl overflow-hidden border border-transparent hover:border-gray-100 transition-all duration-300 flex flex-col";
+      case 'classic':
+        return "group bg-white rounded-none overflow-hidden border border-gray-300 shadow-none hover:shadow-lg transition-all duration-300 flex flex-col";
+      case 'glass':
+        return "group bg-white/60 backdrop-blur-md rounded-3xl overflow-hidden border border-white/40 shadow-sm hover:shadow-lg transition-all duration-500 flex flex-col";
+      default: // modern
+        return "group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col";
+    }
+  }, [siteSettings?.productCardStyle]);
+
+  const storefrontStyles = useMemo(() => {
+    if (!siteSettings) return {};
+    const type = siteSettings.storefrontBgType || 'gradient';
+    const value = siteSettings.storefrontBgValue || '';
+    
+    if (type === 'image') {
+      return { backgroundImage: `url(${value})`, backgroundSize: 'cover', backgroundAttachment: 'fixed' };
+    } else if (type === 'color') {
+      return { backgroundColor: value || '#f8fafc' };
+    } else {
+      return { background: value || 'linear-gradient(to bottom, #f8fafc, #ffffff)' };
+    }
+  }, [siteSettings?.storefrontBgType, siteSettings?.storefrontBgValue]);
+
   return (
-    <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="min-h-screen py-8 transition-all duration-1000" style={storefrontStyles}>
+      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {renderAds('top_header')}
       
       {/* Dynamic Add to Cart Notification bar */}
@@ -448,27 +484,36 @@ export function StoreFront({
         {renderAds('sidebar')}
 
         {/* --- DYNAMIC COLLAPSIBLE CATEGORIES TREE MENU (Requirement 1) --- */}
-        <div className="mt-8 bg-white rounded-3xl p-5 border border-amber-100 shadow-sm">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xs font-black text-gray-900 font-sans flex items-center gap-2">
-              <Layers className="h-5 w-5 text-amber-700" />
-              <span>📂 تصفح شجرة الأقسام المتقدمة (منسدلة ومنطوية)</span>
-            </h3>
+        <div className="mt-8 bg-charcoal rounded-3xl p-5 border border-gold/10 shadow-xl overflow-hidden relative group">
+          <div className="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+          <div className="flex justify-between items-center mb-0 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
+                <Layers className="h-5 w-5 text-gold" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white font-sans">تصفح الأقسام والتشكيلات</h3>
+                <p className="text-[10px] text-gray-400 font-sans">اختر القسم الذي تفضل تصفحه بعناية</p>
+              </div>
+            </div>
             <button
               onClick={() => setIsTreeMenuOpen(!isTreeMenuOpen)}
-              className="text-xxs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1"
+              className={`text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                isTreeMenuOpen ? 'bg-gold text-navy shadow-lg shadow-gold/20' : 'bg-white/5 text-gray-300 hover:bg-white/10'
+              }`}
             >
-              <span>{isTreeMenuOpen ? 'طي القائمة 🔺' : 'فرد القائمة 🔻'}</span>
+              <span>{isTreeMenuOpen ? 'إغلاق الأقسام' : 'فتح الأقسام'}</span>
+              <ChevronDown className={`h-3 w-3 transition-transform duration-500 ${isTreeMenuOpen ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
           <AnimatePresence>
             {isTreeMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden space-y-2 border-t border-gray-100 pt-4"
+                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginTop: 24 }}
+                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                className="overflow-hidden space-y-2 border-t border-white/5 pt-6"
               >
                 {/* Clean All Item */}
                 <div
@@ -614,6 +659,56 @@ export function StoreFront({
           </AnimatePresence>
         </div>
 
+        {/* Buying Steps Section (Requirement 2) */}
+        {siteSettings.buyingSteps && siteSettings.buyingSteps.length > 0 && (
+          <section className="mt-10 mb-8 bg-linear-to-b from-gray-50 to-white rounded-[40px] p-8 md:p-10 border border-gray-100 shadow-sm overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-3xl -mr-32 -mt-32 rounded-full"></div>
+            <div className="relative z-10 text-center mb-10">
+              <span className="inline-block px-4 py-1.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.2em] rounded-full mb-4">خدمة العملاء</span>
+              <h2 className="text-xl md:text-2xl font-black text-gray-900 font-display">خطوات الشراء من دكان الشرق</h2>
+              <div className="h-1 w-16 bg-amber-500 mx-auto mt-4 rounded-full"></div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+              {siteSettings.buyingSteps.map((step, idx) => {
+                // Map string names to actual Lucide components
+                const iconMap: Record<string, any> = {
+                  'ShoppingBag': ShoppingBag,
+                  'ShoppingCart': ShoppingCart,
+                  'CheckCircle': CheckCircle,
+                  'MessageSquare': MessageSquare,
+                  'Truck': Truck,
+                  'Smartphone': Smartphone,
+                  'Monitor': Monitor,
+                  'User': User,
+                  'Sparkles': Sparkles
+                };
+                const StepIcon = iconMap[step.icon] || CheckCircle;
+                
+                return (
+                  <motion.div 
+                    key={step.id}
+                    initial={{ opacity: 0, y: 15 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    viewport={{ once: true }}
+                    className="flex flex-col items-center text-center group"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-white shadow-md border border-gray-100 flex items-center justify-center mb-5 group-hover:bg-amber-600 transition-colors duration-500 relative">
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-amber-700 text-white flex items-center justify-center rounded-full text-[10px] font-black ring-2 ring-white">
+                        {idx + 1}
+                      </div>
+                      <StepIcon className="h-6 w-6 text-amber-600 group-hover:text-white transition-colors duration-500" />
+                    </div>
+                    <h3 className="text-xs font-black text-gray-900 mb-2">{step.title}</h3>
+                    <p className="text-xxs text-gray-500 font-sans leading-relaxed px-2">{step.description}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Categories Pills */}
         <div className="mt-8 flex flex-wrap gap-3 border-t border-gray-100 pt-8">
           <button
@@ -715,7 +810,7 @@ export function StoreFront({
               }
             }
           }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
+          className={gridColsClass}
         >
           {filteredProducts.map((product, index) => (
             <React.Fragment key={product.id}>
@@ -726,7 +821,7 @@ export function StoreFront({
                 }}
                 layout
                 id={`product-card-${product.id}`}
-                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col"
+                className={cardStyleClass}
               >
                 {/* Product Image Panel */}
                 <div className="relative aspect-square overflow-hidden bg-gray-50 cursor-pointer" onClick={() => handleSelectProduct(product)}>
@@ -1308,7 +1403,7 @@ export function StoreFront({
           </motion.div>
         )}
       </AnimatePresence>
-
+      </div>
     </div>
   );
 }
