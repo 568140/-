@@ -10,7 +10,7 @@ import CommunityChat from './components/CommunityChat';
 import { CustomerMessages } from './components/CustomerMessages';
 import WalletModal from './components/WalletModal';
 import { Product, CartItem, Order, Coupon, CurrencyConfig } from './types';
-import { INITIAL_PRODUCTS, INITIAL_COUPONS, CATEGORIES, CURRENCIES } from './data';
+import { CATEGORIES, CURRENCIES } from './data';
 import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles } from 'lucide-react';
 import { DEFAULT_YEMENI_GEODATA, GovernorateData } from './utils/yemeniData';
 import { motion, AnimatePresence } from 'motion/react';
@@ -48,60 +48,18 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   enableSocialProof: true,
   enableCommunityChat: true,
   enableAds: true,
-  adScripts: [
-    {
-      id: '1',
-      provider: 'Custom',
-      location: 'top_header',
-      code: '<div class="bg-gold/5 p-2 text-center text-[10px] text-navy font-bold">✨ إعلان: خصم 20% لعملاء دكان الشرق الجدد! ✨</div>',
-      isActive: true
-    }
-  ],
-  promoBanners: [
-    {
-      id: '1',
-      title: 'مجموعة العطور الملكية 2024',
-      subtitle: 'اكتشف الفخامة في كل رشة',
-      mediaType: 'image',
-      mediaUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=1600&auto=format&fit=crop',
-      isActive: true,
-      bgColor: '#1a1f2e',
-      textColor: '#ffffff'
-    }
-  ],
-  redemptionOptions: [
-    {
-      id: 'r1',
-      title: 'تحويل لخصم مباشر (100 نقطة)',
-      description: 'استبدل 100 نقطة بـ 10 من عملة المتجر تضاف لرصيدك فوراً',
-      pointsRequired: 100,
-      rewardValue: 10,
-      rewardType: 'balance',
-      isActive: true
-    },
-    {
-      id: 'r2',
-      title: 'كوبون خصم 50 (500 نقطة)',
-      description: 'احصل على كود خصم بقيمة 50 نقطة لاستخدامه في طلبك القادم',
-      pointsRequired: 500,
-      rewardValue: 50,
-      rewardType: 'coupon',
-      isActive: true
-    }
-  ],
-  pointsRatio: 5, // Default: 5 points per 1 SAR
-  pointsRedeemRatio: 100, // Default: 100 points = 1 SAR discount
+  adScripts: [],
+  promoBanners: [],
+  redemptionOptions: [],
+  pointsRatio: 5, 
+  pointsRedeemRatio: 100, 
   headerShippingText: 'شحن مجاني لكافة البلدان للطلبات فوق ٤٠٠ ر.س',
   headerPaymentText: 'دفع آمن بالكامل ومحمي ١٠٠٪',
   headerOffersText: 'عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط',
   enableCod: true,
   enableLocalWallets: true,
   enableExternalCards: false,
-  shippingDestinations: [
-    { id: 'dest-yem', cityAr: 'اليمن (شحن سريع وآمن)', costSar: 2500, estDays: '١-٣ أيام', isActive: true },
-    { id: 'dest-ksa', cityAr: 'المملكة العربية السعودية', costSar: 35, estDays: '٢-٥ أيام', isActive: true },
-    { id: 'dest-gcc', cityAr: 'دول الخليج العربي', costSar: 75, estDays: '٣-٧ أيام', isActive: true }
-  ]
+  shippingDestinations: []
 };
 
 // Start with absolutely fresh data for the client
@@ -251,9 +209,6 @@ export default function App() {
           setYemeniGeodata(remoteData);
           localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(remoteData));
         }
-      } else {
-        // Seed with default if not present
-        setDoc(doc(db, 'settings', 'yemeni_geodata'), { data: DEFAULT_YEMENI_GEODATA }).catch(() => {});
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'settings/yemeni_geodata');
@@ -513,31 +468,19 @@ export default function App() {
   // Real-time Firestore Sync hooks requested by user
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'products'), (snapshot) => {
-      if (snapshot.empty) {
-        INITIAL_PRODUCTS.forEach(p => {
-          const promoWithCode = {
-            ...p,
-            code: p.code || ('LX-' + Math.floor(10000 + Math.random() * 90000))
-          };
-          setDoc(doc(db, 'products', p.id), promoWithCode).catch(e => 
-            handleFirestoreError(e, OperationType.WRITE, `products/${p.id}`)
-          );
-        });
-      } else {
-        const list: Product[] = [];
-        snapshot.forEach(docSnap => {
-          const prodData = docSnap.data() as Product;
-          if (!prodData.code) {
-            const randomCode = 'LX-' + Math.floor(10000 + Math.random() * 90000);
-            prodData.code = randomCode;
-            // Update Firestore on-the-fly to permanently assign a unique code
-            setDoc(doc(db, 'products', prodData.id), prodData).catch(() => {});
-          }
-          list.push(prodData);
-        });
-        setProducts(list);
-        localStorage.setItem('dukkan_products_cache', JSON.stringify(list));
-      }
+      const list: Product[] = [];
+      snapshot.forEach(docSnap => {
+        const prodData = docSnap.data() as Product;
+        if (!prodData.code) {
+          const randomCode = 'LX-' + Math.floor(10000 + Math.random() * 90000);
+          prodData.code = randomCode;
+          // Update Firestore on-the-fly to permanently assign a unique code
+          setDoc(doc(db, 'products', prodData.id), prodData).catch(() => {});
+        }
+        list.push(prodData);
+      });
+      setProducts(list);
+      localStorage.setItem('dukkan_products_cache', JSON.stringify(list));
       setProductsLoaded(true);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'products');
@@ -547,11 +490,7 @@ export default function App() {
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'site_settings', 'general'), (docSnap) => {
-      if (!docSnap.exists()) {
-        setDoc(doc(db, 'site_settings', 'general'), INITIAL_SITE_SETTINGS).catch(e => 
-          handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
-        );
-      } else {
+      if (docSnap.exists()) {
         const docData = docSnap.data() as import('./types').SiteSettings;
         const mergedSettings = {
           ...INITIAL_SITE_SETTINGS,
@@ -624,19 +563,11 @@ export default function App() {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'coupons'), (snapshot) => {
-      if (snapshot.empty) {
-        INITIAL_COUPONS.forEach(c => {
-          setDoc(doc(db, 'coupons', c.code), c).catch(e =>
-            handleFirestoreError(e, OperationType.WRITE, `coupons/${c.code}`)
-          );
-        });
-      } else {
-        const list: Coupon[] = [];
-        snapshot.forEach(docSnap => {
-          list.push(docSnap.data() as Coupon);
-        });
-        setCoupons(list);
-      }
+      const list: Coupon[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as Coupon);
+      });
+      setCoupons(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'coupons');
     });
@@ -645,24 +576,11 @@ export default function App() {
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'local_wallets'), (snapshot) => {
-      if (snapshot.empty) {
-        const defaultWallets = [
-          { id: 'w1', name: 'الكريمي جوال', accountNumber: '774919194', isActive: true },
-          { id: 'w2', name: 'جوالي (Jawali)', accountNumber: '774919194', isActive: true },
-          { id: 'w3', name: 'فلوسك', accountNumber: '774919194', isActive: true }
-        ];
-        defaultWallets.forEach(w => {
-          setDoc(doc(db, 'local_wallets', w.id), w).catch(e =>
-            handleFirestoreError(e, OperationType.WRITE, `local_wallets/${w.id}`)
-          );
-        });
-      } else {
-        const list: any[] = [];
-        snapshot.forEach(docSnap => {
-          list.push(docSnap.data());
-        });
-        setLocalWallets(list);
-      }
+      const list: any[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data());
+      });
+      setLocalWallets(list);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'local_wallets');
     });
@@ -676,16 +594,6 @@ export default function App() {
         if (remoteCats && Array.isArray(remoteCats)) {
           setCategoriesState(remoteCats);
         }
-      } else {
-        const defaultCategories = [
-          { name: 'إلكترونيات', subcategories: ['سماعات', 'ساعات ذكية', 'شواحن وإكسسوارات'] },
-          { name: 'عطور وبخور', subcategories: ['أدهان العود', 'بخور مروكي فاخر', 'عطورات فرنسية نادرة'] },
-          { name: 'قهوة ومستلزمات', subcategories: ['مكائن إسبريسو', 'بن مختص درجة أولى', 'أدوات باريستا'] },
-          { name: 'ملابس وأزياء', subcategories: ['فساتين سهرة ملكية', 'معاطف شتوية فاخرة', 'أطقم رجالية'] },
-          { name: 'ساعات وهدايا', subcategories: ['ساعات سويسرية', 'أطقم فخمة صواني', 'قلم سبحة ملكي'] },
-          { name: 'جمال وعناية', subcategories: ['مكياج ماركات كبرى', 'زيوت طبيعية', 'أدوات تجميل'] }
-        ];
-        setDoc(doc(db, 'settings', 'categories'), { list: defaultCategories }).catch(() => {});
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'settings/categories');
