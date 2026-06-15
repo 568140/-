@@ -116,6 +116,7 @@ export function Cart({
   const [yemeniDist, setYemeniDist] = useState(() => yemeniGeodata[0]?.districts[0] || '');
   const [yemeniStreet, setYemeniStreet] = useState(() => yemeniGeodata[0]?.streets[0] || '');
   const [customYemeniStreet, setCustomYemeniStreet] = useState('');
+  const [yemeniLocationDetails, setYemeniLocationDetails] = useState('');
 
   // Auto-switch children dropdown options when Governorates shift
   React.useEffect(() => {
@@ -147,6 +148,19 @@ export function Cart({
   const [giftWrap, setGiftWrap] = useState(false);
   const [selectedDestId, setSelectedDestId] = useState(() => activeShippingDestinations[0]?.id || 'dest-yem');
 
+  const destObj = React.useMemo(() => {
+    return activeShippingDestinations.find(d => d.id === selectedDestId) || activeShippingDestinations[0];
+  }, [activeShippingDestinations, selectedDestId]);
+
+  const isYemen = React.useMemo(() => {
+    return (
+      selectedDestId === 'dest-yem' ||
+      selectedDestId === 'yem' ||
+      (destObj?.cityAr && destObj.cityAr.includes('اليمن')) ||
+      (destObj?.id && destObj.id.includes('yem'))
+    );
+  }, [selectedDestId, destObj]);
+
   // Sync selectedDestId if list changes
   React.useEffect(() => {
     if (activeShippingDestinations.length > 0 && !activeShippingDestinations.find(d => d.id === selectedDestId)) {
@@ -161,7 +175,9 @@ export function Cart({
   const [customerAddress, setCustomerAddress] = useState('');
   
   // Simulated Card Payment States
-  const [paymentMethod, setPaymentMethod] = useState<Order['paymentMethod']>('visa');
+  const [paymentMethod, setPaymentMethod] = useState<Order['paymentMethod']>(() => {
+    return siteSettings.showCodFirst && siteSettings.enableCod !== false ? 'cod' : 'visa';
+  });
   const [selectedWalletId, setSelectedWalletId] = useState<string>('');
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
@@ -225,14 +241,16 @@ export function Cart({
   const remainingAfterDiscount = Math.max(subtotal - actualDiscount, 0);
   
   // Shipping charge calc based on destination
-  const destObj = activeShippingDestinations.find(d => d.id === selectedDestId) || activeShippingDestinations[0];
-  // If subtotal is more than 400, shipping is free!
-  const shippingCost = subtotal > 400 ? 0 : (destObj?.costSar || 0);
+  // Custom free shipping threshold from Admin panel
+  const freeThreshold = siteSettings.freeShippingThreshold !== undefined ? siteSettings.freeShippingThreshold : 400;
+  const isFreeShipping = freeThreshold > 0 && subtotal >= freeThreshold;
+  const shippingCost = isFreeShipping ? 0 : (destObj?.costSar || 0);
   const giftWrapCost = giftWrap ? 15 : 0; // 15 SAR for custom wrapping with elegant ribbon card
   
   const vatAmount = 0; // VAT removed
   const pointsDiscountAmount = pointsUsed / (siteSettings.pointsRedeemRatio || 100);
-  const totalAmount = Math.max(remainingAfterDiscount + vatAmount + shippingCost + giftWrapCost - pointsDiscountAmount, 0);
+  const codFee = paymentMethod === 'cod' ? (siteSettings.codFeeAmount ?? 0) : 0;
+  const totalAmount = Math.max(remainingAfterDiscount + vatAmount + shippingCost + giftWrapCost + codFee - pointsDiscountAmount, 0);
 
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,9 +283,8 @@ export function Cart({
 
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isYemen = selectedDestId === 'dest-yem' || destObj?.cityAr?.includes('اليمن');
     const finalAddress = isYemen
-      ? `محافظة ${geodataMap[yemeniGov]?.name || yemeniGov} - مديرية ${yemeniDist} - شارع/حي ${yemeniStreet.includes('أخرى') ? customYemeniStreet : yemeniStreet}`
+      ? `محافظة ${geodataMap[yemeniGov]?.name || yemeniGov} - مديرية ${yemeniDist} - شارع/حي ${yemeniStreet.includes('أخرى') ? customYemeniStreet : yemeniStreet}${yemeniLocationDetails ? ` - وصف دقيق: ${yemeniLocationDetails}` : ''}`
       : customerAddress;
 
     if (!customerName.trim() || !customerEmail.trim() || !customerPhone.trim()) {
@@ -282,6 +299,11 @@ export function Cart({
 
     if (isYemen && yemeniStreet.includes('أخرى') && !customYemeniStreet.trim()) {
       alert('الرجاء كتابة اسم الشارع المخصص.');
+      return;
+    }
+
+    if (isYemen && !yemeniLocationDetails.trim()) {
+      alert('الرجاء كتابة الوصف الدقيق لمساعدتنا في تحديد موقع التوصيل بدقة.');
       return;
     }
 
@@ -361,7 +383,7 @@ ${itemsString}
 ================================
 - *المجموع (إجمالي البضاعة):* ${formatPrice(subtotal)}
 - *الخصم المطبق (الكوبون):* ${formatPrice(actualDiscount)} ${pointsUsedText}
-- *قيمة الشحن والتوصيل:* ${shippingCost === 0 ? 'شحن مجاني فخم' : formatPrice(shippingCost)}
+- *قيمة الشحن والتوصيل:* ${shippingCost === 0 ? 'الشحن مجاني' : formatPrice(shippingCost)}
 - *تغليف هدايا ملكي بالحرير:* ${giftWrap ? 'نعم (مشمول بطاقة إهداء)' : 'لا'}
 --------------------------------
 - *💰 الإجمالي النهائي المطلوب دفعه:* *${formatPrice(totalAmount)}*
@@ -681,14 +703,14 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
                 >
                   {activeShippingDestinations.map((dest) => (
                     <option key={dest.id} value={dest.id}>
-                      {dest.cityAr} ({dest.estDays} - {dest.costSar === 0 || subtotal > 400 ? 'شحن مجاني' : `${dest.costSar} ر.س`})
+                      {dest.cityAr} ({dest.estDays} - {dest.costSar === 0 || subtotal >= (siteSettings.freeShippingThreshold ?? 400) ? 'شحن مجاني' : `${dest.costSar} ر.س`})
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {selectedDestId === 'yem' ? (
+            {isYemen ? (
               <div className="space-y-4 border border-amber-500/10 bg-amber-50/10 p-4 rounded-2xl text-right animate-fade-in">
                 <h4 className="text-xs font-black text-amber-900 mb-1 flex items-center gap-1">
                   <span className="text-sm">🇾🇪</span>
@@ -738,17 +760,29 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
 
                 {yemeniStreet.includes('أخرى') && (
                   <div className="animate-fade-in relative">
-                    <label className="block text-[10px] text-amber-900 font-sans mb-1 font-extrabold">يرجى كتابة اسم الشارع المخصص أو الحي بالتفصيل *</label>
+                    <label className="block text-[10px] text-amber-950 font-sans mb-1 font-extrabold">يرجى كتابة اسم الشارع المخصص أو الحي بالتفصيل *</label>
                     <input
                       type="text"
                       required
                       value={customYemeniStreet}
                       onChange={(e) => setCustomYemeniStreet(e.target.value)}
-                      placeholder="اكتب اسم الشارع التفصيلي ورقم المنزل هنا"
+                      placeholder="اكتب اسم الشارع التفصيلى ورقم المنزل هنا"
                       className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500"
                     />
                   </div>
                 )}
+
+                <div className="relative mt-2">
+                  <label className="block text-[10px] text-gray-400 font-bold mb-1">الوصف الدقيق للموقع / معالم مميزة تقع بجوارك (مثلاً: بجانب صيدلية الشفاء) *</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={yemeniLocationDetails}
+                    onChange={(e) => setYemeniLocationDetails(e.target.value)}
+                    placeholder="اكتب الوصف التفصيلي الدقيق لموقعك هنا لمساعدتنا بمطابقتك مع المندوب وضمان التوصيل لباب بيتك بلمح البصر"
+                    className="w-full px-4 py-2 bg-gray-50/50 border border-gray-200 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 font-sans"
+                  />
+                </div>
               </div>
             ) : (
               <div className="relative">
@@ -795,18 +829,31 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
               </h3>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                {[
-                  ...(siteSettings.enableExternalCards !== false ? [
-                    { id: 'visa', labelAr: 'فيزا / ماستر كارد' },
-                    { id: 'applepay', labelAr: 'Apple Pay' }
-                  ] : []),
-                  ...(siteSettings.enableCod !== false ? [
-                    { id: 'cod', labelAr: 'الدفع عند الاستلام (COD)' }
-                  ] : []),
-                  ...(siteSettings.enableLocalWallets !== false ? [
-                    { id: 'local_wallet', labelAr: 'محافظ وحوالات محلية' }
-                  ] : [])
-                ].map((pm) => (
+                {(() => {
+                  const items = [
+                    ...(siteSettings.enableExternalCards !== false ? [
+                      ...(siteSettings.enableVisa !== false ? [{ id: 'visa', labelAr: 'فيزا / ماستر كارد' }] : []),
+                      ...(siteSettings.enableMada !== false ? [{ id: 'mada', labelAr: 'بطاقة مدى Mada' }] : []),
+                      ...(siteSettings.enableApplePay !== false ? [{ id: 'applepay', labelAr: 'Apple Pay' }] : []),
+                      ...(siteSettings.enablePaypal !== false ? [{ id: 'paypal', labelAr: 'PayPal' }] : [])
+                    ] : []),
+                    ...(siteSettings.enableCod !== false ? [
+                      { id: 'cod', labelAr: 'الدفع عند الاستلام (COD)' }
+                    ] : []),
+                    ...(siteSettings.enableLocalWallets !== false ? [
+                      { id: 'local_wallet', labelAr: 'محافظ وحوالات محلية' }
+                    ] : [])
+                  ];
+                  
+                  if (siteSettings.showCodFirst) {
+                    const codItem = items.find(item => item.id === 'cod');
+                    if (codItem) {
+                      const otherItems = items.filter(item => item.id !== 'cod');
+                      return [codItem, ...otherItems];
+                    }
+                  }
+                  return items;
+                })().map((pm) => (
                   <button
                     key={pm.id}
                     type="button"
@@ -945,7 +992,7 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
                     className="overflow-hidden bg-green-50 rounded-xl p-4 border border-green-200 space-y-3"
                   >
                     <p className="text-[11px] text-green-900 font-sans leading-relaxed mb-2 font-bold">
-                      ✓ الدفع المباشر عبر المحافظ المحلية السريعة (الكريمي، جوالي، فلوسك وغيرها). يرجى إرسال المبلغ لأحد الحسابات التالية ورفع إيصال الحوالة بعد تأكيد الطلب.
+                      ✓ {siteSettings.localWalletsInstruction || 'الدفع المباشر عبر المحافظ المحلية السريعة (الكريمي، جوالي، فلوسك وغيرها). يرجى إرسال المبلغ لأحد الحسابات التالية ورفع إيصال الحوالة بعد تأكيد الطلب.'}
                     </p>
                     {localWallets?.filter(w => w.isActive).length === 0 ? (
                       <p className="text-rose-600 text-[11px] font-bold">عذراً، لاتوجد محافظ محلية مفعلة حالياً.</p>
@@ -1149,7 +1196,7 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400 font-display">الشحن الدولي المؤمّن</span>
                   <span className={`font-mono font-bold ${shippingCost === 0 ? 'text-gold' : ''}`}>
-                    {shippingCost === 0 ? 'شحن مجاني' : formatPrice(shippingCost)}
+                    {shippingCost === 0 ? 'الشحن مجاني' : formatPrice(shippingCost)}
                   </span>
                 </div>
 
@@ -1157,6 +1204,13 @@ _ملاحظة لمالك المتجر: يرجى تجهيز البضائع وال
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400 font-display">تغليف الهدايا الفاخر</span>
                     <span className="font-mono font-bold">{formatPrice(15)}</span>
+                  </div>
+                )}
+                
+                {paymentMethod === 'cod' && codFee > 0 && (
+                  <div className="flex justify-between text-sm text-amber-400">
+                    <span className="font-display">رسوم الدفع عند الاستلام</span>
+                    <span className="font-mono font-bold">{formatPrice(codFee)}</span>
                   </div>
                 )}
                 

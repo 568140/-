@@ -149,6 +149,24 @@ export interface SiteSettings {
   enableCod?: boolean;
   enableLocalWallets?: boolean;
   enableExternalCards?: boolean;
+  enableVisa?: boolean;
+  enableMada?: boolean;
+  enableApplePay?: boolean;
+  enablePaypal?: boolean;
+  codFeeAmount?: number;
+  freeShippingThreshold?: number;
+  localWalletsInstruction?: string;
+  invoiceTitleAr?: string;
+  invoiceTaxNumber?: string;
+  invoiceCrNumber?: string;
+  invoiceHeaderNotes?: string;
+  invoiceFooterNotes?: string;
+  invoiceLogoUrl?: string;
+  invoiceColorAr?: string;
+  invoiceShowQrCode?: boolean;
+  invoiceShowPoints?: boolean;
+  invoiceShowProductCode?: boolean;
+  showCodFirst?: boolean;
   shippingDestinations?: ShippingDestination[]; // قائمة وجهات الشحن المخصصة
 }
 

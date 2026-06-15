@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   TrendingUp, ShoppingBag, Users, DollarSign, Package, BadgePercent, Zap, Loader2,
-  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem, Coins, CreditCard, ImageIcon
+  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem, Coins, CreditCard, ImageIcon, Printer, FileSpreadsheet, FileText, Truck
 } from 'lucide-react';
 import { Product, Order, Coupon, LocalWallet, Transaction, CustomerAccount } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
@@ -166,7 +166,7 @@ export function Dashboard({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping' | 'visitors'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping' | 'visitors' | 'invoice'>('metrics');
   
   // Real-time visitor stats
   const [visitorStats, setVisitorStats] = useState<import('../types').VisitorStat[]>([]);
@@ -1145,6 +1145,16 @@ export function Dashboard({
             🚚 مناطق الشحن ({siteSettings.shippingDestinations?.length || 0})
           </button>
           <button
+            onClick={() => setActiveTab('invoice')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'invoice'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            📄 تصميم ومحاكاة الفواتير
+          </button>
+          <button
             onClick={() => {
               setNewAdminUser(adminUsername);
               setNewAdminPass(adminPassword);
@@ -1659,6 +1669,410 @@ export function Dashboard({
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INVOICE & TAX BILLING CONTROL CENTER (Requested by User) */}
+      {activeTab === 'invoice' && (
+        <div className="space-y-6 text-right font-sans mx-auto w-full">
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
+            <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2 font-display">
+              <FileSpreadsheet className="h-5 w-5 text-indigo-600" />
+              <span>محرر وتصميم الفواتير والضرائب وحوكمتها</span>
+            </h2>
+            <p className="text-xxs text-gray-400 mt-2 leading-relaxed">
+              صمم وهيّئ الفواتير والضرائب لعملائك. يمكنك التحكم في ترويسة الفاتورة، الرقم الضريبي، الرقم التعريفي، وسياسات الضمان والاستبدال، والاطلاع الفوري على كيف ستبدو الفاتورة للعميل من خلال المحاكي الذكي المدمج في جهة اليسار.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left side: Invoice Control Parameters Form */}
+            <div className="lg:col-span-6 bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-6">
+              <h3 className="text-xs font-black text-gray-800 border-b border-gray-50 pb-2 font-display">⚙️ معلمات الفاتورة القانونية والهوية</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 mb-1.5">عنوان الفاتورة الرئيسي (Ar)</label>
+                  <input 
+                    type="text"
+                    value={localSettings.invoiceTitleAr || ''}
+                    onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceTitleAr: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:outline-hidden focus:border-indigo-500"
+                    placeholder="فاتورة ضريبية مبسطة"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1.5">الرقم الضريبي (VAT)</label>
+                    <input 
+                      type="text"
+                      value={localSettings.invoiceTaxNumber || ''}
+                      onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceTaxNumber: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:outline-hidden focus:border-indigo-500 text-left"
+                      placeholder="3020xxxxxxxxxxx"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1.5">رقم السجل التجاري (CR)</label>
+                    <input 
+                      type="text"
+                      value={localSettings.invoiceCrNumber || ''}
+                      onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceCrNumber: e.target.value })}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:outline-hidden focus:border-indigo-500 text-left"
+                      placeholder="1010xxxxxx"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 mb-1.5">الترويسة والترحيب العلوي للفاتورة</label>
+                  <textarea 
+                    rows={2}
+                    value={localSettings.invoiceHeaderNotes || ''}
+                    onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceHeaderNotes: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold leading-relaxed focus:outline-hidden focus:border-indigo-500"
+                    placeholder="يسعدنا تسوقكم معنا دائماً..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 mb-1.5">ملاحظات الفاتورة وسياسة الاستبدال بالأسفل (الفوتر)</label>
+                  <textarea 
+                    rows={3}
+                    value={localSettings.invoiceFooterNotes || ''}
+                    onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceFooterNotes: e.target.value })}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold leading-relaxed focus:outline-hidden focus:border-indigo-500"
+                    placeholder="شروط الاسترجاع والاستبدال..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 mb-1.5">سمة ولون الفاتورة المميز</label>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { name: 'ذهبي كلاسيكي', color: '#d4af37' },
+                      { name: 'فيروزي فخم', color: '#0d9488' },
+                      { name: 'أزرق ملكي', color: '#2563eb' },
+                      { name: 'أسود أنيق', color: '#111827' },
+                      { name: 'قرمزي فخم', color: '#be123c' }
+                    ].map((preset) => (
+                      <button 
+                        key={preset.color}
+                        type="button"
+                        onClick={() => handleUpdateLocalSettings({ ...localSettings, invoiceColorAr: preset.color })}
+                        className={`flex-1 py-2 px-2 text-[10px] font-bold rounded-xl border transition-all truncate flex items-center justify-center gap-1.5 cursor-pointer ${localSettings.invoiceColorAr === preset.color ? 'bg-indigo-50 text-indigo-700 border-indigo-400 font-extrabold shadow-xxs scale-102' : 'bg-white text-gray-500 border-gray-200 hover:border-indigo-200'}`}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: preset.color }}></span>
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 space-y-3">
+                  <h4 className="text-[10px] font-black text-gray-700">خيارات ومكونات العرض الفني بالفاتورة:</h4>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="flex items-center gap-3 cursor-pointer bg-gray-50 hover:bg-gray-100/70 p-3 rounded-xl border border-gray-150 transition-colors">
+                      <input 
+                        type="checkbox"
+                        checked={localSettings.invoiceShowQrCode !== false}
+                        onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceShowQrCode: e.target.checked })}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      />
+                      <div>
+                        <span className="block text-[10px] font-black text-gray-900 leading-tight">شفرة التحقق الذكي (QR)</span>
+                        <span className="block text-[8px] text-gray-400 mt-0.5 leading-none">توليد تلقائي للمطابقة</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer bg-gray-50 hover:bg-gray-100/70 p-3 rounded-xl border border-gray-150 transition-colors">
+                      <input 
+                        type="checkbox"
+                        checked={localSettings.invoiceShowPoints !== false}
+                        onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceShowPoints: e.target.checked })}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      />
+                      <div>
+                        <span className="block text-[10px] font-black text-gray-900 leading-tight">مكافأة وملخص النقاط</span>
+                        <span className="block text-[8px] text-gray-400 mt-0.5 leading-none">عرض نقاط الولاء والخصم</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer bg-gray-50 hover:bg-gray-100/70 p-3 rounded-xl border border-gray-150 transition-colors">
+                      <input 
+                        type="checkbox"
+                        checked={localSettings.invoiceShowProductCode !== false}
+                        onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceShowProductCode: e.target.checked })}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      />
+                      <div>
+                        <span className="block text-[10px] font-black text-gray-900 leading-tight">أكواد المنتجات (SKU)</span>
+                        <span className="block text-[8px] text-gray-400 mt-0.5 leading-none">إظهار كود التعريف الفريد</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer bg-gray-50 hover:bg-gray-100/70 p-3 rounded-xl border border-gray-150 transition-colors">
+                      <input 
+                        type="checkbox"
+                        checked={!!localSettings.invoiceLogoUrl}
+                        onChange={(e) => handleUpdateLocalSettings({ ...localSettings, invoiceLogoUrl: e.target.checked ? '/logo.png' : '' })}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                      />
+                      <div>
+                        <span className="block text-[10px] font-black text-gray-900 leading-tight">إظهار لوجو المتجر</span>
+                        <span className="block text-[8px] text-gray-400 mt-0.5 leading-none">عرض الشعار بالهيدر الرئيسي</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side: Live Simulated Thermal Invoice Receipt Preview */}
+            <div className="lg:col-span-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1.5 font-display">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>محاكاة الفاتورة للعميل في الوقت الحقيقي</span>
+                </span>
+                
+                <button 
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      const printContent = `
+                        <html>
+                          <head>
+                            <title>${localSettings.invoiceTitleAr || 'فاتورة'}</title>
+                            <style>
+                              body { font-family: 'Inter', sans-serif; direction: rtl; text-align: right; padding: 20px; }
+                              .invoice-card { max-width: 400px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px; }
+                              .header { text-align: center; border-bottom: 2px dashed #ccc; padding-bottom: 10px; margin-bottom: 15px; }
+                              .header h1 { margin: 5px 0; color: ${localSettings.invoiceColorAr || '#d4af37'}; font-size: 20px; }
+                              .header p { margin: 3px 0; font-size: 11px; color: #666; }
+                              .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+                              .meta-table td { padding: 4px 0; }
+                              .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+                              .items-table th, .items-table td { padding: 6px 0; text-align: right; border-bottom: 1px dashed #eee; }
+                              .totals-section { border-top: 2px dashed #ccc; padding-top: 10px; font-size: 12px; font-weight: bold; }
+                              .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+                              .footer { text-align: center; margin-top: 25px; font-size: 10px; color: #555; border-top: 1px dashed #ccc; padding-top: 15px; }
+                              .qr-code { text-align: center; margin: 15px 0; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="invoice-card">
+                              <div class="header">
+                                ${localSettings.invoiceLogoUrl ? '<img src="' + localSettings.invoiceLogoUrl + '" style="max-height: 55px; display: block; margin: 0 auto 10px;" />' : ''}
+                                <h1>${localSettings.invoiceTitleAr || 'فاتورة مبسطة'}</h1>
+                                <p>متجر ${localSettings.storeName || 'دكان الشرق البلاتيني'}</p>
+                                ${localSettings.invoiceTaxNumber ? '<p>الرقم الضريبي: ' + localSettings.invoiceTaxNumber + '</p>' : ''}
+                                ${localSettings.invoiceCrNumber ? '<p>رقم السجل التجاري: ' + localSettings.invoiceCrNumber + '</p>' : ''}
+                              </div>
+                              <table class="meta-table">
+                                <tr><td>رقم الفاتورة:</td><td>INV-2025-4519</td></tr>
+                                <tr><td>التاريخ والوقت:</td><td>٢٠٢٥/١٠/١٢ - ١٤:٢٣</td></tr>
+                                <tr><td>اسم المشتري:</td><td>أدهم علي بن شاهر اليماني</td></tr>
+                                <tr><td>طريقة الدفع:</td><td>الدفع عند الاستلام (COD)</td></tr>
+                              </table>
+                              <table class="items-table">
+                                <thead>
+                                  <tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td>عطر دهان العود الملكي ${localSettings.invoiceShowProductCode !== false ? '<br/><span style="font-size:8px;color:#888;">SKU: PERF-OUD-09</span>' : ''}</td>
+                                    <td>١</td>
+                                    <td>٢٥٠ ر.س</td>
+                                    <td>٢٥٠ ر.س</td>
+                                  </tr>
+                                  <tr>
+                                    <td>سماعة رأس بلاتينية فاخرة ${localSettings.invoiceShowProductCode !== false ? '<br/><span style="font-size:8px;color:#888;">SKU: AUD-HEAD-88</span>' : ''}</td>
+                                    <td>١</td>
+                                    <td>١٥٠ ر.س</td>
+                                    <td>١٥٠ ر.س</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              <div class="totals-section">
+                                <div class="totals-row"><span>المجموع الفرعي:</span><span>٤٠٠ ر.س</span></div>
+                                <div class="totals-row"><span>الشحن الدولي المؤمّن:</span><span>شحن مجاني</span></div>
+                                ${localSettings.codFeeAmount ? '<div class="totals-row"><span>رسوم الدفع عند الاستلام:</span><span>' + localSettings.codFeeAmount + ' ر.س</span></div>' : ''}
+                                <div class="totals-row" style="font-size: 14px; border-top: 1px solid #ccc; padding-top: 6px; color: ${localSettings.invoiceColorAr || '#d4af37'};">
+                                  <span>الإجمالي النهائي:</span>
+                                  <span>${400 + (localSettings.codFeeAmount || 0)} ر.س</span>
+                                </div>
+                              </div>
+                              
+                              ${localSettings.invoiceShowQrCode !== false ? `
+                                <div class="qr-code">
+                                  <svg width="100" height="100" viewBox="0 0 29 29" fill="none" style="display:block;margin:0 auto;">
+                                    <path d="M0 0h7v7H0zm2 2v3h3V2zm0 8h3v12H0V10zm10 0h3v4h-3zm12-10h7v7h-7zm2 2v3h3V2zm-4 12h3v12h-3zm12 4h3v8h-3z" fill="#000" />
+                                    <circle cx="14" cy="5" r="1" fill="#000" />
+                                    <circle cx="18" cy="18" r="1.5" fill="#000" />
+                                    <circle cx="24" cy="12" r="1" fill="#000" />
+                                    <circle cx="8" cy="24" r="1.5" fill="#000" />
+                                    <circle cx="12" cy="12" r="1.5" fill="#000" />
+                                  </svg>
+                                  <span style="font-size:8px;color:#666;display:block;margin-top:5px;">شفرة الهيئة العامة للزكاة المعتمدة مشفرة الكترونياً</span>
+                                </div>
+                              ` : ''}
+
+                              <div class="footer">
+                                ${localSettings.invoiceHeaderNotes ? '<p style="font-weight:bold;margin-bottom:8px;">' + localSettings.invoiceHeaderNotes + '</p>' : ''}
+                                ${localSettings.invoiceFooterNotes ? '<p>' + localSettings.invoiceFooterNotes + '</p>' : ''}
+                                ${localSettings.invoiceShowPoints !== false ? '<p style="color:#22c55e;font-weight:bold;margin-top:5px;">✓ حصلت على ٢٠ نقطة ولاء من هذه العملية!</p>' : ''}
+                                <p style="font-size:8px;color:#bbb;margin-top:15px;direction:ltr;">System Powered by Dukkan East Platinum v3.0</p>
+                              </div>
+                            </div>
+                            <script>
+                              window.onload = function() { window.print(); }
+                            </script>
+                          </body>
+                        </html>
+                      `;
+                      printWindow.document.write(printContent);
+                      printWindow.document.close();
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-3xs font-black rounded-lg cursor-pointer transition-colors shadow-sm font-sans"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>معاينة الطباعة الحرارية الحقيقية</span>
+                </button>
+              </div>
+
+              {/* Thermal Invoice Canvas Mockup */}
+              <div className="bg-gray-50 p-6 rounded-2xl border border-gray-150 flex justify-center items-center">
+                <div 
+                  className="w-full max-w-sm bg-white border border-gray-200 rounded-lg p-5 shadow-lg relative font-mono text-xs select-none text-right text-gray-800"
+                  style={{ borderTop: `6px solid ${localSettings.invoiceColorAr || '#d4af37'}` }}
+                >
+                  {/* Store Name & Logo */}
+                  <div className="text-center pb-4 border-b border-dashed border-gray-200">
+                    {localSettings.invoiceLogoUrl && (
+                      <img 
+                        src={localSettings.invoiceLogoUrl} 
+                        alt="Logo" 
+                        onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                        className="h-10 mx-auto mb-2 relative object-contain" 
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                    <h4 className="text-sm font-black text-gray-900">{localSettings.storeName || 'دكان الشرق البلاتيني'}</h4>
+                    <p className="text-[10px] text-gray-500 mt-1">{localSettings.invoiceTitleAr || 'فاتورة مبسطة'}</p>
+                    
+                    {localSettings.invoiceTaxNumber && (
+                      <p className="text-[9px] text-gray-400 mt-1">الرقم الضريبي: {localSettings.invoiceTaxNumber}</p>
+                    )}
+                    {localSettings.invoiceCrNumber && (
+                      <p className="text-[8px] text-gray-400">سجل تجاري: {localSettings.invoiceCrNumber}</p>
+                    )}
+                  </div>
+
+                  {/* Meta */}
+                  <div className="py-2.5 border-b border-dashed border-gray-200 text-[10px] space-y-1 text-gray-600">
+                    <div className="flex justify-between"><span>رقم الفاتورة:</span><span className="font-sans font-bold">INV-2025-4519</span></div>
+                    <div className="flex justify-between"><span>تاريخ المعاملة:</span><span>٢٠٢٥/١٠/١٢ - ١٤:٢٣</span></div>
+                    <div className="flex justify-between"><span>العميل:</span><span>أدهم علي بن شاهر اليماني</span></div>
+                    <div className="flex justify-between"><span>بوابة الدفع المعتمدة:</span><span className="font-sans font-bold">الدفع عند الاستلام (COD)</span></div>
+                  </div>
+
+                  {/* Items List */}
+                  <div className="py-3 border-b border-dashed border-gray-200 space-y-2.5">
+                    <div className="flex justify-between font-black text-gray-900 border-b border-gray-100 pb-1 text-[9px]">
+                      <span>الصنف والوصف</span>
+                      <span className="shrink-0 w-24 text-left">الإجمالي</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-start text-xs text-gray-900">
+                        <div>
+                          <span>عطر دهان العود الفاخر</span>
+                          <span className="block text-[8px] text-gray-400 font-sans mt-0.5">١ حبة × ٢٥٠ ر.س</span>
+                          {localSettings.invoiceShowProductCode !== false && (
+                            <span className="block text-[8px] text-indigo-600 font-mono mt-0.5">SKU: PERF-OUD-09</span>
+                          )}
+                        </div>
+                        <span className="font-bold shrink-0 text-left w-24">٢٥٠ ر.س</span>
+                      </div>
+
+                      <div className="flex justify-between items-start text-xs text-gray-900 pt-2 border-t border-gray-50">
+                        <div>
+                          <span>سماعة رأس فاخرة</span>
+                          <span className="block text-[8px] text-gray-400 font-sans mt-0.5">١ حبة × ١٥٠ ر.س</span>
+                          {localSettings.invoiceShowProductCode !== false && (
+                            <span className="block text-[8px] text-indigo-600 font-mono mt-0.5">SKU: AUD-HEAD-88</span>
+                          )}
+                        </div>
+                        <span className="font-bold shrink-0 text-left w-24">١٥٠ ر.س</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Totals Summary */}
+                  <div className="py-2.5 border-b border-dashed border-gray-200 text-[11px] space-y-1 text-gray-700">
+                    <div className="flex justify-between"><span>قيمة المنتجات:</span><span>٤٠٠ ر.س</span></div>
+                    <div className="flex justify-between text-emerald-600"><span>الشحن الدولي:</span><span>شحن مجاني</span></div>
+                    
+                    {localSettings.codFeeAmount !== undefined && localSettings.codFeeAmount > 0 && (
+                      <div className="flex justify-between text-amber-600 font-sans">
+                        <span>رسوم الدفع عند الاستلام:</span>
+                        <span>{localSettings.codFeeAmount} ر.س</span>
+                      </div>
+                    )}
+
+                    <div 
+                      className="flex justify-between pt-1.5 border-t border-gray-100 text-sm font-black mt-2"
+                      style={{ color: localSettings.invoiceColorAr || '#d4af37' }}
+                    >
+                      <span>الإجمالي الكلي النهائي:</span>
+                      <span>{400 + (localSettings.codFeeAmount || 0)} ر.س</span>
+                    </div>
+                  </div>
+
+                  {/* QR Code section */}
+                  {localSettings.invoiceShowQrCode !== false && (
+                    <div className="text-center py-4 border-b border-dashed border-gray-200">
+                      {/* Interactive mock QR block */}
+                      <svg width="85" height="85" viewBox="0 0 29 29" fill="none" className="mx-auto block">
+                        <path d="M0 0h7v7H0zm2 2v3h3V2zm0 8h3v12H0V10zm10 0h3v4h-3zm12-10h7v7h-7zm2 2v3h3V2zm-4 12h3v12h-3zm12 4h3v8h-3z" fill="#000" />
+                        <rect x="10" y="0" width="3" height="3" fill="#000" />
+                        <rect x="0" y="10" width="3" height="3" fill="#000" />
+                        <rect x="18" y="0" width="3" height="3" fill="#000" />
+                        <circle cx="14" cy="14" r="1" fill="#000" />
+                        <circle cx="21" cy="21" r="1.5" fill="#000" />
+                        <circle cx="8" cy="8" r="1" fill="#000" />
+                        <circle cx="25" cy="10" r="1.5" fill="#000" />
+                        <circle cx="10" cy="25" r="1" fill="#000" />
+                        <circle cx="22" cy="14" r="1" fill="#000" />
+                      </svg>
+                      <p className="text-[8px] text-gray-400 mt-2 font-black leading-tight">معتمد من الهيئة العامة للزكاة والضرائب والجمارك بمطابقة تامة</p>
+                    </div>
+                  )}
+
+                  {/* Header/Footer instructions notes */}
+                  <div className="pt-3 text-center text-[9px] text-gray-500 space-y-1.5 leading-relaxed font-sans">
+                    {localSettings.invoiceHeaderNotes && (
+                      <p className="font-extrabold text-gray-800">{localSettings.invoiceHeaderNotes}</p>
+                    )}
+                    {localSettings.invoiceFooterNotes && (
+                      <p>{localSettings.invoiceFooterNotes}</p>
+                    )}
+                    {localSettings.invoiceShowPoints !== false && (
+                      <p className="text-emerald-600 font-black">✓ تم قيد ٢٠ نقطة ولاء بحسابك!</p>
+                    )}
+                    <div className="text-[7px] text-gray-400/85 pt-3 border-t border-gray-100 text-center">
+                      جميع الحقوق محفوظة © متجر دكان الشرق البلاتيني
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2248,6 +2662,179 @@ export function Dashboard({
       {/* WALLETS MANAGEMENT TAB */}
       {activeTab === 'wallets' && (
         <div className="space-y-6 text-right font-sans mx-auto w-full">
+          {/* General Payment Gateways & Fees Master Panel */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-6">
+            <div>
+              <h2 className="text-sm font-black text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3 font-display">
+                <CreditCard className="h-5 w-5 text-indigo-600" />
+                <span>إدارة قنوات وبوابات الدفع ورسوم الخدمات</span>
+              </h2>
+              <p className="text-xxs text-gray-400 mt-1 leading-relaxed">تحكم في تفعيل وإيقاف بوابات السداد وتحديد الرسوم الإضافية وتعليمات الحوالات.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Option 1: Cash on Delivery COD */}
+              <div className="p-5 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-800 flex items-center gap-1.5 font-display">
+                    <Truck className="h-4.5 w-4.5 text-amber-600" />
+                    <span>الدفع عند الاستلام (COD)</span>
+                  </span>
+                  <input 
+                    type="checkbox" 
+                    checked={localSettings.enableCod !== false}
+                    onChange={(e) => {
+                      handleUpdateLocalSettings({ ...localSettings, enableCod: e.target.checked });
+                    }}
+                    className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 leading-relaxed">إتاحة خيار دفع العميل كاش لشركة النقل يدوياً عند استلام طلبيته.</p>
+                
+                {localSettings.enableCod !== false && (
+                  <div className="pt-3 border-t border-gray-100 space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 mb-1.5">رسوم شركة الشحن الإضافية (ر.س)</label>
+                      <input 
+                        type="number"
+                        value={localSettings.codFeeAmount ?? 0}
+                        onChange={(e) => {
+                          handleUpdateLocalSettings({ ...localSettings, codFeeAmount: Number(e.target.value) });
+                        }}
+                        className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-mono font-bold focus:outline-hidden focus:border-indigo-500"
+                        placeholder="0"
+                      />
+                      <p className="text-[9px] text-gray-400 mt-1">تضاف تلقائياً للفاتورة كرسوم تحصيل لشركات النقل.</p>
+                    </div>
+
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <div className="flex-1 pl-2">
+                        <label className="block text-[10px] font-bold text-gray-700 font-display">عرض خيار "الدفع عند الاستلام" أولاً بصفحة الدفع</label>
+                        <p className="text-[8.5px] text-gray-400 leading-normal">عند تفعيل هذا الخيار، سيظهر الدفع عند الاستلام كخيار افتراضي ومقترح أولاً بصفحة الدفع للتسهيل على عملائك في تفضيل COD.</p>
+                      </div>
+                      <input 
+                        type="checkbox"
+                        checked={localSettings.showCodFirst === true}
+                        onChange={(e) => {
+                          handleUpdateLocalSettings({ ...localSettings, showCodFirst: e.target.checked });
+                        }}
+                        className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Option 2: Local Wallets and Transfers */}
+              <div className="p-5 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-800 flex items-center gap-1.5 font-display">
+                    <Wallet className="h-4.5 w-4.5 text-emerald-600" />
+                    <span>الدفع بالمحافظ والحوالات</span>
+                  </span>
+                  <input 
+                    type="checkbox" 
+                    checked={localSettings.enableLocalWallets !== false}
+                    onChange={(e) => {
+                      handleUpdateLocalSettings({ ...localSettings, enableLocalWallets: e.target.checked });
+                    }}
+                    className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 leading-relaxed">تفعيل الدفع المباشر عبر الحوالات والشبكات كالكريمي وصامت وغيرهم.</p>
+                
+                {localSettings.enableLocalWallets !== false && (
+                  <div className="pt-3 border-t border-gray-100">
+                    <label className="block text-[10px] font-bold text-gray-500 mb-1.5">تعليمات تظهر للعميل بصفحة السداد</label>
+                    <textarea 
+                      rows={2}
+                      value={localSettings.localWalletsInstruction || ''}
+                      onChange={(e) => {
+                        handleUpdateLocalSettings({ ...localSettings, localWalletsInstruction: e.target.value });
+                      }}
+                      className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold leading-relaxed focus:outline-hidden focus:border-indigo-500"
+                      placeholder="اكتب تعليمات الحوالة بوضوح..."
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Option 3: External & Electronic Cards */}
+              <div className="p-5 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-gray-800 flex items-center gap-1.5 font-display">
+                    <CreditCard className="h-4.5 w-4.5 text-blue-600" />
+                    <span>البطاقات والمدفوعات الإلكترونية</span>
+                  </span>
+                  <input 
+                    type="checkbox" 
+                    checked={localSettings.enableExternalCards !== false}
+                    onChange={(e) => {
+                      handleUpdateLocalSettings({ ...localSettings, enableExternalCards: e.target.checked });
+                    }}
+                    className="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 leading-relaxed">تمكين بوابات الدفع بالفيزا والمدى والتكامل المباشر للويب والبطاقات.</p>
+                
+                {localSettings.enableExternalCards !== false && (
+                  <div className="pt-3 border-t border-gray-100 space-y-2.5">
+                    <label className="block text-[10px] font-bold text-gray-500">تمكين الشبكات والقنوات الائتمانية:</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-gray-700 bg-white p-2 rounded-xl border border-gray-100 hover:border-indigo-200 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={localSettings.enableVisa !== false}
+                          onChange={(e) => {
+                            handleUpdateLocalSettings({ ...localSettings, enableVisa: e.target.checked });
+                          }}
+                          className="rounded text-indigo-600 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Visa / Master</span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-gray-700 bg-white p-2 rounded-xl border border-gray-100 hover:border-indigo-200 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={localSettings.enableMada !== false}
+                          onChange={(e) => {
+                            handleUpdateLocalSettings({ ...localSettings, enableMada: e.target.checked });
+                          }}
+                          className="rounded text-indigo-600 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>بطاقة مدى mada</span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-gray-700 bg-white p-2 rounded-xl border border-gray-100 hover:border-indigo-200 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={localSettings.enableApplePay !== false}
+                          onChange={(e) => {
+                            handleUpdateLocalSettings({ ...localSettings, enableApplePay: e.target.checked });
+                          }}
+                          className="rounded text-indigo-600 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>Apple Pay</span>
+                      </label>
+
+                      <label className="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-gray-700 bg-white p-2 rounded-xl border border-gray-100 hover:border-indigo-200 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          checked={localSettings.enablePaypal !== false}
+                          onChange={(e) => {
+                            handleUpdateLocalSettings({ ...localSettings, enablePaypal: e.target.checked });
+                          }}
+                          className="rounded text-indigo-600 w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span>PayPal</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex justify-between items-center">
             <div>
               <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 py-3 flex items-center gap-2">
@@ -3845,6 +4432,47 @@ export function Dashboard({
       {/* SHIPPING DESTINATIONS TAB (Requested by User) */}
       {activeTab === 'shipping' && (
         <div className="space-y-6 text-right font-sans mx-auto max-w-4xl">
+          {/* Free Shipping threshold box */}
+          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-3 font-display">
+                <Truck className="h-5 w-5 text-blue-600" />
+                <span>الحد الأدنى الذكي للشحن المجاني</span>
+              </h3>
+              <p className="text-xxs text-gray-400 mt-1">حدد المبلغ الذي إذا بلغه مجموع طلبية المشتري يصبح التوصيل مجانياً بالكامل.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 mb-1.5">الحد الأدنى للشحن المجاني (ر.س)</label>
+                <input 
+                  type="number"
+                  value={localSettings.freeShippingThreshold !== undefined ? localSettings.freeShippingThreshold : 400}
+                  onChange={(e) => {
+                    handleUpdateLocalSettings({ ...localSettings, freeShippingThreshold: Number(e.target.value) });
+                  }}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold focus:outline-hidden focus:border-blue-500 focus:bg-white"
+                  placeholder="مثال: 400"
+                />
+                <p className="text-[9px] text-gray-400 mt-1">ضع قيمة أكبر من 0 (مثلاً 400 ر.س). ضع 0 لتقديم شحن مجاني دائم للجميع بغض النظر عن سلة المشتريات.</p>
+              </div>
+
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                <div>
+                  <span className="block text-xs font-black text-blue-900 font-display">تفعيل شحن مجاني دائم لجميع الطلبات</span>
+                  <span className="block text-[9px] text-blue-700/80 mt-1">تجاوز أسعار التوصيل المحددة وجعل الشحن دائماً مجاني.</span>
+                </div>
+                <input 
+                  type="checkbox"
+                  checked={localSettings.freeShippingThreshold === 0}
+                  onChange={(e) => {
+                    handleUpdateLocalSettings({ ...localSettings, freeShippingThreshold: e.target.checked ? 0 : 400 });
+                  }}
+                  className="rounded text-blue-600 border-gray-300 w-4.5 h-4.5 cursor-pointer focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex justify-between items-center">
             <div>
               <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 py-3 flex items-center gap-2">
@@ -4851,12 +5479,12 @@ export function Dashboard({
                        <span>المجموع الفرعي:</span>
                        <span className="font-mono">{viewingOrder.totalPrice + viewingOrder.discountApplied - viewingOrder.shippingCost} ر.س</span>
                     </div>
-                    {viewingOrder.shippingCost > 0 && (
-                      <div className="flex justify-between items-center text-xs opacity-70">
-                         <span>تكلفة الشحن والتجهيز:</span>
-                         <span className="font-mono">{viewingOrder.shippingCost} ر.س</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center text-xs opacity-70">
+                       <span>تكلفة الشحن والتجهيز:</span>
+                       <span className={viewingOrder.shippingCost === 0 ? 'text-emerald-400 font-bold' : 'font-mono'}>
+                         {viewingOrder.shippingCost === 0 ? 'الشحن مجاني' : `${viewingOrder.shippingCost} ر.س`}
+                       </span>
+                    </div>
                     {viewingOrder.discountApplied > 0 && (
                       <div className="flex justify-between items-center text-xs text-rose-300">
                          <span>خصم الكوبونات والنقاط:</span>
@@ -5206,7 +5834,7 @@ export function Dashboard({
 
       {/* Floating Save All Changes bar for layout, ads, marketing settings */}
       <AnimatePresence>
-        {isSettingsDirty && (activeTab === 'layout' || activeTab === 'ads' || activeTab === 'marketing' || activeTab === 'shipping' || activeTab === 'settings') && (
+        {isSettingsDirty && (activeTab === 'layout' || activeTab === 'ads' || activeTab === 'marketing' || activeTab === 'shipping' || activeTab === 'settings' || activeTab === 'wallets' || activeTab === 'invoice') && (
           <motion.div
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
