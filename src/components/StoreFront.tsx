@@ -1,11 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck, PlayCircle, Trophy, Video, ChevronDown, ChevronLeft, ChevronRight, Folder, FolderOpen, Layers, CheckCircle, ShoppingCart, Smartphone, Monitor } from 'lucide-react';
+import { Search, Star, SlidersHorizontal, ArrowUpDown, Plus, Check, ShoppingBag, X, MessageSquare, Send, User, Sparkles, ShieldCheck, Truck, PlayCircle, Trophy, Video, ChevronDown, ChevronLeft, ChevronRight, Folder, FolderOpen, Layers, Loader2, Globe } from 'lucide-react';
 import { Product, CurrencyConfig, PromoBanner } from '../types';
+import { ProductSkeleton } from './Skeletons';
 
 interface StoreFrontProps {
   products: Product[];
-  categories: { name: string; subcategories: string[]; }[];
+  productsLoaded?: boolean;
+  isFetchingMore?: boolean;
+  hasMoreProducts?: boolean;
+  onLoadMore?: () => void;
+  categories: import('../types').Category[];
   siteSettings: import('../types').SiteSettings;
   onAddToCart: (product: Product, selectedSize?: string, selectedColor?: string, selectedVariantId?: string, customPrice?: number) => void;
   selectedCurrency: CurrencyConfig;
@@ -14,6 +19,10 @@ interface StoreFrontProps {
 
 export function StoreFront({ 
   products, 
+  productsLoaded,
+  isFetchingMore,
+  hasMoreProducts,
+  onLoadMore,
   categories, 
   siteSettings,
   onAddToCart,
@@ -110,6 +119,8 @@ export function StoreFront({
     setSelectedSizeForModal(product.sizes?.[0] || '');
   };
 
+  const [displayLimit, setDisplayLimit] = useState(12);
+
   // Filter and sort computation
   const filteredProducts = useMemo(() => {
     return products
@@ -144,6 +155,12 @@ export function StoreFront({
         return 0;
       });
   }, [products, searchQuery, selectedCategory, selectedSubCategory, sortBy, priceRange]);
+
+  const displayedProducts = useMemo(() => {
+    return filteredProducts.slice(0, displayLimit);
+  }, [filteredProducts, displayLimit]);
+
+  const localHasMoreProducts = displayLimit < filteredProducts.length;
 
   const handleAddToCartWithAlert = (
     product: Product, 
@@ -216,44 +233,8 @@ export function StoreFront({
 
   const activeBanners = (siteSettings?.promoBanners || []).filter(b => b.isActive);
 
-  const gridColsClass = useMemo(() => {
-    const cols = siteSettings?.productGridCols || 2;
-    if (cols === 1) return "grid grid-cols-1 gap-8";
-    if (cols === 3) return "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"; // Dense on desktop
-    return "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"; // Default
-  }, [siteSettings?.productGridCols]);
-
-  const cardStyleClass = useMemo(() => {
-    const style = siteSettings?.productCardStyle || 'modern';
-    switch (style) {
-      case 'minimal':
-        return "group bg-white/50 hover:bg-white rounded-xl overflow-hidden border border-transparent hover:border-gray-100 transition-all duration-300 flex flex-col";
-      case 'classic':
-        return "group bg-white rounded-none overflow-hidden border border-gray-300 shadow-none hover:shadow-lg transition-all duration-300 flex flex-col";
-      case 'glass':
-        return "group bg-white/60 backdrop-blur-md rounded-3xl overflow-hidden border border-white/40 shadow-sm hover:shadow-lg transition-all duration-500 flex flex-col";
-      default: // modern
-        return "group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col";
-    }
-  }, [siteSettings?.productCardStyle]);
-
-  const storefrontStyles = useMemo(() => {
-    if (!siteSettings) return {};
-    const type = siteSettings.storefrontBgType || 'gradient';
-    const value = siteSettings.storefrontBgValue || '';
-    
-    if (type === 'image') {
-      return { backgroundImage: `url(${value})`, backgroundSize: 'cover', backgroundAttachment: 'fixed' };
-    } else if (type === 'color') {
-      return { backgroundColor: value || '#f8fafc' };
-    } else {
-      return { background: value || 'linear-gradient(to bottom, #f8fafc, #ffffff)' };
-    }
-  }, [siteSettings?.storefrontBgType, siteSettings?.storefrontBgValue]);
-
   return (
-    <div className="min-h-screen py-8 transition-all duration-1000" style={storefrontStyles}>
-      <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {renderAds('top_header')}
       
       {/* Dynamic Add to Cart Notification bar */}
@@ -408,6 +389,63 @@ export function StoreFront({
         )}
       </div>
 
+      {/* MEGA DEPARTMENTS CENTER (General Section for all departments) */}
+      <div className="mb-12">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-black text-navy font-display flex items-center gap-3">
+            <span className="p-2 bg-charcoal text-gold rounded-xl">
+              <Layers className="h-5 w-5" />
+            </span>
+            <span>بوابة الأقسام العالمية</span>
+          </h2>
+          <span className="text-[10px] text-gray-400 font-mono tracking-widest uppercase hidden md:block">Universal Department Center</span>
+        </div>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
+          {categories.map((cat, idx) => (
+            <motion.div
+              key={cat.name}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              whileHover={{ y: -6, scale: 1.02 }}
+              onClick={() => {
+                setSelectedCategory(cat.name);
+                setSelectedSubCategory('الكل');
+                setIsTreeMenuOpen(true);
+                document.getElementById('products-list')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className={`relative h-40 rounded-[2rem] overflow-hidden cursor-pointer border border-gray-150 shadow-sm transition-all group ${
+                selectedCategory === cat.name ? 'ring-4 ring-gold/40 border-gold shadow-gold/20' : 'hover:shadow-xl'
+              }`}
+            >
+              <div className="absolute inset-0 bg-linear-to-t from-charcoal/95 via-charcoal/40 to-transparent z-10" />
+              <div className="absolute inset-0 bg-gray-200 transition-transform duration-700 group-hover:scale-115">
+                <div className="w-full h-full bg-cover bg-center opacity-85" style={{ backgroundImage: `url('${cat.image || `https://images.unsplash.com/photo-${[
+                  '1483985988355-763728e1935b', // Clothing
+                  '1547887537-6158d64c35b3', // Perfume
+                  '1523275335684-37898b6baf30', // Watch
+                  '1556228578-0d85b1a4d571', // Beauty
+                  '1517701604599-bb29b565090c', // Home
+                  '1549463512-205104808539'  // Gift
+                ][idx % 6]}?w=400&auto=format&fit=crop&q=80`}')` }} />
+              </div>
+              <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end p-5 z-20 text-center">
+                <span className="text-[11px] font-black text-gold font-display truncate w-full tracking-wide shadow-black shadow-sm mb-1">{cat.name}</span>
+                {cat.description ? (
+                  <span className="text-[9px] text-gray-300 font-sans opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300 line-clamp-1">{cat.description}</span>
+                ) : (
+                  <span className="text-[9px] text-gray-300 font-sans font-bold opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
+                    {cat.subcategories.length} فئات فرعية
+                  </span>
+                )}
+                <div className="h-1 w-8 bg-gold/40 rounded-full mt-2 group-hover:w-16 transition-all" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
       {/* Filter and Search Panels */}
       <div id="products-list" className="bg-white rounded-2xl p-6 shadow-xs border border-gray-150 mb-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
@@ -484,36 +522,27 @@ export function StoreFront({
         {renderAds('sidebar')}
 
         {/* --- DYNAMIC COLLAPSIBLE CATEGORIES TREE MENU (Requirement 1) --- */}
-        <div className="mt-8 bg-charcoal rounded-3xl p-5 border border-gold/10 shadow-xl overflow-hidden relative group">
-          <div className="absolute inset-0 bg-gold/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-          <div className="flex justify-between items-center mb-0 relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
-                <Layers className="h-5 w-5 text-gold" />
-              </div>
-              <div>
-                <h3 className="text-sm font-black text-white font-sans">تصفح الأقسام والتشكيلات</h3>
-                <p className="text-[10px] text-gray-400 font-sans">اختر القسم الذي تفضل تصفحه بعناية</p>
-              </div>
-            </div>
+        <div className="mt-8 bg-white rounded-3xl p-5 border border-amber-100 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xs font-black text-gray-900 font-sans flex items-center gap-2">
+              <Layers className="h-5 w-5 text-amber-700" />
+              <span>📂 تصفح شجرة الأقسام المتقدمة (منسدلة ومنطوية)</span>
+            </h3>
             <button
               onClick={() => setIsTreeMenuOpen(!isTreeMenuOpen)}
-              className={`text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                isTreeMenuOpen ? 'bg-gold text-navy shadow-lg shadow-gold/20' : 'bg-white/5 text-gray-300 hover:bg-white/10'
-              }`}
+              className="text-xxs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1"
             >
-              <span>{isTreeMenuOpen ? 'إغلاق الأقسام' : 'فتح الأقسام'}</span>
-              <ChevronDown className={`h-3 w-3 transition-transform duration-500 ${isTreeMenuOpen ? 'rotate-180' : ''}`} />
+              <span>{isTreeMenuOpen ? 'طي القائمة 🔺' : 'فرد القائمة 🔻'}</span>
             </button>
           </div>
 
           <AnimatePresence>
             {isTreeMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginTop: 24 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                className="overflow-hidden space-y-2 border-t border-white/5 pt-6"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden space-y-2 border-t border-gray-100 pt-4"
               >
                 {/* Clean All Item */}
                 <div
@@ -659,56 +688,6 @@ export function StoreFront({
           </AnimatePresence>
         </div>
 
-        {/* Buying Steps Section (Requirement 2) */}
-        {siteSettings.buyingSteps && siteSettings.buyingSteps.length > 0 && (
-          <section className="mt-10 mb-8 bg-linear-to-b from-gray-50 to-white rounded-[40px] p-8 md:p-10 border border-gray-100 shadow-sm overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-3xl -mr-32 -mt-32 rounded-full"></div>
-            <div className="relative z-10 text-center mb-10">
-              <span className="inline-block px-4 py-1.5 bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.2em] rounded-full mb-4">خدمة العملاء</span>
-              <h2 className="text-xl md:text-2xl font-black text-gray-900 font-display">خطوات الشراء من دكان الشرق</h2>
-              <div className="h-1 w-16 bg-amber-500 mx-auto mt-4 rounded-full"></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-              {siteSettings.buyingSteps.map((step, idx) => {
-                // Map string names to actual Lucide components
-                const iconMap: Record<string, any> = {
-                  'ShoppingBag': ShoppingBag,
-                  'ShoppingCart': ShoppingCart,
-                  'CheckCircle': CheckCircle,
-                  'MessageSquare': MessageSquare,
-                  'Truck': Truck,
-                  'Smartphone': Smartphone,
-                  'Monitor': Monitor,
-                  'User': User,
-                  'Sparkles': Sparkles
-                };
-                const StepIcon = iconMap[step.icon] || CheckCircle;
-                
-                return (
-                  <motion.div 
-                    key={step.id}
-                    initial={{ opacity: 0, y: 15 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    viewport={{ once: true }}
-                    className="flex flex-col items-center text-center group"
-                  >
-                    <div className="w-14 h-14 rounded-2xl bg-white shadow-md border border-gray-100 flex items-center justify-center mb-5 group-hover:bg-amber-600 transition-colors duration-500 relative">
-                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-amber-700 text-white flex items-center justify-center rounded-full text-[10px] font-black ring-2 ring-white">
-                        {idx + 1}
-                      </div>
-                      <StepIcon className="h-6 w-6 text-amber-600 group-hover:text-white transition-colors duration-500" />
-                    </div>
-                    <h3 className="text-xs font-black text-gray-900 mb-2">{step.title}</h3>
-                    <p className="text-xxs text-gray-500 font-sans leading-relaxed px-2">{step.description}</p>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
         {/* Categories Pills */}
         <div className="mt-8 flex flex-wrap gap-3 border-t border-gray-100 pt-8">
           <button
@@ -777,11 +756,17 @@ export function StoreFront({
       <div className="mb-6 flex justify-between items-center">
         <h2 className="text-lg font-bold text-navy font-display flex items-center space-x-2 space-x-reverse">
           <span className="border-r-4 border-gold pr-2">الكتالوج الحصري</span>
-          <span className="text-xs font-bold text-gray-400 font-mono bg-gray-100 px-3 py-1 rounded-full">{filteredProducts.length} منتج فاخر</span>
+          <span className="text-xs font-bold text-gray-400 font-mono bg-gray-100 px-3 py-1 rounded-full">{productsLoaded ? filteredProducts.length : '...'} منتج فاخر</span>
         </h2>
       </div>
 
-      {filteredProducts.length === 0 ? (
+      {!productsLoaded ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <ProductSkeleton key={i} />
+          ))}
+        </div>
+      ) : displayedProducts.length === 0 ? (
         <div className="bg-white rounded-3xl p-16 text-center border border-dashed border-gray-200 max-w-xl mx-auto my-12">
           <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-gray-800 font-sans mb-2">عذراً، لم نجد نتائج مطابقة لطلبك!</h3>
@@ -810,9 +795,9 @@ export function StoreFront({
               }
             }
           }}
-          className={gridColsClass}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          {filteredProducts.map((product, index) => (
+          {displayedProducts.map((product, index) => (
             <React.Fragment key={product.id}>
               <motion.div
                 variants={{
@@ -821,22 +806,30 @@ export function StoreFront({
                 }}
                 layout
                 id={`product-card-${product.id}`}
-                className={cardStyleClass}
+                className="group bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col"
               >
                 {/* Product Image Panel */}
                 <div className="relative aspect-square overflow-hidden bg-gray-50 cursor-pointer" onClick={() => handleSelectProduct(product)}>
-                  {product.image && (
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  )}
+                      {product.image && (
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          loading="lazy"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      )}
                   
                   {product.isFeatured && (
                     <span className="absolute top-3 right-3 bg-gradient-to-r from-amber-600 to-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-md">
                       مختارات النخبة
+                    </span>
+                  )}
+
+                  {(product.code?.startsWith('SHN') || product.code?.startsWith('SHEIN') || product.originalUrl) && (
+                    <span className="absolute top-3 left-12 bg-black/80 backdrop-blur-md text-white text-[8px] font-bold px-2 py-0.5 rounded-full border border-white/20 shadow-lg flex items-center gap-1 z-20">
+                      <ShoppingBag className="h-2 w-2 text-gold" />
+                      <span>موديل شي إن الرمزي</span>
                     </span>
                   )}
 
@@ -967,6 +960,22 @@ export function StoreFront({
         </motion.div>
       )}
 
+      {/* Pagination / Load More UI */}
+      {productsLoaded && localHasMoreProducts && (
+        <div className="mt-12 flex flex-col items-center justify-center space-y-4">
+          <p className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">
+            عرض {displayedProducts.length} من أصل {filteredProducts.length} منتجات فاخرة
+          </p>
+          <button
+            onClick={() => setDisplayLimit((prev) => prev + 12)}
+            className="group relative px-10 py-4 bg-charcoal text-gold font-bold font-display text-xs rounded-2xl transition-all hover:bg-gold hover:text-navy shadow-xl hover:shadow-gold/30 flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="h-4 w-4 transform group-hover:rotate-90 transition-transform" />
+            <span>تحميل المزيد من الفخامة</span>
+          </button>
+        </div>
+      )}
+
       {/* Brand Identity & Contact Us (من نحن وتواصل معنا) */}
       {renderAds('footer')}
       <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-gray-150 pt-16">
@@ -1004,7 +1013,7 @@ export function StoreFront({
             </div>
             
             <a 
-              href={`https://api.whatsapp.com/send?phone=${siteSettings.contactWhatsApp.replace(/[\s\+\-\(\)]/g, '')}&text=${encodeURIComponent('السلام عليكم يا مدير، أنا مهتم بالحصول على معروضات وخدمات دكان الشرق الفاخرة.')}`}
+              href={`https://api.whatsapp.com/send?phone=${siteSettings.contactWhatsApp.replace(/[\s\+\-\(\)]/g, '')}&text=${encodeURIComponent('السلام عليكم يا فندم، أنا مهتم بالحصول على معروضات وخدمات دكان الشرق الفاخرة.')}`}
               target="_blank"
               rel="noreferrer"
               className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl transition-all duration-300 flex items-center gap-1.5 shadow-sm scale-102 hover:scale-105"
@@ -1160,10 +1169,48 @@ export function StoreFront({
                         </div>
                         <span className="text-xs font-bold text-gray-700 font-mono">({selectedProduct.rating}) - {selectedProduct.reviews?.length || 0} تقييم المشتريين</span>
                       </div>
+                      
+                      <div className="flex items-center gap-3 mb-4 flex-wrap">
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold ${selectedProduct.stock > 0 || Object.keys(selectedProduct.sizeStock || {}).some(k => (selectedProduct.sizeStock?.[k] || 0) > 0) ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                          {selectedProduct.stock > 0 || Object.keys(selectedProduct.sizeStock || {}).some(k => (selectedProduct.sizeStock?.[k] || 0) > 0) ? (
+                            <>
+                              <Check className="w-3 h-3" />
+                              <span>متوفر في المخزون</span>
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-3 h-3" />
+                              <span>المنتج غير متوفر حالياً</span>
+                            </>
+                          )}
+                        </div>
+                        
+                        {(selectedProduct.originalUrl || selectedProduct.code?.startsWith('SHN') || selectedProduct.code?.startsWith('SHEIN')) && (
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-black text-white border border-gray-800 shadow-sm animate-pulse-slow">
+                            <ShoppingBag className="w-3 h-3 text-gold" />
+                            <span>قطعة أصلية من شي إن</span>
+                          </div>
+                        )}
+                      </div>
 
                       <p className="text-xs text-gray-600 leading-relaxed mb-4 border-b border-gray-100 pb-4">
                         {selectedProduct.description}
                       </p>
+
+                      {selectedProduct.originalUrl && (
+                        <div className="mb-4">
+                          <a 
+                            href={selectedProduct.originalUrl} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-charcoal text-gold text-[10px] font-bold rounded-xl border border-gold/20 hover:bg-gold hover:text-navy transition-all shadow-md group"
+                          >
+                            <Globe className="h-3 w-3 animate-bounce" />
+                            <span>معاينة القطعة الأصلية والمواصفات (شي إن)</span>
+                            <ChevronRight className="h-3 w-3 transform rotate-180" />
+                          </a>
+                        </div>
+                      )}
 
                       {/* --- Dynamic Color Variants Picker (Requirement 2) --- */}
                       {selectedProduct.variants && selectedProduct.variants.length > 0 && (
@@ -1403,7 +1450,7 @@ export function StoreFront({
           </motion.div>
         )}
       </AnimatePresence>
-      </div>
+
     </div>
   );
 }

@@ -1,3 +1,11 @@
+export interface Category {
+  name: string;
+  subcategories: string[];
+  icon?: string;
+  image?: string;
+  description?: string;
+}
+
 export interface ProductReview {
   id: string;
   username: string;
@@ -35,6 +43,7 @@ export interface Product {
   code?: string; // الرمز الفريد للتنقيب والبحث والمشاركة الفائقة
   images?: string[]; // ألبوم صور إضافي عام للمنتج (يدعم رفع عدد كبير من الصور)
   variants?: ProductVariant[]; // متغيرات وخيارات الألوان والأسعار والمخزون المخصصة
+  originalUrl?: string; // رابط المنتج الأصلي (مثل شي إن) للمعاينة والمصداقية
 }
 
 export interface CartItem {
@@ -124,16 +133,6 @@ export interface SiteSettings {
   enableSplash?: boolean;
   splashBgColor?: string;
   splashTextColor?: string;
-  facebookUrl?: string;
-  instagramUrl?: string;
-  telegramUrl?: string;
-  buyingSteps?: { id: string; title: string; description: string; icon: string }[];
-  productCardStyle?: 'modern' | 'classic' | 'minimal' | 'glass';
-  productGridCols?: number;
-  storefrontBgType?: 'color' | 'image' | 'gradient';
-  storefrontBgValue?: string;
-  enableOrderSound?: boolean;
-  enableVisitorSound?: boolean;
   seoKeywords: string;
   enableLiveChat: boolean;
   enableSocialProof: boolean;
@@ -201,15 +200,22 @@ export interface VisitorStat {
   count: number;
 }
 
-export interface VisitorLog {
-  id: string;
-  timestamp: string;
-  ip?: string;
-  city?: string;
-  country?: string;
-  device?: string;
-  browser?: string;
-  os?: string;
+export interface VisitorSession {
+  id?: string;
+  ip: string;
+  country: string;
+  countryCode: string;
+  city: string;
+  lat: number;
+  lng: number;
+  browser: string;
+  os: string;
+  deviceType: string;
+  userAgent: string;
+  entryTime: number;
+  lastActiveTime: number;
+  sessionDuration: number;
+  pageViews: number;
 }
 
 export interface CurrencyConfig {
@@ -217,5 +223,16 @@ export interface CurrencyConfig {
   symbol: string;
   rate: number; // rate relative to SAR (Saudi Riyal)
   nameAr: string;
+}
+
+export interface Store {
+  id: string;
+  name: string;
+  ownerEmail: string;
+  subdomain: string;
+  createdAt: string;
+  status: string;
+  description?: string;
+  [key: string]: any;
 }
 

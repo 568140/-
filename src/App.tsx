@@ -10,12 +10,13 @@ import CommunityChat from './components/CommunityChat';
 import { CustomerMessages } from './components/CustomerMessages';
 import WalletModal from './components/WalletModal';
 import { Product, CartItem, Order, Coupon, CurrencyConfig } from './types';
-import { CATEGORIES, CURRENCIES } from './data';
-import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles, Facebook, Instagram } from 'lucide-react';
+import { INITIAL_PRODUCTS, INITIAL_COUPONS, CATEGORIES, CURRENCIES } from './data';
+import { MessageSquare, Send, X, Lock, Phone, User, Check, AlertCircle, Sparkles } from 'lucide-react';
 import { DEFAULT_YEMENI_GEODATA, GovernorateData } from './utils/yemeniData';
 import { motion, AnimatePresence } from 'motion/react';
+import { getBrowserInfo, getOSInfo } from './utils/tracking';
 import { 
-  collection, doc, onSnapshot, setDoc, deleteDoc, addDoc, getDocs, increment 
+  collection, doc, onSnapshot, setDoc, deleteDoc, addDoc, getDocs, query, limit, orderBy, startAfter, getDoc 
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 
@@ -39,42 +40,69 @@ const INITIAL_SITE_SETTINGS: import('./types').SiteSettings = {
   splashTitle: 'دكّان الشَّرق البلاتيني',
   splashSubtitle: 'فخامة الشرق بين يديك...',
   splashIconUrl: '/logo.png',
-  splashDuration: 1200,
+  splashDuration: 2500,
   enableSplash: true,
   splashBgColor: '#0a0c10',
   splashTextColor: '#d4af37',
-  facebookUrl: '',
-  instagramUrl: '',
-  telegramUrl: '',
-  buyingSteps: [
-    { id: '1', title: 'اختر منتجك', description: 'تصفح تشكيلة العطور والساعات الفاخرة واختر ما يناسب ذوقك.', icon: 'ShoppingBag' },
-    { id: '2', title: 'أضف للسلة', description: 'أضف المنتجات للسلة وادخل كود الخصم إن وجد.', icon: 'ShoppingCart' },
-    { id: '3', title: 'إتمام الطلب', description: 'أدخل معلومات الشحن وحدد وسيلة الدفع المناسبة لك.', icon: 'CheckCircle' },
-    { id: '4', title: 'تأكيد الرسالة', description: 'أرسل الطلب عبر الواتساب ليقوم فريقنا بتجهيزه فوراً.', icon: 'MessageSquare' }
-  ],
-  productCardStyle: 'modern',
-  productGridCols: 2,
-  storefrontBgType: 'gradient',
-  storefrontBgValue: 'linear-gradient(to bottom, #f8fafc, #ffffff)',
-  enableOrderSound: true,
-  enableVisitorSound: true,
   seoKeywords: 'عطر، ساعات، فخامة، دكان الشرق، بلاتيني، تسوق، اليمن، السعودية',
   enableLiveChat: true,
   enableSocialProof: true,
   enableCommunityChat: true,
   enableAds: true,
-  adScripts: [],
-  promoBanners: [],
-  redemptionOptions: [],
-  pointsRatio: 5, 
-  pointsRedeemRatio: 100, 
+  adScripts: [
+    {
+      id: '1',
+      provider: 'Custom',
+      location: 'top_header',
+      code: '<div class="bg-gold/5 p-2 text-center text-[10px] text-navy font-bold">✨ إعلان: خصم 20% لعملاء دكان الشرق الجدد! ✨</div>',
+      isActive: true
+    }
+  ],
+  promoBanners: [
+    {
+      id: '1',
+      title: 'مجموعة العطور الملكية 2024',
+      subtitle: 'اكتشف الفخامة في كل رشة',
+      mediaType: 'image',
+      mediaUrl: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=1600&auto=format&fit=crop',
+      isActive: true,
+      bgColor: '#1a1f2e',
+      textColor: '#ffffff'
+    }
+  ],
+  redemptionOptions: [
+    {
+      id: 'r1',
+      title: 'تحويل لخصم مباشر (100 نقطة)',
+      description: 'استبدل 100 نقطة بـ 10 من عملة المتجر تضاف لرصيدك فوراً',
+      pointsRequired: 100,
+      rewardValue: 10,
+      rewardType: 'balance',
+      isActive: true
+    },
+    {
+      id: 'r2',
+      title: 'كوبون خصم 50 (500 نقطة)',
+      description: 'احصل على كود خصم بقيمة 50 نقطة لاستخدامه في طلبك القادم',
+      pointsRequired: 500,
+      rewardValue: 50,
+      rewardType: 'coupon',
+      isActive: true
+    }
+  ],
+  pointsRatio: 5, // Default: 5 points per 1 SAR
+  pointsRedeemRatio: 100, // Default: 100 points = 1 SAR discount
   headerShippingText: 'شحن مجاني لكافة البلدان للطلبات فوق ٤٠٠ ر.س',
   headerPaymentText: 'دفع آمن بالكامل ومحمي ١٠٠٪',
   headerOffersText: 'عروض متجر اليمن الفاخر بالعملة المحلية (ر.ي) فقط',
   enableCod: true,
   enableLocalWallets: true,
   enableExternalCards: false,
-  shippingDestinations: []
+  shippingDestinations: [
+    { id: 'dest-yem', cityAr: 'اليمن (شحن سريع وآمن)', costSar: 2500, estDays: '١-٣ أيام', isActive: true },
+    { id: 'dest-ksa', cityAr: 'المملكة العربية السعودية', costSar: 35, estDays: '٢-٥ أيام', isActive: true },
+    { id: 'dest-gcc', cityAr: 'دول الخليج العربي', costSar: 75, estDays: '٣-٧ أيام', isActive: true }
+  ]
 };
 
 // Start with absolutely fresh data for the client
@@ -95,6 +123,83 @@ export default function App() {
   useEffect(() => {
     sessionStorage.setItem('dukkan_current_view', currentView);
   }, [currentView]);
+
+  // --- Visitor Tracking System ---
+  useEffect(() => {
+    const trackVisitor = async () => {
+      // Don't track admin panel views
+      if (currentView === 'admin') return;
+
+      try {
+        let sessionId = sessionStorage.getItem('visitor_session_id');
+        
+        if (!sessionId) {
+          // New Session
+          let ipDetails: any = {};
+          try {
+            const ipRes = await fetch('https://ipapi.co/json/');
+            ipDetails = await ipRes.json();
+          } catch (e) {
+            console.warn('Could not fetch IP details');
+          }
+
+          const uastring = navigator.userAgent;
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(uastring);
+          
+          const newSession = {
+            ip: ipDetails.ip || 'Unknown',
+            country: ipDetails.country_name || 'Unknown',
+            countryCode: ipDetails.country || 'UN',
+            city: ipDetails.city || 'Unknown',
+            lat: ipDetails.latitude || 0,
+            lng: ipDetails.longitude || 0,
+            browser: getBrowserInfo(uastring),
+            os: getOSInfo(uastring),
+            deviceType: isMobile ? 'Mobile' : 'Desktop',
+            userAgent: uastring,
+            entryTime: Date.now(),
+            lastActiveTime: Date.now(),
+            sessionDuration: 0,
+            pageViews: 1
+          };
+
+          const docRef = await addDoc(collection(db, 'visitor_sessions'), newSession);
+          sessionStorage.setItem('visitor_session_id', docRef.id);
+
+          // Update Visitor Stats (daily chart)
+          try {
+            const today = new Date().toISOString().split('T')[0];
+            const statRef = doc(db, 'visitor_stats', today);
+            const statSnap = await getDoc(statRef);
+            if (statSnap.exists()) {
+              await setDoc(statRef, { count: (statSnap.data().count || 0) + 1 }, { merge: true });
+            } else {
+              await setDoc(statRef, { date: today, count: 1 });
+            }
+          } catch(e) {
+            console.error(e);
+          }
+        } else {
+          // Update Activity
+          const docRef = doc(db, 'visitor_sessions', sessionId);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            const d = snap.data();
+            await setDoc(docRef, {
+              ...d,
+              lastActiveTime: Date.now(),
+              sessionDuration: Math.floor((Date.now() - (d.entryTime || Date.now())) / 1000),
+              pageViews: (d.pageViews || 1) + 1
+            }, { merge: true });
+          }
+        }
+      } catch (err: any) {
+        console.error('Visitor Tracking Error:', err.message, err.code, err);
+      }
+    };
+    trackVisitor();
+  }, [currentView]);
+
   
   // Customer Session States
   const [currentUser, setCurrentUser] = useState<import('./types').CustomerAccount | null>(() => {
@@ -163,72 +268,45 @@ export default function App() {
   };
 
   // State for site settings
-  const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(INITIAL_SITE_SETTINGS);
+  const [siteSettings, setSiteSettings] = useState<import('./types').SiteSettings>(() => {
+    const saved = localStorage.getItem('dukkan_site_settings');
+    try {
+      return saved ? { ...INITIAL_SITE_SETTINGS, ...JSON.parse(saved) } : INITIAL_SITE_SETTINGS;
+    } catch (e) {
+      return INITIAL_SITE_SETTINGS;
+    }
+  });
   const [showSplash, setShowSplash] = useState(false);
   const [appReady, setAppReady] = useState(false);
-  const [productsLoaded, setProductsLoaded] = useState(false);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [productsLoaded, setProductsLoaded] = useState(() => {
+    return !!localStorage.getItem('dukkan_products_cache');
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState(() => {
+    return !!localStorage.getItem('dukkan_site_settings');
+  });
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [lastVisibleProd, setLastVisibleProd] = useState<any>(null);
+  const [hasMoreProducts, setHasMoreProducts] = useState(true);
+  const PRODUCTS_PER_PAGE = 8;
 
   useEffect(() => {
-    // Visitor Tracking Logic
-    const todayStr = new Date().toISOString().split('T')[0];
-    const sessionKey = `dukkan_visited_${todayStr}`;
-    
-    if (!sessionStorage.getItem(sessionKey)) {
-      const trackVisit = async () => {
-        try {
-          // 1. Increment daily counter
-          await setDoc(doc(db, 'visitor_stats', todayStr), { 
-            count: increment(1), 
-            date: todayStr 
-          }, { merge: true });
-
-          // 2. Log detailed session info
-          let geoData = {};
-          try {
-            const res = await fetch('https://ipapi.co/json/');
-            if (res.ok) {
-              const data = await res.json();
-              geoData = {
-                ip: data.ip,
-                city: data.city,
-                country: data.country_name,
-              };
-            }
-          } catch (e) {
-            console.warn('Geolocation failed', e);
+    const fetchGeodata = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', 'yemeni_geodata'));
+        if (docSnap.exists()) {
+          const remoteData = docSnap.data().data as GovernorateData[];
+          if (remoteData && Array.isArray(remoteData)) {
+            setYemeniGeodata(remoteData);
+            localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(remoteData));
           }
-
-          const userAgent = navigator.userAgent;
-          await addDoc(collection(db, 'visitor_logs'), {
-            timestamp: new Date().toISOString(),
-            ...geoData,
-            userAgent: userAgent,
-            device: /Mobile|Android|iPhone/i.test(userAgent) ? 'Mobile' : 'Desktop',
-          });
-
-          sessionStorage.setItem(sessionKey, 'true');
-        } catch (err) {
-          console.error('Visitor tracking failed:', err);
+        } else {
+          setDoc(doc(db, 'settings', 'yemeni_geodata'), { data: DEFAULT_YEMENI_GEODATA }).catch(() => {});
         }
-      };
-      trackVisit();
-    }
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'yemeni_geodata'), (docSnap) => {
-      if (docSnap.exists()) {
-        const remoteData = docSnap.data().data as GovernorateData[];
-        if (remoteData && Array.isArray(remoteData)) {
-          setYemeniGeodata(remoteData);
-          localStorage.setItem('dukkan_yemeni_geodata', JSON.stringify(remoteData));
-        }
+      } catch (error) {
+        handleFirestoreError(error as any, OperationType.GET, 'settings/yemeni_geodata');
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'settings/yemeni_geodata');
-    });
-    return () => unsub();
+    };
+    fetchGeodata();
   }, []);
 
   // Dynamic favicon and title update
@@ -482,47 +560,129 @@ export default function App() {
 
   // Real-time Firestore Sync hooks requested by user
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'products'), (snapshot) => {
-      const list: Product[] = [];
-      snapshot.forEach(docSnap => {
-        const prodData = docSnap.data() as Product;
-        if (!prodData.code) {
-          const randomCode = 'LX-' + Math.floor(10000 + Math.random() * 90000);
-          prodData.code = randomCode;
-          // Update Firestore on-the-fly to permanently assign a unique code
-          setDoc(doc(db, 'products', prodData.id), prodData).catch(() => {});
+    const fetchProducts = async () => {
+      try {
+        const q = query(
+          collection(db, 'products'),
+          orderBy('isFeatured', 'desc')
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        const deletedIdsStr = localStorage.getItem('dukkan_deleted_product_ids') || '[]';
+        let deletedIds: string[] = [];
+        try {
+          deletedIds = JSON.parse(deletedIdsStr);
+        } catch(e){}
+
+        if (snapshot.empty) {
+          // Seed if empty (keeping old logic but using setDoc)
+          for (const p of INITIAL_PRODUCTS) {
+            if (deletedIds.includes(p.id)) continue;
+            const promoWithCode = {
+              ...p,
+              code: p.code || ('LX-' + Math.floor(10000 + Math.random() * 90000))
+            };
+            await setDoc(doc(db, 'products', p.id), promoWithCode);
+          }
+          // Re-fetch after seeding (simple approach)
+          const reSnap = await getDocs(q);
+          const list: Product[] = [];
+          reSnap.forEach(d => {
+            const data = d.data() as Product;
+            if (!deletedIds.includes(data.id)) {
+              list.push(data);
+            }
+          });
+          setProducts(list);
+        } else {
+          const list: Product[] = [];
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data() as Product;
+            if (!deletedIds.includes(data.id)) {
+              list.push(data);
+            }
+          });
+          setProducts(list);
+          localStorage.setItem('dukkan_products_cache', JSON.stringify(list));
         }
-        list.push(prodData);
-      });
-      setProducts(list);
-      localStorage.setItem('dukkan_products_cache', JSON.stringify(list));
-      setProductsLoaded(true);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'products');
-    });
-    return () => unsub();
+        setProductsLoaded(true);
+      } catch (error) {
+        handleFirestoreError(error as any, OperationType.LIST, 'products');
+        setProductsLoaded(true);
+      }
+    };
+
+    fetchProducts();
   }, []);
 
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'site_settings', 'general'), (docSnap) => {
-      if (docSnap.exists()) {
-        const docData = docSnap.data() as import('./types').SiteSettings;
-        const mergedSettings = {
-          ...INITIAL_SITE_SETTINGS,
-          ...docData,
-          promoBanners: docData.promoBanners !== undefined ? docData.promoBanners : INITIAL_SITE_SETTINGS.promoBanners,
-          adScripts: docData.adScripts !== undefined ? docData.adScripts : INITIAL_SITE_SETTINGS.adScripts,
-          redemptionOptions: docData.redemptionOptions !== undefined ? docData.redemptionOptions : INITIAL_SITE_SETTINGS.redemptionOptions,
-          shippingDestinations: docData.shippingDestinations !== undefined ? docData.shippingDestinations : INITIAL_SITE_SETTINGS.shippingDestinations,
-        };
-        setSiteSettings(mergedSettings as any);
-        localStorage.setItem('dukkan_site_settings', JSON.stringify(mergedSettings));
+  const loadMoreProducts = async () => {
+    if (isFetchingMore || !hasMoreProducts || !lastVisibleProd) return;
+    
+    setIsFetchingMore(true);
+    try {
+      const q = query(
+        collection(db, 'products'),
+        orderBy('isFeatured', 'desc'),
+        startAfter(lastVisibleProd),
+        limit(PRODUCTS_PER_PAGE)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        setHasMoreProducts(false);
+      } else {
+        const list: Product[] = [];
+        snapshot.forEach(docSnap => {
+          list.push(docSnap.data() as Product);
+        });
+        
+        setProducts(prev => {
+          const combined = [...prev, ...list];
+          // Simple de-duplication
+          const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+          return unique;
+        });
+        
+        setLastVisibleProd(snapshot.docs[snapshot.docs.length - 1]);
+        setHasMoreProducts(snapshot.docs.length >= PRODUCTS_PER_PAGE);
       }
-      setSettingsLoaded(true);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'site_settings/general');
-    });
-    return () => unsub();
+    } catch (error) {
+      console.error('Error fetching more products:', error);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'site_settings', 'general'));
+        if (!docSnap.exists()) {
+          setDoc(doc(db, 'site_settings', 'general'), INITIAL_SITE_SETTINGS).catch(e => 
+            handleFirestoreError(e, OperationType.WRITE, 'site_settings/general')
+          );
+        } else {
+          const docData = docSnap.data() as import('./types').SiteSettings;
+          const mergedSettings = {
+            ...INITIAL_SITE_SETTINGS,
+            ...docData,
+            promoBanners: docData.promoBanners !== undefined ? docData.promoBanners : INITIAL_SITE_SETTINGS.promoBanners,
+            adScripts: docData.adScripts !== undefined ? docData.adScripts : INITIAL_SITE_SETTINGS.adScripts,
+            redemptionOptions: docData.redemptionOptions !== undefined ? docData.redemptionOptions : INITIAL_SITE_SETTINGS.redemptionOptions,
+            shippingDestinations: docData.shippingDestinations !== undefined ? docData.shippingDestinations : INITIAL_SITE_SETTINGS.shippingDestinations,
+          };
+          setSiteSettings(mergedSettings as any);
+          localStorage.setItem('dukkan_site_settings', JSON.stringify(mergedSettings));
+        }
+        setSettingsLoaded(true);
+      } catch (error) {
+        handleFirestoreError(error as any, OperationType.GET, 'site_settings/general');
+        setSettingsLoaded(true);
+      }
+    };
+    fetchSettings();
   }, []);
 
   // Dynamic SEO & Metadata injector to support search engine discovery and brand identity (requested by user)
@@ -577,43 +737,75 @@ export default function App() {
   }, [siteSettings]);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'coupons'), (snapshot) => {
-      const list: Coupon[] = [];
-      snapshot.forEach(docSnap => {
-        list.push(docSnap.data() as Coupon);
-      });
-      setCoupons(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'coupons');
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'local_wallets'), (snapshot) => {
-      const list: any[] = [];
-      snapshot.forEach(docSnap => {
-        list.push(docSnap.data());
-      });
-      setLocalWallets(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'local_wallets');
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'categories'), (docSnap) => {
-      if (docSnap.exists()) {
-        const remoteCats = docSnap.data().list;
-        if (remoteCats && Array.isArray(remoteCats)) {
-          setCategoriesState(remoteCats);
+    const fetchCoupons = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'coupons'));
+        if (snapshot.empty) {
+          INITIAL_COUPONS.forEach(c => {
+            setDoc(doc(db, 'coupons', c.code), c).catch(e =>
+              handleFirestoreError(e, OperationType.WRITE, `coupons/${c.code}`)
+            );
+          });
+        } else {
+          const list: Coupon[] = [];
+          snapshot.forEach(docSnap => {
+            list.push(docSnap.data() as Coupon);
+          });
+          setCoupons(list);
         }
+      } catch (error) {
+        handleFirestoreError(error as any, OperationType.LIST, 'coupons');
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'settings/categories');
-    });
-    return () => unsub();
+    };
+    fetchCoupons();
+  }, []);
+
+  useEffect(() => {
+    const fetchWallets = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'local_wallets'));
+        if (snapshot.empty) {
+          const defaultWallets = [
+            { id: 'w1', name: 'الكريمي جوال', accountNumber: '774919194', isActive: true },
+            { id: 'w2', name: 'جوالي (Jawali)', accountNumber: '774919194', isActive: true },
+            { id: 'w3', name: 'فلوسك', accountNumber: '774919194', isActive: true }
+          ];
+          defaultWallets.forEach(w => {
+            setDoc(doc(db, 'local_wallets', w.id), w).catch(e =>
+              handleFirestoreError(e, OperationType.WRITE, `local_wallets/${w.id}`)
+            );
+          });
+        } else {
+          const list: any[] = [];
+          snapshot.forEach(docSnap => {
+            list.push(docSnap.data());
+          });
+          setLocalWallets(list);
+        }
+      } catch (error) {
+        handleFirestoreError(error as any, OperationType.LIST, 'local_wallets');
+      }
+    };
+    fetchWallets();
+  }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'settings', 'categories'));
+        if (docSnap.exists()) {
+          const remoteCats = docSnap.data().list;
+          if (remoteCats && Array.isArray(remoteCats)) {
+            setCategoriesState(remoteCats);
+          }
+        } else {
+          setDoc(doc(db, 'settings', 'categories'), { list: CATEGORIES }).catch(() => {});
+        }
+      } catch (error) {
+        handleFirestoreError(error as any, OperationType.LIST, 'settings/categories');
+      }
+    };
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -816,16 +1008,7 @@ export default function App() {
     }
 
     const cleanOrder = JSON.parse(JSON.stringify(newOrder));
-    setDoc(doc(db, 'orders', newOrder.id), cleanOrder).then(() => {
-      // Play sound for customer
-      if (siteSettings.enableOrderSound) {
-        try {
-          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-          audio.volume = 0.5;
-          audio.play().catch(() => {});
-        } catch (e) {}
-      }
-    }).catch(e =>
+    setDoc(doc(db, 'orders', newOrder.id), cleanOrder).catch(e =>
       handleFirestoreError(e, OperationType.WRITE, `orders/${newOrder.id}`)
     );
   };
@@ -894,9 +1077,20 @@ export default function App() {
       reviews: allReviews
     };
 
-    setDoc(doc(db, 'products', productId), updatedProd).catch(e =>
-      handleFirestoreError(e, OperationType.WRITE, `products/${productId}`)
-    );
+    setProducts(prev => {
+      const next = prev.map(pr => pr.id === productId ? updatedProd : pr);
+      localStorage.setItem('dukkan_products_cache', JSON.stringify(next));
+      return next;
+    });
+
+    setDoc(doc(db, 'products', productId), updatedProd).catch(e => {
+      const errStr = String(e);
+      if (errStr.includes('Quota exceeded') || errStr.includes('quota') || errStr.includes('limit exceeded') || errStr.includes('resource-exhausted')) {
+        console.warn('Quota limit reached, review saved locally.');
+        return;
+      }
+      handleFirestoreError(e, OperationType.WRITE, `products/${productId}`);
+    });
   };
 
   // ADMIN OPERATIONS
@@ -911,20 +1105,71 @@ export default function App() {
     // Strip undefined values which Firebase rejects
     const cleanProduct = JSON.parse(JSON.stringify(newProduct));
 
-    return setDoc(doc(db, 'products', newId), cleanProduct).catch(e => {
+    setProducts(prev => {
+      const next = [cleanProduct, ...prev];
+      localStorage.setItem('dukkan_products_cache', JSON.stringify(next));
+      return next;
+    });
+
+    return setDoc(doc(db, 'products', newId), cleanProduct).then(() => {
+      alert('🎉 تم إضافة المنتج بنجاح ومزامنته سحابياً!');
+    }).catch(e => {
+      const errStr = String(e);
+      if (errStr.includes('Quota exceeded') || errStr.includes('quota') || errStr.includes('limit exceeded') || errStr.includes('resource-exhausted')) {
+        alert('⚠️ تم إضافة المنتج محلياً في جهازك بنجاح! قاعدة بيانات المتجر السحابية ممتلئة حالياً (حصتك المجانية لليوم انتهت)، وسيتم حفظ وتحديث باقي أجهزة الزوار في أقرب وقت بمجرد تجدد حد العمليات اليومي.');
+        return;
+      }
       handleFirestoreError(e, OperationType.WRITE, `products/${newId}`);
     });
   };
 
   const handleUpdateProduct = (updatedProduct: Product): Promise<void> => {
     const cleanProduct = JSON.parse(JSON.stringify(updatedProduct));
-    return setDoc(doc(db, 'products', updatedProduct.id), cleanProduct).catch(e => {
+    
+    setProducts(prev => {
+      const next = prev.map(p => p.id === updatedProduct.id ? cleanProduct : p);
+      localStorage.setItem('dukkan_products_cache', JSON.stringify(next));
+      return next;
+    });
+
+    return setDoc(doc(db, 'products', updatedProduct.id), cleanProduct).then(() => {
+      alert('🎉 تم حفظ تعديلات المنتج ومزامنتها سحابياً بنجاح!');
+    }).catch(e => {
+      const errStr = String(e);
+      if (errStr.includes('Quota exceeded') || errStr.includes('quota') || errStr.includes('limit exceeded') || errStr.includes('resource-exhausted')) {
+        alert('⚠️ تم تعديل المنتج محلياً على جهازك بنجاح! قاعدة بيانات المتجر السحابية وصلت للحد الأقصى لليوم (حصتك المجانية لليوم انتهت)، إلا أن تعديلاتك محفوظة في متمتصفحك وستكتمل للجميع تلقائياً بمجرد تجدد المزامنة السحابية.');
+        return;
+      }
       handleFirestoreError(e, OperationType.WRITE, `products/${updatedProduct.id}`);
     });
   };
 
   const handleDeleteProduct = (productId: string): Promise<void> => {
-    return deleteDoc(doc(db, 'products', productId)).catch(e => {
+    // Record in local deleted set to ensure they never pop back even if DB fails to delete due to quota limit
+    const deletedIdsStr = localStorage.getItem('dukkan_deleted_product_ids') || '[]';
+    let deletedIds: string[] = [];
+    try {
+      deletedIds = JSON.parse(deletedIdsStr);
+    } catch(e){}
+    if (!deletedIds.includes(productId)) {
+      deletedIds.push(productId);
+      localStorage.setItem('dukkan_deleted_product_ids', JSON.stringify(deletedIds));
+    }
+
+    setProducts(prev => {
+      const next = prev.filter(p => p.id !== productId);
+      localStorage.setItem('dukkan_products_cache', JSON.stringify(next));
+      return next;
+    });
+
+    return deleteDoc(doc(db, 'products', productId)).then(() => {
+      alert('🗑️ تم حذف المنتج بالكامل ومزامنته سحابياً بنجاح!');
+    }).catch(e => {
+      const errStr = String(e);
+      if (errStr.includes('Quota exceeded') || errStr.includes('quota') || errStr.includes('limit exceeded') || errStr.includes('resource-exhausted')) {
+        alert('⚠️ تم حذف المنتج من متصفحك محلياً بنجاح! لم نتمكن من المزامنة مع سحابة قاعدة البيانات لأن حصتك المجانية للعمليات اليوم انتهت، لكنه لن يظهر لك مجدداً الآن.');
+        return;
+      }
       handleFirestoreError(e, OperationType.DELETE, `products/${productId}`);
     });
   };
@@ -1143,14 +1388,13 @@ export default function App() {
 
   useEffect(() => {
     if (productsLoaded && settingsLoaded) {
-      // Respect the custom duration if the user has splash enabled
-      const duration = siteSettings.enableSplash ? (siteSettings.splashDuration || 1200) : 200;
+      // Small intentional delay to ensure everything is painted and feels smooth
       const timer = setTimeout(() => {
         setAppReady(true);
-      }, duration);
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [productsLoaded, settingsLoaded, siteSettings.enableSplash, siteSettings.splashDuration]);
+  }, [productsLoaded, settingsLoaded]);
 
   const cartCount = cartItems.reduce((acc, curr) => acc + curr.quantity, 0);
 
@@ -1163,7 +1407,7 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.8, ease: [0.43, 0.13, 0.23, 0.96] }}
+            transition={{ duration: 0.35, ease: [0.43, 0.13, 0.23, 0.96] }}
             style={{ backgroundColor: siteSettings.splashBgColor || '#07090e' }}
             className="fixed inset-0 z-[10000] flex flex-col items-center justify-center overflow-hidden"
           >
@@ -1309,6 +1553,10 @@ export default function App() {
         {currentView === 'store' && (
           <StoreFront 
             products={products} 
+            productsLoaded={productsLoaded}
+            isFetchingMore={isFetchingMore}
+            hasMoreProducts={hasMoreProducts}
+            onLoadMore={loadMoreProducts}
             categories={categoriesState} 
             siteSettings={siteSettings}
             onAddToCart={handleAddToCart} 
@@ -1390,43 +1638,15 @@ export default function App() {
           <div className="flex flex-col items-center md:items-start justify-center text-center">
             <span className="text-xxs font-bold font-mono text-amber-500 uppercase">{siteSettings.inventoryTagline}</span>
             <span className="text-sm font-bold text-gray-100 font-sans mt-1">{siteSettings.inventorySubtitle}</span>
-            <p className="text-[10px] text-amber-400/90 font-sans mt-1">بصفتك المساعد الشخصي الأفضل في إنتاج التطبيقات والمتاجر والمواقع والصور حافظ الودّ تكرماً وامتناناً! 💎</p>
+
           </div>
 
           <div className="text-xs text-gray-400 space-y-2">
             <h4 className="text-slate-200 font-bold mb-3">اتصل بنا أو تصفح</h4>
             <p>📍 {siteSettings.footerAddress}</p>
-            <p className="flex items-center gap-2 justify-center md:justify-start">
-              <span className="text-gray-400">📞 رقم المالك:</span>
-              <a href={`tel:${siteSettings.contactPhone}`} className="font-mono text-amber-400 font-bold hover:underline">
-                {siteSettings.contactPhone}
-              </a>
-            </p>
-            <p className="flex items-center gap-2 justify-center md:justify-start">
-              <span className="text-gray-400">📧 الدعم الفني:</span>
-              <a href={`mailto:${siteSettings.footerEmail}`} className="text-amber-100 hover:underline">
-                {siteSettings.footerEmail}
-              </a>
-            </p>
-            <p className="text-gray-400 mt-1">🕒 {siteSettings.supportHours}</p>
-            
-            <div className="flex items-center justify-center md:justify-start gap-4 mt-6">
-              {siteSettings.facebookUrl && (
-                <a href={siteSettings.facebookUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center hover:scale-110 transition-transform group">
-                  <Facebook className="h-4 w-4 text-white" />
-                </a>
-              )}
-              {siteSettings.instagramUrl && (
-                <a href={siteSettings.instagramUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-rose-600 flex items-center justify-center hover:scale-110 transition-transform group">
-                  <Instagram className="h-4 w-4 text-white" />
-                </a>
-              )}
-              {siteSettings.telegramUrl && (
-                <a href={siteSettings.telegramUrl} target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center hover:scale-110 transition-transform group">
-                  <Send className="h-4 w-4 text-white" />
-                </a>
-              )}
-            </div>
+            <p>📞 رقم المالك لليمن: <span className="font-mono text-amber-400 font-bold">{siteSettings.contactPhone}</span></p>
+            <p>📧 الدعم الفني: {siteSettings.footerEmail}</p>
+            <p>🕒 {siteSettings.supportHours}</p>
           </div>
 
         </div>

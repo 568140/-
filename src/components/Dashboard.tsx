@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  TrendingUp, ShoppingBag, Users, DollarSign, Package, BadgePercent, 
-  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem, Coins, CreditCard, Smartphone, Monitor
+  TrendingUp, ShoppingBag, Users, DollarSign, Package, BadgePercent, Zap, Loader2,
+  Plus, Edit, Trash2, Eye, CircleAlert, Check, X, Search, ChevronLeft, SlidersHorizontal, Sparkles, MapPin, Map, PlusCircle, Settings, ClipboardList, Wallet, MessageSquare, Upload, Globe, ShieldCheck, PlayCircle, Video, CheckCircle, Trophy, Gem, Coins, CreditCard, ImageIcon
 } from 'lucide-react';
 import { Product, Order, Coupon, LocalWallet, Transaction, CustomerAccount } from '../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
@@ -46,6 +46,8 @@ const compressImage = (file: File, maxSize: number = 600): Promise<string> => {
 interface CategoryConfig {
   name: string;
   subcategories: string[];
+  image?: string;
+  description?: string;
 }
 
 interface DashboardProps {
@@ -164,30 +166,36 @@ export function Dashboard({
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping' | 'visitor-logs'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'products' | 'categories' | 'orders' | 'users' | 'coupons' | 'settings' | 'geodata' | 'wallets' | 'layout' | 'marketing' | 'ads' | 'private-messages' | 'shipping' | 'visitors'>('metrics');
   
   // Real-time visitor stats
   const [visitorStats, setVisitorStats] = useState<import('../types').VisitorStat[]>([]);
-  const [visitorLogs, setVisitorLogs] = useState<import('../types').VisitorLog[]>([]);
-  const [prevOrderCount, setPrevOrderCount] = useState<number>(0);
-  const [prevVisitorCount, setPrevVisitorCount] = useState<number>(0);
+  const [visitorSessions, setVisitorSessions] = useState<import('../types').VisitorSession[]>([]);
+
+  // Visitor Filter logic
+  const [visitorFilterTime, setVisitorFilterTime] = useState<'hour'|'day'|'week'|'month'|'year'|'all'>('all');
+  
+  const filteredVisitors = useMemo(() => {
+    const now = Date.now();
+    const msPerHour = 60 * 60 * 1000;
+    const msPerDay = 24 * msPerHour;
+    const msPerWeek = 7 * msPerDay;
+    const msPerMonth = 30 * msPerDay;
+    const msPerYear = 365 * msPerDay;
+    
+    return visitorSessions.filter(s => {
+      const diff = now - (s.entryTime || now);
+      if (visitorFilterTime === 'hour') return diff <= msPerHour;
+      if (visitorFilterTime === 'day') return diff <= msPerDay;
+      if (visitorFilterTime === 'week') return diff <= msPerWeek;
+      if (visitorFilterTime === 'month') return diff <= msPerMonth;
+      if (visitorFilterTime === 'year') return diff <= msPerYear;
+      return true;
+    });
+  }, [visitorSessions, visitorFilterTime]);
 
   // Admin listeners state
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-
-  // Sound Player Utility
-  const playSound = (type: 'order' | 'visitor') => {
-    try {
-      const url = type === 'order' 
-        ? 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'
-        : 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3';
-      const audio = new Audio(url);
-      audio.volume = 0.5;
-      audio.play().catch(e => console.warn('Audio play blocked:', e));
-    } catch (e) {
-      console.warn('Sound error:', e);
-    }
-  };
 
   React.useEffect(() => {
     // Only load full data (orders/accounts/stats) if admin is logged in
@@ -195,7 +203,7 @@ export function Dashboard({
     if (!isLoggedInSession) return;
 
     const loadAdminData = async () => {
-      const { collection, onSnapshot, query, orderBy, limit, doc } = await import('firebase/firestore');
+      const { collection, onSnapshot, query, orderBy, limit, doc, getDoc } = await import('firebase/firestore');
       const { db } = await import('../firebase');
       
       // 1. Visitor Stats
@@ -205,19 +213,15 @@ export function Dashboard({
         setVisitorStats(stats);
       });
 
-      // 1b. Detailed Visitor Logs
-      const logsQuery = query(collection(db, 'visitor_logs'), orderBy('timestamp', 'desc'), limit(100));
-      const unsubLogs = onSnapshot(logsQuery, (snapshot) => {
-        const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as import('../types').VisitorLog);
-        setVisitorLogs(logs);
-        
-        // Play notification sound if enabled and count increased
-        setPrevVisitorCount(prev => {
-          if (prev > 0 && logs.length > prev && siteSettings.enableVisitorSound) {
-            playSound('visitor');
-          }
-          return logs.length;
-        });
+      // 1.5 Smart Visitor Sessions
+      const sessionsQuery = query(collection(db, 'visitor_sessions'), limit(500));
+      const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
+        const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as import('../types').VisitorSession));
+        // Sort locally to avoid needing immediate indexes
+        sessions.sort((a, b) => (b.lastActiveTime || 0) - (a.lastActiveTime || 0));
+        setVisitorSessions(sessions);
+      }, (error) => {
+        console.error("Error fetching visitor_sessions:", error);
       });
 
       // 2. Orders
@@ -231,49 +235,38 @@ export function Dashboard({
           const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return dateB - dateA;
         });
-        
-        // Play notification sound if enabled and count increased
-        setPrevOrderCount(prev => {
-          if (prev > 0 && list.length > prev && siteSettings.enableOrderSound) {
-            playSound('order');
-          }
-          return list.length;
-        });
-
         setTimeout(() => {
           setOrders(list);
         }, 0);
       });
 
       // 3. Admin Credentials Sync
-      const unsubAdmin = onSnapshot(doc(db, 'settings', 'admin'), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data.username) {
-            setAdminUsername(data.username);
-            localStorage.setItem('dukkan_admin_user', data.username);
-          }
-          if (data.password) {
-            setAdminPassword(data.password);
-            localStorage.setItem('dukkan_admin_pass', data.password);
-          }
-        } else {
-          // Send master seed values to remote Firestore immediately, preventing "local only" fallbacks
-          import('firebase/firestore').then(({ doc, setDoc }) => {
-            setDoc(doc(db, 'settings', 'admin'), {
-              username: 'tr25',
-              password: '774919194'
-            }).catch(() => {});
-          });
+      const adminDoc = await getDoc(doc(db, 'settings', 'admin'));
+      if (adminDoc.exists()) {
+        const data = adminDoc.data();
+        if (data.username) {
+          setAdminUsername(data.username);
+          localStorage.setItem('dukkan_admin_user', data.username);
         }
-      });
+        if (data.password) {
+          setAdminPassword(data.password);
+          localStorage.setItem('dukkan_admin_pass', data.password);
+        }
+      } else {
+        // Send master seed values to remote Firestore immediately, preventing "local only" fallbacks
+        import('firebase/firestore').then(({ doc, setDoc }) => {
+          setDoc(doc(db, 'settings', 'admin'), {
+            username: 'tr25',
+            password: '774919194'
+          }).catch(() => {});
+        });
+      }
 
       setIsDataLoaded(true);
       return () => {
         unsubStats();
-        unsubLogs();
+        unsubSessions();
         unsubOrders();
-        unsubAdmin();
       };
     };
     
@@ -334,6 +327,50 @@ export function Dashboard({
   const [searchProductQuery, setSearchProductQuery] = useState('');
   const [showProductModal, setShowProductModal] = useState<boolean>(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [aiInput, setAiInput] = useState('');
+  const [isParsingAI, setIsParsingAI] = useState(false);
+
+  const handleAIImport = async () => {
+    if (!aiInput.trim()) return;
+    setIsParsingAI(true);
+    try {
+      const response = await fetch('/api/ai/parse-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: aiInput })
+      });
+      
+      if (!response.ok) throw new Error('Failed to parse');
+      
+      const data = await response.json();
+      if (data && !data.error) {
+        setProdName(data.name || '');
+        setProdPrice(data.price || 0);
+        setProdDesc(data.description || '');
+        if (data.category) {
+          const foundCat = categories.find(c => c.name === data.category);
+          if (foundCat) {
+            setProdCategory(foundCat.name);
+            if (data.subCategory && foundCat.subcategories.includes(data.subCategory)) {
+              setProdSubCategory(data.subCategory);
+            }
+          }
+        }
+        setProdCode(data.suggestedCode || ('SHN' + Math.floor(1000 + Math.random() * 9000)));
+        setProdOriginalUrl(data.originalUrl || '');
+        if (data.image) setProdImage(data.image);
+        if (data.images && data.images.length > 0) setProdImages(data.images);
+        setAiInput('');
+      } else {
+        alert('لم نتمكن من تحليل البيانات بشكل دقيق. يرجى المحاولة بوصف أوضح.');
+      }
+    } catch (error) {
+      console.error('AI Import Error:', error);
+      alert('حدث خطأ أثناء تحليل البيانات. تأكد من جودة النص المدخل.');
+    } finally {
+      setIsParsingAI(false);
+    }
+  };
   
   // Create / Edit Product Form
   const [prodName, setProdName] = useState('');
@@ -353,6 +390,7 @@ export function Dashboard({
   const [prodCode, setProdCode] = useState('');
   const [prodImages, setProdImages] = useState<string[]>([]);
   const [prodVariants, setProdVariants] = useState<import('../types').ProductVariant[]>([]);
+  const [prodOriginalUrl, setProdOriginalUrl] = useState('');
 
   // Order search query state for Owner lookup
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -367,7 +405,12 @@ export function Dashboard({
 
   // Categories addition states
   const [addCategoryType, setAddCategoryType] = useState<'main' | 'sub'>('main');
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editingSubCategory, setEditingSubCategory] = useState<{ mainCat: string, subCat: string } | null>(null);
   const [newMainCatName, setNewMainCatName] = useState('');
+  const [newMainCatImage, setNewMainCatImage] = useState('');
+  const [newMainCatDescription, setNewMainCatDescription] = useState('');
+  const [catImageMethod, setCatImageMethod] = useState<'url' | 'upload'>('url');
   const [selectedMainCatForSub, setSelectedMainCatForSub] = useState(categories[0]?.name || '');
   const [newSubCatName, setNewSubCatName] = useState('');
 
@@ -553,6 +596,7 @@ export function Dashboard({
     setProdPointsReward(10);
     setProdVideoUrl('');
     setProdCode('LX-' + Math.floor(10000 + Math.random() * 90000));
+    setProdOriginalUrl('');
     setProdImages([]);
     setProdVariants([]);
     setShowProductModal(true);
@@ -626,6 +670,7 @@ export function Dashboard({
     setProdPointsReward(p.pointsReward || 0);
     setProdVideoUrl(p.videoUrl || '');
     setProdCode(p.code || ('LX-' + Math.floor(10000 + Math.random() * 90000)));
+    setProdOriginalUrl(p.originalUrl || '');
     setProdImages(p.images || []);
     setProdVariants(p.variants || []);
     setShowProductModal(true);
@@ -675,7 +720,8 @@ export function Dashboard({
           sizeStock: filteredSizeStock,
           code: prodCode,
           images: prodImages,
-          variants: prodVariants
+          variants: prodVariants,
+          originalUrl: prodOriginalUrl
         });
       } else {
         await onAddProduct({
@@ -694,7 +740,8 @@ export function Dashboard({
           sizeStock: filteredSizeStock,
           code: prodCode,
           images: prodImages,
-          variants: prodVariants
+          variants: prodVariants,
+          originalUrl: prodOriginalUrl
         });
       }
       setShowProductModal(false);
@@ -713,14 +760,44 @@ export function Dashboard({
       alert('الرجاء إدخال اسم القسم الرئيسي!');
       return;
     }
-    const exists = categories.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
-    if (exists) {
-      alert('هذا القسم الرئيسي متواجد بالفعل!');
-      return;
+    
+    if (editingCategory) {
+       setCategories(prev => prev.map(c => 
+         c.name === editingCategory ? { ...c, name: trimmed, image: newMainCatImage, description: newMainCatDescription } : c
+       ));
+       
+       if (editingCategory !== trimmed) {
+         products.forEach(p => {
+           if (p.category === editingCategory) {
+             onUpdateProduct({ ...p, category: trimmed });
+           }
+         });
+       }
+
+       setEditingCategory(null);
+       alert(`تم تعديل القسم "${trimmed}" بنجاح!`);
+    } else {
+       const exists = categories.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
+       if (exists) {
+         alert('هذا القسم الرئيسي متواجد بالفعل!');
+         return;
+       }
+       setCategories(prev => [...prev, { name: trimmed, subcategories: [], image: newMainCatImage, description: newMainCatDescription }]);
+       alert(`تم إضافة القسم الرئيسي "${trimmed}" بنجاح!`);
     }
-    setCategories(prev => [...prev, { name: trimmed, subcategories: [] }]);
+
     setNewMainCatName('');
-    alert(`تم إضافة القسم الرئيسي "${trimmed}" بنجاح!`);
+    setNewMainCatImage('');
+    setNewMainCatDescription('');
+  };
+
+  const startEditCategory = (cat: CategoryConfig) => {
+    setEditingCategory(cat.name);
+    setNewMainCatName(cat.name);
+    setNewMainCatImage(cat.image || '');
+    setNewMainCatDescription(cat.description || '');
+    setCatImageMethod(cat.image?.startsWith('data:') ? 'upload' : 'url');
+    setAddCategoryType('main');
   };
 
   const handleAddSubCategory = () => {
@@ -733,22 +810,58 @@ export function Dashboard({
       alert('الرجاء اختيار القسم الرئيسي المتبوع أولاً!');
       return;
     }
-    setCategories(prev => prev.map(c => {
-      if (c.name === selectedMainCatForSub) {
-        const subExists = c.subcategories.includes(trimmed);
-        if (subExists) {
-          alert('هذا القسم الفرعي موجود بالفعل تحت مسمى هذا القسم الرئيسي!');
-          return c;
+    
+    if (editingSubCategory) {
+       setCategories(prev => prev.map(c => {
+         if (c.name === editingSubCategory.mainCat) {
+            if (trimmed !== editingSubCategory.subCat && c.subcategories.includes(trimmed)) {
+               alert('هذا القسم الفرعي موجود بالفعل!');
+               return c;
+            }
+            return {
+               ...c,
+               subcategories: c.subcategories.map(s => s === editingSubCategory.subCat ? trimmed : s)
+            };
+         }
+         return c;
+       }));
+       
+       if (editingSubCategory.subCat !== trimmed) {
+          products.forEach(p => {
+             if (p.category === editingSubCategory.mainCat && p.subCategory === editingSubCategory.subCat) {
+                onUpdateProduct({ ...p, subCategory: trimmed });
+             }
+          });
+       }
+
+       setEditingSubCategory(null);
+       setNewSubCatName('');
+       alert(`تم تعديل القسم الفرعي بنجاح!`);
+    } else {
+      setCategories(prev => prev.map(c => {
+        if (c.name === selectedMainCatForSub) {
+          const subExists = c.subcategories.includes(trimmed);
+          if (subExists) {
+            alert('هذا القسم الفرعي موجود بالفعل تحت مسمى هذا القسم الرئيسي!');
+            return c;
+          }
+          return {
+            ...c,
+            subcategories: [...c.subcategories, trimmed]
+          };
         }
-        return {
-          ...c,
-          subcategories: [...c.subcategories, trimmed]
-        };
-      }
-      return c;
-    }));
-    setNewSubCatName('');
-    alert(`تم ربط القسم الفرعي "${trimmed}" بالقسم الرئيسي "${selectedMainCatForSub}"!`);
+        return c;
+      }));
+      setNewSubCatName('');
+      alert(`تم ربط القسم الفرعي "${trimmed}" بالقسم الرئيسي "${selectedMainCatForSub}"!`);
+    }
+  };
+
+  const startEditSubCategory = (mainCat: string, subCat: string) => {
+    setEditingSubCategory({ mainCat, subCat });
+    setSelectedMainCatForSub(mainCat);
+    setNewSubCatName(subCat);
+    setAddCategoryType('sub');
   };
 
   const handleSaveCoupon = (e: React.FormEvent) => {
@@ -901,6 +1014,17 @@ export function Dashboard({
             الإحصائيات والأداء
           </button>
           <button
+            onClick={() => setActiveTab('visitors')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'visitors'
+                ? 'bg-[#1e1b4b] text-white shadow-xs'
+                : 'text-[#1e1b4b] hover:text-indigo-900 bg-indigo-50 border border-indigo-100'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            تتبع زوار متقدم
+          </button>
+          <button
             onClick={() => setActiveTab('products')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'products'
@@ -949,16 +1073,6 @@ export function Dashboard({
             }`}
           >
             💬 رسائل العملاء الخاصة
-          </button>
-          <button
-            onClick={() => setActiveTab('visitor-logs')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'visitor-logs'
-                ? 'bg-rose-600 text-white shadow-xs'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            🕵️ تفاصيل الزوار ({visitorLogs.length})
           </button>
           <button
             onClick={() => setActiveTab('coupons')}
@@ -1453,12 +1567,130 @@ export function Dashboard({
         </div>
       )}
 
+      {/* VISITORS TRACKING ADVANCED DASHBOARD */}
+      {activeTab === 'visitors' && (
+        <div className="space-y-6 font-sans">
+          <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-[#1e1b4b] mb-1 flex items-center gap-2">
+                  <Globe className="w-6 h-6 text-indigo-500" />
+                  تتبع الزوار المتقدم (منظومة ذكية)
+                </h2>
+                <p className="text-xs text-gray-400 font-sans">
+                  منظومة تتبع ذكية تفاعلية تسجل بيانات الدخول، الموقع، ونوعية الأجهزة لزوار موقعك. 
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-100">
+                {(['hour', 'day', 'week', 'month', 'year', 'all'] as const).map(time => {
+                   const labels = { 'hour': 'بالساعة', 'day': 'باليوم', 'week': 'بالأسبوع', 'month': 'بالشهر', 'year': 'بالسنة', 'all': 'الكل' };
+                   return (
+                      <button
+                        key={time}
+                        onClick={() => setVisitorFilterTime(time)}
+                        className={`px-4 py-1.5 rounded-lg text-xxs font-bold transition-all ${
+                          visitorFilterTime === time ? 'bg-[#1e1b4b] text-white shadow-sm' : 'text-gray-500 hover:text-[#1e1b4b] hover:bg-white'
+                        }`}
+                      >
+                        {labels[time]}
+                      </button>
+                   );
+                })}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-gray-100 shadow-xxs">
+              <table className="w-full text-right border-collapse">
+                <thead className="bg-[#1e1b4b] text-white text-xs">
+                  <tr>
+                    <th className="py-3 px-4 font-bold border-l border-indigo-900/50">وقت الدخول</th>
+                    <th className="py-3 px-4 font-bold border-l border-indigo-900/50">الموقع الجغرافي</th>
+                    <th className="py-3 px-4 font-bold border-l border-indigo-900/50">الجهاز والمتصفح</th>
+                    <th className="py-3 px-4 font-bold border-l border-indigo-900/50 text-center">مدة الجلسة</th>
+                    <th className="py-3 px-4 font-bold text-center">IP / تفاعلات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-xs">
+                  {filteredVisitors.map(session => (
+                    <tr key={session.id} className="hover:bg-indigo-50/30 transition-colors">
+                      <td className="py-3 px-4 font-mono text-gray-600">
+                        <span className="block font-bold text-[#1e1b4b]">{new Date(session.entryTime).toLocaleDateString('ar-SA')}</span>
+                        <span className="block text-xxs tracking-wider mt-0.5">{new Date(session.entryTime).toLocaleTimeString('ar-SA')}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#1e1b4b]">{session.country} - {session.city}</span>
+                          {(session.lat && session.lng) ? (
+                            <a 
+                              href={`https://www.google.com/maps?q=${session.lat},${session.lng}`} 
+                              target="_blank" rel="noreferrer"
+                              className="text-indigo-500 hover:text-indigo-700 bg-indigo-50 p-1.5 rounded-full"
+                              title="عرض في خرائط جوجل"
+                            >
+                              <MapPin className="w-3.5 h-3.5" />
+                            </a>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="block text-[#1e1b4b] font-bold">{session.deviceType === 'Mobile' ? 'موبايل' : 'ديسكتوب'} | {session.os}</span>
+                        <span className="block text-gray-500 text-[10px] mt-1 font-mono bg-gray-50 rounded-sm px-1.5 py-0.5 max-w-[120px] truncate" title={session.browser}>{session.browser}</span>
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-indigo-900 text-center">
+                        <div className="bg-indigo-50/50 inline-block px-3 py-1 rounded-full border border-indigo-100">
+                          {Math.floor(session.sessionDuration / 60)} دقيقة
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="block font-mono text-gray-600 font-bold bg-gray-50 border border-gray-100 rounded-md px-2 py-1 select-all">{session.ip}</span>
+                        <div className="flex justify-center mt-1.5">
+                           <span className="text-[9px] font-bold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5 border border-amber-100">{session.pageViews} تفاعل/صفحات</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredVisitors.length === 0 && (
+                     <tr>
+                        <td colSpan={5} className="py-12 text-center text-gray-400">
+                           <Globe className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                           <p className="font-bold text-sm">لم يتم تسجيل أي زيارات في النطاق الزمني المحدد.</p>
+                        </td>
+                     </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CATEGORIES & SUBCATEGORIES MANAGEMENT VIEW */}
       {activeTab === 'categories' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 font-sans">
           {/* Add Category Form */}
           <div className="lg:col-span-5 bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
-            <h2 className="text-sm font-bold text-gray-900 mb-4 font-sans">إضافة تصنيف أو قسم جديد</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-bold text-gray-900 font-sans">
+                {editingCategory ? "تعديل القسم الرئيسي" : editingSubCategory ? "تعديل القسم الفرعي" : "إضافة تصنيف أو قسم جديد"}
+              </h2>
+              {(editingCategory || editingSubCategory) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingCategory(null);
+                    setEditingSubCategory(null);
+                    setNewMainCatName('');
+                    setNewMainCatImage('');
+                    setNewMainCatDescription('');
+                    setNewSubCatName('');
+                    setSelectedMainCatForSub('');
+                  }}
+                  className="text-xs text-rose-500 font-bold hover:underline"
+                >
+                  إلغاء التعديل
+                </button>
+              )}
+            </div>
             
             <div className="space-y-4">
               {/* Type selector: Add main category or Sub category */}
@@ -1491,22 +1723,93 @@ export function Dashboard({
               </div>
 
               {addCategoryType === 'main' ? (
-                <div>
-                  <label className="block text-xxs font-bold text-gray-400 mb-1.5 uppercase font-sans">اسم القسم الرئيسي الجديد</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="مثال: أحذية وملحقات رياضية"
-                    value={newMainCatName}
-                    onChange={(e) => setNewMainCatName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-850 focus:outline-hidden focus:border-amber-500 font-sans"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xxs font-bold text-gray-400 mb-1.5 uppercase font-sans">اسم القسم الرئيسي الجديد</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="مثال: أحذية وملحقات رياضية"
+                      value={newMainCatName}
+                      onChange={(e) => setNewMainCatName(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-850 focus:outline-hidden focus:border-amber-500 font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs font-bold text-gray-400 mb-1.5 uppercase font-sans">وصف القسم (اختياري)</label>
+                    <textarea
+                      placeholder="وصف مختصر للمنتجات المتاحة في هذا القسم"
+                      value={newMainCatDescription}
+                      onChange={(e) => setNewMainCatDescription(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-850 focus:outline-hidden focus:border-amber-500 font-sans min-h-[80px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xxs font-bold text-gray-400 mb-1.5 uppercase font-sans">صورة القسم (اختياري)</label>
+                    <div className="flex gap-2 mb-2 bg-gray-50 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setCatImageMethod('url')}
+                        className={`flex-1 py-1.5 rounded-lg text-xxs font-bold transition-all ${
+                          catImageMethod === 'url' ? 'bg-white text-gray-900 shadow-xxs border border-gray-100' : 'text-gray-400 hover:text-gray-850'
+                        }`}
+                      >
+                        رابط خارجي (URL)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCatImageMethod('upload')}
+                        className={`flex-1 py-1.5 rounded-lg text-xxs font-bold transition-all ${
+                          catImageMethod === 'upload' ? 'bg-white text-gray-900 shadow-xxs border border-gray-100' : 'text-gray-400 hover:text-gray-850'
+                        }`}
+                      >
+                        رفع ملف محلي (Upload)
+                      </button>
+                    </div>
+                    {catImageMethod === 'url' ? (
+                      <input
+                        type="url"
+                        placeholder="https://images.unsplash.com/..."
+                        value={newMainCatImage}
+                        onChange={(e) => setNewMainCatImage(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-mono text-gray-800 focus:outline-hidden focus:border-amber-500"
+                      />
+                    ) : (
+                      <div className="border border-dashed border-gray-200 hover:border-amber-500 rounded-xl p-3 text-center cursor-pointer transition-colors relative bg-gray-50 hover:bg-amber-50/10">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const compressedBase64 = await compressImage(file, 600);
+                                setNewMainCatImage(compressedBase64);
+                              } catch (err) {
+                                alert("حدث خطأ أثناء تحميل الصورة. جرب صورة أصغر.");
+                              }
+                            }
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="flex flex-col items-center justify-center pointer-events-none">
+                          <ImageIcon className="h-4 w-4 text-gray-300 mb-1" />
+                          <span className="text-xxs font-bold text-gray-500 font-sans">
+                            {newMainCatImage && newMainCatImage.startsWith('data:') ? 'تم اختيار الصورة - انقر لتغييرها' : 'انقر وارفع صورة من جهازك'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {newMainCatImage && (
+                      <div className="mt-2 h-20 w-32 rounded-lg bg-cover bg-center border border-gray-100 shadow-xs" style={{ backgroundImage: `url('${newMainCatImage}')` }} />
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleAddMainCategory}
                     className="w-full mt-3 py-2.5 bg-gray-950 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer font-sans"
                   >
-                    إضافة القسم الرئيسي
+                    {editingCategory ? "حفظ التعديلات" : "إضافة القسم الرئيسي"}
                   </button>
                 </div>
               ) : (
@@ -1540,7 +1843,7 @@ export function Dashboard({
                     onClick={handleAddSubCategory}
                     className="w-full py-2.5 bg-gray-950 hover:bg-gray-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer font-sans"
                   >
-                    ربط وإضافة القسم الفرعي
+                    {editingSubCategory ? "حفظ التعديلات" : "ربط وإضافة القسم الفرعي"}
                   </button>
                 </div>
               )}
@@ -1553,20 +1856,42 @@ export function Dashboard({
             <div className="space-y-4 divide-y divide-gray-50">
               {categories.map((cat) => (
                 <div key={cat.name} className="pt-4 first:pt-0">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-black text-gray-950 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-lg font-sans">
-                      {cat.name}
-                    </span>
-                    <button
-                      onClick={() => {
-                        if (safeConfirm(`هل أنت متأكد من حذف القسم الرئيسي "${cat.name}" وجميع أقسامه الفرعية؟`)) {
-                          setCategories(prev => prev.filter(c => c.name !== cat.name));
-                        }
-                      }}
-                      className="text-xxs font-bold text-rose-500 hover:text-rose-700 hover:underline font-sans"
-                    >
-                      حذف الرئيسي
-                    </button>
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-3">
+                      {cat.image ? (
+                        <div className="w-10 h-10 rounded-lg bg-cover bg-center border border-gray-100 shadow-xxs" style={{ backgroundImage: `url('${cat.image}')` }} />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-xs font-black text-gray-950 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-lg font-sans">
+                          {cat.name}
+                        </span>
+                        {cat.description && (
+                          <p className="text-[10px] text-gray-500 mt-1 max-w-[200px] truncate">{cat.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => startEditCategory(cat)}
+                        className="text-xxs font-bold text-indigo-500 hover:text-indigo-700 hover:underline font-sans"
+                      >
+                        تعديل الرئيسي
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (safeConfirm(`هل أنت متأكد من حذف القسم الرئيسي "${cat.name}" وجميع أقسامه الفرعية؟`)) {
+                            setCategories(prev => prev.filter(c => c.name !== cat.name));
+                          }
+                        }}
+                        className="text-xxs font-bold text-rose-500 hover:text-rose-700 hover:underline font-sans"
+                      >
+                        حذف
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 py-2 pr-3">
@@ -1576,6 +1901,13 @@ export function Dashboard({
                       cat.subcategories.map((sub) => (
                         <span key={sub} className="inline-flex items-center space-x-1 space-x-reverse bg-gray-50 border border-gray-150 px-2 py-0.5 rounded-lg text-xxs text-gray-650 group font-sans">
                           <span>{sub}</span>
+                          <button
+                            onClick={() => startEditSubCategory(cat.name, sub)}
+                            className="text-indigo-400 hover:text-indigo-600 font-bold pr-1 text-xxs leading-none cursor-pointer"
+                            title="تعديل هذا القسم الفرعي"
+                          >
+                            <Edit className="w-2.5 h-2.5" />
+                          </button>
                           <button
                             onClick={() => {
                               if (safeConfirm(`هل أنت متأكد من حذف القسم الفرعي "${sub}"؟`)) {
@@ -1591,6 +1923,7 @@ export function Dashboard({
                               }
                             }}
                             className="text-gray-400 hover:text-rose-600 font-bold pr-1 text-xxs leading-none cursor-pointer"
+                            title="حذف هذا القسم الفرعي"
                           >
                             ×
                           </button>
@@ -2375,114 +2708,14 @@ export function Dashboard({
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs">
               <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 pb-3 flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-amber-600" />
-                <span>تخصيص واجهة المتجر والنصوص 🎨</span>
+                <span>تخصيص واجهة المتجر والنصوص</span>
               </h2>
-              <p className="text-xxs text-gray-400 font-sans mt-2">تحكم بجمالية المتجر، ألوان الخلفية، وأسلوب عرض مربعات المنتجات، والإشعارات.</p>
-
-              {/* NEW: VISUAL STYLE CONTROLS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
-                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4 text-gold" />
-                    أسلوب عرض المنتجات (المربعات)
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xxs font-bold text-gray-400 mb-1">نمط البطاقة</label>
-                      <select 
-                        value={siteSettings.productCardStyle || 'modern'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, productCardStyle: e.target.value as any })}
-                        className="w-full px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold"
-                      >
-                        <option value="modern">عصري (Modern)</option>
-                        <option value="minimal">بسيط (Minimal)</option>
-                        <option value="classic">كلاسيكي (Classic)</option>
-                        <option value="glass">زجاجي (Glass)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xxs font-bold text-gray-400 mb-1">الأعمدة (الجوال)</label>
-                      <select 
-                        value={siteSettings.productGridCols || 2}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, productGridCols: Number(e.target.value) })}
-                        className="w-full px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold"
-                      >
-                        <option value={1}>1 (كبير جداً)</option>
-                        <option value={2}>2 (افتراضي)</option>
-                        <option value={3}>3 (صغير)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
-                  <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-rose-500" />
-                    خلفية المتجر العامة
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <select 
-                        value={siteSettings.storefrontBgType || 'gradient'}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, storefrontBgType: e.target.value as any })}
-                        className="flex-1 px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold"
-                      >
-                        <option value="color">لون سادة</option>
-                        <option value="gradient">تدرج لوني</option>
-                        <option value="image">صورة مخصصة</option>
-                      </select>
-                      <input 
-                        type="text" 
-                        value={siteSettings.storefrontBgValue || ''}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, storefrontBgValue: e.target.value })}
-                        className="flex-1 px-3 py-2 bg-white border border-gray-100 rounded-xl text-xs font-mono"
-                        placeholder={siteSettings.storefrontBgType === 'image' ? 'رابط الصورة' : '#ffffff / linear-gradient...'}
-                        dir="ltr"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* NEW: NOTIFICATION SETTINGS */}
-              <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100 mt-4">
-                <h3 className="text-sm font-black text-amber-900 mb-4 flex items-center gap-2">
-                  <CircleAlert className="h-4 w-4 text-amber-600" />
-                  تنبيهات النظام والإشعارات الصوتية 🔔
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-200">
-                    <div>
-                      <h4 className="text-xs font-extrabold text-gray-800">صوت عند طلب جديد</h4>
-                      <p className="text-[10px] text-gray-400 font-sans">تشغيل صوت فور وصول أي طلب جديد.</p>
-                    </div>
-                    <button 
-                      onClick={() => setSiteSettings({ ...siteSettings, enableOrderSound: !siteSettings.enableOrderSound })}
-                      className={`w-10 h-5 rounded-full transition-all relative ${siteSettings.enableOrderSound ? 'bg-amber-600' : 'bg-gray-300'}`}
-                    >
-                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${siteSettings.enableOrderSound ? 'right-5.5' : 'right-0.5'}`}></div>
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-200">
-                    <div>
-                      <h4 className="text-xs font-extrabold text-gray-800">صوت لدخول زوار</h4>
-                      <p className="text-[10px] text-gray-400 font-sans">تنبيهك بصوت عند دخول زائر (للمالك).</p>
-                    </div>
-                    <button 
-                      onClick={() => setSiteSettings({ ...siteSettings, enableVisitorSound: !siteSettings.enableVisitorSound })}
-                      className={`w-10 h-5 rounded-full transition-all relative ${siteSettings.enableVisitorSound ? 'bg-amber-600' : 'bg-gray-300'}`}
-                    >
-                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${siteSettings.enableVisitorSound ? 'right-5.5' : 'right-0.5'}`}></div>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-100 text-xxs leading-relaxed text-gray-600">
-                <span className="block mt-1.5 text-amber-600 font-bold bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20">
+              <p className="text-xxs text-gray-400 font-sans mt-2">
+                تعديل المسميات والعناوين التي تظهر للعملاء في الصفحة الرئيسية.
+                <span className="block mt-1.5 text-amber-600 font-bold bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/20 leading-relaxed text-right">
                   🚀 يدعم المتجر الآن رفع صور فائقة الدقة والوضوح (للشعار أو الأيقونة) بحجم ملف يصل حتى <strong>20 ميجابايت</strong> مع ضغط فائق الجودة ذكي وتلقائي لتجاوز حدود قاعدة البيانات، كما يمكنك إدخال رابط مباشر خارجي (External Image URL) واستخدامه لتخزين صورتك خارجياً بالكامل!
                 </span>
-              </div>
+              </p>
               
               <div className="mt-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2758,77 +2991,6 @@ export function Dashboard({
                 </div>
               </div>
 
-              <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100 mt-6 md:mt-8">
-                <h3 className="text-lg font-black text-amber-900 mb-4 flex items-center gap-2">
-                  <ClipboardList className="h-5 w-5 text-amber-600" />
-                  <span>دليل "كيف تشتري؟" (الخطوات)</span>
-                </h3>
-                <div className="space-y-4">
-                  {(siteSettings.buyingSteps || []).map((step, idx) => (
-                    <div key={step.id} className="bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex flex-col md:flex-row gap-4">
-                      <div className="flex-1 space-y-3">
-                        <div className="flex gap-2">
-                          <input 
-                            type="text" 
-                            value={step.title}
-                            onChange={(e) => {
-                              const updated = [...(siteSettings.buyingSteps || [])];
-                              updated[idx].title = e.target.value;
-                              setSiteSettings({ ...siteSettings, buyingSteps: updated });
-                            }}
-                            className="flex-1 px-3 py-2 border border-gray-100 rounded-lg text-sm font-bold"
-                            placeholder="عنوان الخطوة"
-                          />
-                          <input 
-                            type="text" 
-                            value={step.icon}
-                            onChange={(e) => {
-                              const updated = [...(siteSettings.buyingSteps || [])];
-                              updated[idx].icon = e.target.value;
-                              setSiteSettings({ ...siteSettings, buyingSteps: updated });
-                            }}
-                            className="w-32 px-3 py-2 border border-gray-100 rounded-lg text-xs font-mono"
-                            placeholder="أيقونة (Lucide)"
-                          />
-                        </div>
-                        <textarea 
-                          value={step.description}
-                          onChange={(e) => {
-                            const updated = [...(siteSettings.buyingSteps || [])];
-                            updated[idx].description = e.target.value;
-                            setSiteSettings({ ...siteSettings, buyingSteps: updated });
-                          }}
-                          className="w-full px-3 py-2 border border-gray-100 rounded-lg text-xs resize-none"
-                          rows={2}
-                          placeholder="وصف الخطوة بالتفصيل"
-                        />
-                      </div>
-                      <div className="flex md:flex-col justify-end gap-2">
-                        <button 
-                          onClick={() => {
-                            const updated = (siteSettings.buyingSteps || []).filter((_, i) => i !== idx);
-                            setSiteSettings({ ...siteSettings, buyingSteps: updated });
-                          }}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  <button 
-                    onClick={() => {
-                      const newStep = { id: Date.now().toString(), title: '', description: '', icon: 'CheckCircle' };
-                      setSiteSettings({ ...siteSettings, buyingSteps: [...(siteSettings.buyingSteps || []), newStep] });
-                    }}
-                    className="w-full py-3 border-2 border-dashed border-amber-200 rounded-xl text-amber-600 font-bold hover:bg-amber-100/50 transition-all text-sm flex items-center justify-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    اضافة خطوة شراء جديدة
-                  </button>
-                </div>
-              </div>
-
               <h3 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-amber-500" /> معلومات التواصل والدعم
               </h3>
@@ -2863,42 +3025,6 @@ export function Dashboard({
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:border-amber-400 focus:outline-hidden text-sm font-mono text-left"
                     dir="ltr"
                     placeholder="ex: 967774919194"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-                <div>
-                  <label className="block text-xxs font-black text-blue-600 uppercase mb-1">رابط فيسبوك</label>
-                  <input 
-                    type="text" 
-                    value={siteSettings.facebookUrl || ''}
-                    onChange={(e) => setSiteSettings({ ...siteSettings, facebookUrl: e.target.value })}
-                    className="w-full px-4 py-2 bg-blue-50 border border-blue-100 rounded-xl focus:border-blue-400 focus:outline-hidden text-xs font-mono"
-                    placeholder="https://facebook.com/..."
-                    dir="ltr"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xxs font-black text-rose-600 uppercase mb-1">رابط إنستغرام</label>
-                  <input 
-                    type="text" 
-                    value={siteSettings.instagramUrl || ''}
-                    onChange={(e) => setSiteSettings({ ...siteSettings, instagramUrl: e.target.value })}
-                    className="w-full px-4 py-2 bg-rose-50 border border-rose-100 rounded-xl focus:border-rose-400 focus:outline-hidden text-xs font-mono"
-                    placeholder="https://instagram.com/..."
-                    dir="ltr"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xxs font-black text-sky-600 uppercase mb-1">رابط تليجرام</label>
-                  <input 
-                    type="text" 
-                    value={siteSettings.telegramUrl || ''}
-                    onChange={(e) => setSiteSettings({ ...siteSettings, telegramUrl: e.target.value })}
-                    className="w-full px-4 py-2 bg-sky-50 border border-sky-100 rounded-xl focus:border-sky-400 focus:outline-hidden text-xs font-mono"
-                    placeholder="https://t.me/..."
-                    dir="ltr"
                   />
                 </div>
               </div>
@@ -3881,72 +4007,6 @@ export function Dashboard({
       )}
 
       {/* OWNER PRIVATE SETTINGS TAB */}
-      {activeTab === 'visitor-logs' && (
-        <div className="space-y-6 text-right font-sans mx-auto max-w-5xl">
-          <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-xs flex justify-between items-center">
-            <div>
-              <h2 className="text-lg font-black text-gray-900 border-b border-gray-100 py-3 flex items-center gap-2">
-                <Users className="h-5 w-5 text-rose-600" />
-                <span>سجل تفاصيل الزوار الحقيقيين</span>
-              </h2>
-              <p className="text-xxs text-gray-400 font-sans mt-2">تتبع فوري لمواقع وأجهزة الزوار الذين يتصفحون المتجر حالياً.</p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">الوقت والتاريخ</th>
-                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">الموقع الحغرافي</th>
-                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">عنوان IP</th>
-                    <th className="px-6 py-4 text-xxs font-black text-gray-400 uppercase">الجهاز</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {visitorLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-rose-50/30 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="text-xs font-bold text-gray-800">
-                          {new Date(log.timestamp).toLocaleString('ar-YE')}
-                        </div>
-                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">{log.timestamp}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3 w-3 text-rose-500" />
-                          <span className="text-xs font-bold text-gray-700">
-                            {log.city || 'غير معروف'}، {log.country || 'غير معروف'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-gray-600">
-                        {log.ip || '0.0.0.0'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {log.device === 'Mobile' ? <Smartphone className="h-3.5 w-3.5 text-gray-400" /> : <Monitor className="h-3.5 w-3.5 text-gray-400" />}
-                          <span className="text-xs font-bold text-gray-500">{log.device || 'Desktop'}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {visitorLogs.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
-                        <Users className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                        <p className="text-xs font-bold">لا توجد سجلات زوار مفصلة حالياً. جاري التتبع...</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
       {activeTab === 'settings' && (
         <motion.div 
           initial={{ opacity: 0, y: 15 }}
@@ -4042,6 +4102,44 @@ export function Dashboard({
               </div>
 
               <form onSubmit={handleSaveProduct} className="p-6 space-y-4 max-h-160 overflow-y-auto">
+                
+                {/* AI IMPORT ASSISTANT - The "SHEIN" Solution */}
+                {!editingProduct && (
+                  <div className="bg-gradient-to-br from-charcoal to-navy p-4 rounded-2xl border border-gold/30 space-y-3 mb-2 shadow-lg relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <Sparkles className="h-12 w-12 text-gold animate-pulse" />
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles className="h-4 w-4 text-gold" />
+                      <h4 className="text-[10px] font-black text-gold uppercase tracking-widest font-display">مساعد الإضافة الذكي (SHEIN Import)</h4>
+                    </div>
+                    <textarea 
+                      placeholder="انسخ اسم المنتج من شي إن أو الرابط أو المواصفات هنا... وسيقوم الذكاء الاصطناعي بتعبئة البيانات لك!"
+                      value={aiInput}
+                      onChange={(e) => setAiInput(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-[10px] text-gray-200 placeholder:text-gray-500 focus:border-gold focus:outline-hidden font-sans min-h-[60px] relative z-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAIImport}
+                      disabled={isParsingAI || !aiInput.trim()}
+                      className="w-full py-2.5 bg-gold hover:bg-gold-light text-navy font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 relative z-10"
+                    >
+                      {isParsingAI ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>جاري التحليل السحري...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-3 w-3" />
+                          <span>استخراج البيانات تلقائياً</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[8px] text-gray-400 text-center font-sans">سيتم تعبئة الاسم، السعر، الوصف، والترميز تلقائياً 🪄</p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">اسم المنتج الفخم *</label>
@@ -4070,6 +4168,22 @@ export function Dashboard({
 
                 <div className="grid grid-cols-1 gap-4">
                   <div>
+                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5 flex items-center justify-between">
+                      <span>رابط المنتج الأصلي (اختياري - شي إن)</span>
+                      <Globe className="h-3 w-3 text-gray-300" />
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://ar.shein.com/..."
+                      value={prodOriginalUrl || ''}
+                      onChange={(e) => setProdOriginalUrl(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-sans text-navy focus:outline-hidden focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
                     <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">الوصف والتفاصيل الكاملة *</label>
                     <textarea
                       required
@@ -4092,13 +4206,6 @@ export function Dashboard({
                         setProdCategory(newCat);
                         const subCats = categories.find(c => c.name === newCat)?.subcategories || [];
                         setProdSubCategory(subCats[0] || '');
-                        
-                        // Auto-template for sizes if it's currently empty or generic
-                        if (!prodSizesInput || prodSizesInput === 'S, M, L, XL') {
-                          if (newCat.includes('أحذية')) setProdSizesInput('38, 39, 40, 41, 42, 43');
-                          else if (newCat.includes('ملابس')) setProdSizesInput('S, M, L, XL');
-                          else if (newCat.includes('عطر') || newCat.includes('بخور')) setProdSizesInput('حبة, طقم');
-                        }
                       }}
                       className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-800 focus:outline-hidden font-sans"
                     >
@@ -4162,41 +4269,15 @@ export function Dashboard({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5 flex justify-between items-center">
-                      <span>المقاسات أو الخيارات (مفصولة بفواصل)</span>
-                      <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-1 rounded-lg border border-amber-100/50">قالب سريع</span>
-                    </label>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {[
-                        { label: '👕 ملابس', val: 'S, M, L, XL' },
-                        { label: '👟 أحذية', val: '38, 39, 40, 41, 42, 43' },
-                        { label: '👶 أطفال', val: '2Y, 4Y, 6Y, 8Y' },
-                        { label: '👜 حقائب', val: 'One Size' },
-                        { label: '📦 وحدات', val: 'درزن, نصف درزن, حبة, طقم' }
-                      ].map(tpl => (
-                        <button
-                          key={tpl.val}
-                          type="button"
-                          onClick={() => {
-                             setProdSizesInput(tpl.val);
-                             const newStock: Record<string, number> = {};
-                             tpl.val.split(/[,,،]/).map(s => s.trim()).filter(Boolean).forEach(s => newStock[s] = 10);
-                             setProdSizeStock(newStock);
-                          }}
-                          className="px-2.5 py-1.5 bg-gray-50 hover:bg-amber-100 border border-gray-100 rounded-xl text-[10px] font-black text-gray-600 transition-all cursor-pointer active:scale-95"
-                        >
-                          {tpl.label}
-                        </button>
-                      ))}
-                    </div>
+                    <label className="block text-xxs font-bold text-gray-400 uppercase font-sans mb-1.5">المقاسات المتاحة (مفصولة بفواصل)</label>
                     <input
                       type="text"
                       placeholder="مثال: S, M, L, XL أو 38, 40, 42"
                       value={prodSizesInput || ''}
                       onChange={(e) => setProdSizesInput(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 font-sans shadow-sm"
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-800 focus:outline-hidden focus:border-amber-500 font-sans"
                     />
                   </div>
                 </div>

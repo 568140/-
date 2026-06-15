@@ -98,11 +98,6 @@ service cloud.firestore {
         && isValStr(m.timestamp, 128);
     }
 
-    function isValidVisitorLog(l) {
-      return l.keys().hasAll(['timestamp', 'device'])
-        && isValStr(l.timestamp, 128);
-    }
-
     // Collection matches
     match /products/{productId} {
       allow read: if true;
@@ -166,13 +161,12 @@ service cloud.firestore {
 
     match /visitor_stats/{date} {
       allow read: if true;
-      allow write: if true;
+      allow create, update: if isValidId(date) && isValidVisitorStat(request.resource.data);
+      allow delete: if false;
     }
 
-    match /visitor_logs/{logId} {
-      allow read: if true;
-      allow create: if true;
-      allow update, delete: if false;
+    match /visitor_sessions/{sessionId} {
+      allow read, write: if true;
     }
   }
 }
